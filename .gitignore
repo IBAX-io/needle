@@ -1,0 +1,21 @@
+## Directory-based project format:
+.idea/
+## File-based project format:
+*.ipr
+*.iws
+
+*.exe
+*.test
+*.prof
+
+### OSX template
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+.vscode/
+.env
+go.work

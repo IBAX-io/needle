@@ -1,0 +1,11 @@
+
+contract ABC {
+
+
+    action{
+             var s int
+            s %= 3
+            Println(s)
+    }
+}
+ 
