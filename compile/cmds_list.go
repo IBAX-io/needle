@@ -63,6 +63,7 @@ const (
 	CmdSub                           // -
 	CmdMul                           // *
 	CmdDiv                           // /
+	CmdMod                           // %
 	CmdAnd                           // &&
 	CmdOr                            // ||
 	CmdEqual                         // ==
@@ -71,9 +72,8 @@ const (
 	CmdNotLess                       // >=
 	CmdGreat                         // >
 	CmdNotGreat                      // <=
-
-	CmdShiftL // <<
-	CmdShiftR // >>
+	CmdShiftL                        // <<
+	CmdShiftR                        // >>
 
 	CmdSys   CmdT = 0xff
 	CmdUnary CmdT = 50
@@ -120,4 +120,5 @@ var cmdName = map[CmdT]string{
 	CmdAssignMod:    `%=`,
 	CmdInc:          `++`,
 	CmdDec:          `--`,
+	CmdMod:          `%`,
 }

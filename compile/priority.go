@@ -28,5 +28,6 @@ var (
 		ModEq:  {Cmd: CmdAssignMod, Priority: 5},
 		Inc:    {Cmd: CmdInc, Priority: 5},
 		Dec:    {Cmd: CmdDec, Priority: 5},
+		MOD:    {Cmd: CmdMod, Priority: 30},
 	}
 )

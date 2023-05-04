@@ -52,7 +52,7 @@ var (
 		},
 		statePercent: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateMain, UNKNOWN, flagEnd},
+			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateString: {
 			"q": {stateMain, LITERAL, flagPop | flagNext},

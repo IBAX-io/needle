@@ -321,7 +321,7 @@ main:
 				break main
 			}
 		} else {
-			err = fmt.Errorf(`unknown command %d`, cmd.Cmd)
+			err = fmt.Errorf(`unknown command '%s'`, cmd.Cmd)
 		}
 		if err != nil {
 			break
