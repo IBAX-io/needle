@@ -65,6 +65,7 @@ const (
 	CmdDiv                           // /
 	CmdMod                           // %
 	CmdAnd                           // &&
+	CmdBitAnd
 	CmdOr                            // ||
 	CmdEqual                         // ==
 	CmdNotEq                         // !=
@@ -121,4 +122,5 @@ var cmdName = map[CmdT]string{
 	CmdInc:          `++`,
 	CmdDec:          `--`,
 	CmdMod:          `%`,
+	CmdBitAnd:          `&`,
 }

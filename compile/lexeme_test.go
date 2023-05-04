@@ -8,5 +8,5 @@ import (
 func TestNewLexeme(t *testing.T) {
 	lexer, err := NewLexer([]rune(`contract;action;var s string;s = "abc"`))
 	fmt.Println(lexer, err)
-	fmt.Println(13 % 3)
+	fmt.Println(132 & 233)
 }

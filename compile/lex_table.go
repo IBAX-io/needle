@@ -77,7 +77,7 @@ var (
 		},
 		stateAnd: {
 			"&": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateError, UNKNOWN, flagEnd},
+			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateOr: {
 			"|": {stateMain, OPERATOR, flagPop | flagNext},

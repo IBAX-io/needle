@@ -767,6 +767,26 @@ func init() {
 		}
 		return
 	}
+	instructionTable[compile.CmdBitAnd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		switch ctx.top[1].(type) {
+		case int64:
+			switch ctx.top[0].(type) {
+			case int64:
+				if ctx.tmpInt, err = ValueToInt(ctx.top[0]); err == nil {
+					ctx.bin = ctx.top[1].(int64) & ctx.tmpInt
+				}
+			default:
+				err = errUnsupportedType
+				ctx.isLoop = true
+				return
+			}
+		default:
+			err = errUnsupportedType
+			ctx.isLoop = true
+			return
+		}
+		return
+	}
 	instructionTable[compile.CmdAnd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		ctx.bin = valueToBool(ctx.top[1]) && valueToBool(ctx.top[0])
 		return
