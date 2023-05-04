@@ -225,7 +225,7 @@ main:
 								if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
 									objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
 									if objInfo != nil && (objInfo.Type == ObjectType_Func || objInfo.Type == ObjectType_ExtFunc) {
-										tail = newByteCode(uint16(CmdCall), lexeme, lexeme.Line, objInfo)
+										tail = newByteCode(CmdCall, lexeme, lexeme.Line, objInfo)
 									}
 								}
 								if tail == nil {
@@ -306,8 +306,7 @@ main:
 		case OPERATOR:
 			op, ok := operator[lexeme.Value.(Token)]
 			if !ok {
-				logger.WithFields(log.Fields{"lex_value": lexeme.Value, "type": ParseError}).Error("unknown operator")
-				return fmt.Errorf(`unknown operator %d`, lexeme.Value.(uint32))
+				return fmt.Errorf(`unknown operator %v`, lexeme.Value)
 			}
 			var prevType Token
 			if i > 0 {
@@ -317,10 +316,15 @@ main:
 				prevType != EXTEND && prevType != LITERAL && prevType != RBRACE &&
 				prevType != RBRACK && prevType != RPAREN)) {
 				op.Cmd = CmdSign
-				op.Priority = CmdUnary
-			} else if prevLex == OPERATOR && op.Priority != CmdUnary {
+				op.Priority = uint16(CmdUnary)
+			} else if prevLex == OPERATOR && op.Priority != uint16(CmdUnary) {
 				return errOper
 			}
+			if prevType == IDENTIFIER {
+				fmt.Println("op", lexeme)
+				//bytecode.push(s)
+			}
+			//buffer is stack
 			byteOper := newByteCode(op.Cmd, lexeme, lexeme.Line, op.Priority)
 			for {
 				if len(buffer) == 0 {
@@ -328,10 +332,10 @@ main:
 					break
 				}
 				prev := buffer[len(buffer)-1]
-				if prev.Value.(uint16) >= op.Priority && op.Priority != CmdUnary && prev.Cmd != CmdSys {
-					if prev.Value.(uint16) == CmdUnary { // Right to left
+				if prev.Value.(uint16) >= op.Priority && op.Priority != uint16(CmdUnary) && prev.Cmd != CmdSys {
+					if prev.Value.(uint16) == uint16(CmdUnary) { // Right to left
 						unar := len(buffer) - 1
-						for ; unar > 0 && buffer[unar-1].Value.(uint16) == CmdUnary; unar-- {
+						for ; unar > 0 && buffer[unar-1].Value.(uint16) == uint16(CmdUnary); unar-- {
 						}
 						bytecode = append(bytecode, buffer[unar:]...)
 						buffer = buffer[:unar]
@@ -398,7 +402,7 @@ main:
 						}
 						isContract = true
 					}
-					cmd := uint16(CmdCall)
+					cmd := CmdCall
 					if (objInfo.Type == ObjectType_ExtFunc && objInfo.GetExtFuncInfo().Variadic) ||
 						(objInfo.Type == ObjectType_Func && objInfo.GetCodeBlock().GetFuncInfo().Variadic) {
 						cmd = CmdCallVariadic

@@ -1,12 +1,12 @@
 package vm
 
 import (
-	compile2 "github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compile"
 )
 
 type evalCode struct {
 	Source string
-	Code   *compile2.CodeBlock
+	Code   *compile.CodeBlock
 }
 
 var (
@@ -27,7 +27,7 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 		}`
 	}
 
-	block, err := compile2.CompileBlock([]rune(source), &compile2.OwnerInfo{StateID: state})
+	block, err := compile.CompileBlock([]rune(source), &compile.OwnerInfo{StateID: state})
 	if err != nil {
 		return err
 	}

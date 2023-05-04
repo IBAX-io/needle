@@ -2,12 +2,11 @@ package vm
 
 import (
 	"fmt"
-	compile2 "github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compile"
+	"github.com/shopspring/decimal"
 	"reflect"
 	"strings"
 	"time"
-
-	"github.com/shopspring/decimal"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -84,7 +83,7 @@ type VMError struct {
 }
 
 type blockStack struct {
-	Block  *compile2.CodeBlock
+	Block  *compile.CodeBlock
 	Offset int
 }
 
@@ -144,7 +143,7 @@ func (rt *Runtime) Cost() int64 {
 }
 
 // Run executes CodeBlock with the extended variables and functions
-func (rt *Runtime) Run(block *compile2.CodeBlock, extend map[string]any) (ret []any, err error) {
+func (rt *Runtime) Run(block *compile.CodeBlock, extend map[string]any) (ret []any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			//rt.vm.logger.WithFields(log.Fields{"type": PanicRecoveredError, "error_info": r, "stack": string(debug.Stack())}).Error("runtime panic error")
@@ -189,8 +188,8 @@ func (rt *Runtime) Run(block *compile2.CodeBlock, extend map[string]any) (ret []
 }
 
 // RunCode executes CodeBlock
-func (rt *Runtime) RunCode(block *compile2.CodeBlock) (status int, err error) {
-	var cmd *compile2.ByteCode
+func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
+	var cmd *compile.ByteCode
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Errorf(`runtime run code crashed: %v`, r)
@@ -231,7 +230,7 @@ func (rt *Runtime) RunCode(block *compile2.CodeBlock) (status int, err error) {
 	}()
 	rt.blocks = append(rt.blocks, &blockStack{Block: block, Offset: len(rt.vars)})
 	var namemap map[string][]any
-	if block.Type == compile2.ObjectType_Func && block.GetFuncInfo().Names != nil {
+	if block.Type == compile.ObjectType_Func && block.GetFuncInfo().Names != nil {
 		if rt.peek() != nil {
 			namemap = rt.peek().(map[string][]any)
 		}
@@ -244,12 +243,12 @@ func (rt *Runtime) RunCode(block *compile2.CodeBlock) (status int, err error) {
 			break
 		}
 		var value any
-		if block.Type == compile2.ObjectType_Func && vkey < len(block.GetFuncInfo().Params) {
+		if block.Type == compile.ObjectType_Func && vkey < len(block.GetFuncInfo().Params) {
 			value = rt.stack[start-len(block.GetFuncInfo().Params)+vkey]
 		} else {
 			value = reflect.New(vpar).Elem().Interface()
-			if vpar == reflect.TypeOf(&compile2.Map{}) {
-				value = compile2.NewMap()
+			if vpar == reflect.TypeOf(&compile.Map{}) {
+				value = compile.NewMap()
 			} else if vpar == reflect.TypeOf([]any{}) {
 				value = make([]any, 0, len(rt.vars)+1)
 			}
@@ -272,25 +271,12 @@ func (rt *Runtime) RunCode(block *compile2.CodeBlock) (status int, err error) {
 			}
 		}
 	}
-	if block.Type == compile2.ObjectType_Func {
+	if block.Type == compile.ObjectType_Func {
 		start -= len(block.GetFuncInfo().Params)
 	}
-	var (
-		assign []*compile2.VarInfo
-		tmpInt int64
-		tmpDec decimal.Decimal
-	)
-	top := make([]any, 8)
-	labels := make([]int, 0)
-	ctx := &instructionCtx{
-		labels: labels,
-		top:    top,
-		assign: assign,
-		tmpDec: tmpDec,
-		tmpInt: tmpInt,
-	}
+	ctx := newInstructionCtx()
+	//fmt.Println(block.Code.String())
 main:
-	//for ci := 0; ci < len(block.Code); ci++ {
 	for ctx.ci = 0; ctx.ci < len(block.Code); ctx.ci++ {
 		if err = rt.SubCost(1); err != nil {
 			break
@@ -305,17 +291,21 @@ main:
 			break
 		}
 
-		//todo new
 		cmd = block.Code[ctx.ci]
 		ctx.size = rt.len()
 		ctx.isContinue = false
 		ctx.isBreak = false
 		ctx.isLoop = false
+		ctx.top = make([]any, 8)
+		ctx.tmpInt = 0
+		ctx.tmpDec = decimal.Zero
+
 		if ctx.size < int(cmd.Cmd>>8) {
 			err = fmt.Errorf(`stack is empty`)
 			break
 		}
 		for i := 1; i <= int(cmd.Cmd>>8); i++ {
+			ctx.pushOperands(i-1, rt.stack[ctx.size-i])
 			ctx.top[i-1] = rt.stack[ctx.size-i]
 		}
 		instruction, ok := instructionTable[cmd.Cmd]
@@ -333,34 +323,24 @@ main:
 		} else {
 			err = fmt.Errorf(`unknown command %d`, cmd.Cmd)
 		}
-		//todo end
-
-		//todo add old there
-
 		if err != nil {
 			break
 		}
 		if status == statusReturn || status == statusContinue || status == statusBreak {
 			break
 		}
-		//todo new
+
 		if (cmd.Cmd >> 8) == 2 {
 			rt.stack[ctx.size-2] = ctx.bin
 			rt.resetByIdx(ctx.size - 1)
 		}
-		//todo end
-
-		//if (cmd.Cmd >> 8) == 2 {
-		//	rt.stack[size-2] = bin
-		//	rt.resetByIdx(size - 1)
-		//}
 	}
 	if err != nil {
 		return
 	}
 	last := rt.popBlock()
 	if status == statusReturn {
-		if last.Block.Type == compile2.ObjectType_Func {
+		if last.Block.Type == compile.ObjectType_Func {
 			lastResults := last.Block.GetFuncInfo().Results
 			if len(lastResults) > rt.len() {
 				var keyNames []string
@@ -393,7 +373,7 @@ main:
 	return
 }
 
-func (rt *Runtime) callFunc(cmd uint16, obj *compile2.ObjInfo) (err error) {
+func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) {
 	var (
 		count, in int
 	)
@@ -408,7 +388,7 @@ func (rt *Runtime) callFunc(cmd uint16, obj *compile2.ObjInfo) (err error) {
 
 	size := rt.len()
 	in = obj.GetParamsLen()
-	if rt.unwrap && cmd == compile2.CmdCallVariadic && size > 1 &&
+	if rt.unwrap && cmd == compile.CmdCallVariadic && size > 1 &&
 		reflect.TypeOf(rt.stack[size-2]).String() == `[]interface {}` {
 		count = rt.getStack(size - 1).(int)
 		arr := rt.getStack(size - 2).([]any)
@@ -420,13 +400,13 @@ func (rt *Runtime) callFunc(cmd uint16, obj *compile2.ObjInfo) (err error) {
 		size = rt.len()
 	}
 	rt.unwrap = false
-	if cmd == compile2.CmdCallVariadic {
+	if cmd == compile.CmdCallVariadic {
 		count = rt.getStack(size - 1).(int)
 		size--
 	} else {
 		count = in
 	}
-	if obj.Type == compile2.ObjectType_Func {
+	if obj.Type == compile.ObjectType_Func {
 		var imap map[string][]any
 		finfo := obj.GetCodeBlock().GetFuncInfo()
 		if finfo.Names != nil {
@@ -436,7 +416,7 @@ func (rt *Runtime) callFunc(cmd uint16, obj *compile2.ObjInfo) (err error) {
 			rt.resetByIdx(size - 1)
 			size = rt.len()
 		}
-		if cmd == compile2.CmdCallVariadic {
+		if cmd == compile.CmdCallVariadic {
 			parcount := count + 1 - in
 			if parcount < 0 {
 				log.WithFields(log.Fields{"type": VMErr}).Error(errWrongCountPars)
@@ -621,18 +601,18 @@ func (rt *Runtime) recalculateMemVar(k int) {
 	rt.memVars[k] = mem
 }
 
-func (rt *Runtime) getResultValue(item compile2.MapItem) (value any, err error) {
+func (rt *Runtime) getResultValue(item compile.MapItem) (value any, err error) {
 	switch item.Type {
-	case compile2.MapConst:
+	case compile.MapConst:
 		value = item.Value
-	case compile2.MapExtend:
+	case compile.MapExtend:
 		var ok bool
 		value, ok = rt.extend[item.Value.(string)]
 		if !ok {
 			err = fmt.Errorf(`unknown extend identifier %s`, item.Value)
 		}
-	case compile2.MapVar:
-		ivar := item.Value.(*compile2.VarInfo)
+	case compile.MapVar:
+		ivar := item.Value.(*compile.VarInfo)
 		var i int
 		for i = len(rt.blocks) - 1; i >= 0; i-- {
 			if ivar.Owner == rt.blocks[i].Block {
@@ -643,15 +623,15 @@ func (rt *Runtime) getResultValue(item compile2.MapItem) (value any, err error) 
 		if i < 0 {
 			err = fmt.Errorf(eWrongVar, ivar.Obj.Value)
 		}
-	case compile2.MapMap:
-		value, err = rt.getResultMap(item.Value.(*compile2.Map))
-	case compile2.MapArray:
-		value, err = rt.getResultArray(item.Value.([]compile2.MapItem))
+	case compile.MapMap:
+		value, err = rt.getResultMap(item.Value.(*compile.Map))
+	case compile.MapArray:
+		value, err = rt.getResultArray(item.Value.([]compile.MapItem))
 	}
 	return
 }
 
-func (rt *Runtime) getResultArray(cmd []compile2.MapItem) ([]any, error) {
+func (rt *Runtime) getResultArray(cmd []compile.MapItem) ([]any, error) {
 	initArr := make([]any, 0)
 	for _, val := range cmd {
 		value, err := rt.getResultValue(val)
@@ -663,11 +643,11 @@ func (rt *Runtime) getResultArray(cmd []compile2.MapItem) ([]any, error) {
 	return initArr, nil
 }
 
-func (rt *Runtime) getResultMap(cmd *compile2.Map) (*compile2.Map, error) {
-	initMap := compile2.NewMap()
+func (rt *Runtime) getResultMap(cmd *compile.Map) (*compile.Map, error) {
+	initMap := compile.NewMap()
 	for _, key := range cmd.Keys() {
 		val, _ := cmd.Get(key)
-		value, err := rt.getResultValue(val.(compile2.MapItem))
+		value, err := rt.getResultValue(val.(compile.MapItem))
 		if err != nil {
 			return nil, err
 		}

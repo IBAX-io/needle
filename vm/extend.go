@@ -2,7 +2,7 @@ package vm
 
 import (
 	"fmt"
-	compile2 "github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compile"
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
@@ -129,8 +129,8 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	prevparent := rt.extend[Extend_parent]
 	parent := ``
 	for i := len(rt.blocks) - 1; i >= 0; i-- {
-		if rt.blocks[i].Block.Type == compile2.ObjectType_Func && rt.blocks[i].Block.Parent != nil &&
-			rt.blocks[i].Block.Parent.Type == compile2.ObjectType_Contract {
+		if rt.blocks[i].Block.Type == compile.ObjectType_Func && rt.blocks[i].Block.Parent != nil &&
+			rt.blocks[i].Block.Parent.Type == compile.ObjectType_Contract {
 			parent = rt.blocks[i].Block.Parent.GetContractInfo().Name
 			fid, fname := ParseName(parent)
 			cid, _ := ParseName(name)
@@ -160,7 +160,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	}
 
 	for _, method := range []string{`conditions`, `action`} {
-		if block, ok := (*cblock).Objects[method]; ok && block.Type == compile2.ObjectType_Func {
+		if block, ok := (*cblock).Objects[method]; ok && block.Type == compile.ObjectType_Func {
 			rtemp := NewRuntime(rt.vm, rt.cost)
 			rt.extend[Extend_parent] = parent
 			_, err = rtemp.Run(block.GetCodeBlock(), rt.extend)
@@ -194,7 +194,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 }
 
 // CallContract executes the name contract in the state with specified parameters
-func CallContract(rt *Runtime, state uint32, name string, params *compile2.Map) (any, error) {
+func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (any, error) {
 	name = StateName(state, name)
 	contract, ok := rt.vm.Objects[name]
 	if !ok {
@@ -202,7 +202,7 @@ func CallContract(rt *Runtime, state uint32, name string, params *compile2.Map) 
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
 	if params == nil {
-		params = compile2.NewMap()
+		params = compile.NewMap()
 	}
 	logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
 	names := make([]string, 0)

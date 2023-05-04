@@ -1,11 +1,13 @@
-
 contract ABC {
-
-
     action{
-             var s int
-            s %= 3
-            Println(s)
+            var se m int ,PP float
+             PP = 13.3
+            se, m = 39,59
+            se = 29
+            se = 19
+             //PP %= -4+5+7
+             PP %= 11
+            Println(PP)
     }
 }
  

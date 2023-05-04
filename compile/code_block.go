@@ -51,7 +51,7 @@ func (bc *CodeBlock) resolve(name string) (*CodeBlock, bool) {
 
 // ByteCode stores a command and an additional parameter.
 type ByteCode struct {
-	Cmd    uint16
+	Cmd    CmdT
 	Lexeme *Lexeme
 	Line   int
 	//FuncNameCmd
@@ -71,7 +71,7 @@ type ByteCode struct {
 	Value any
 }
 
-func newByteCode(cmd uint16, Lexeme *Lexeme, line int, value any) *ByteCode {
+func newByteCode(cmd CmdT, Lexeme *Lexeme, line int, value any) *ByteCode {
 	return &ByteCode{Cmd: cmd, Lexeme: Lexeme, Line: line, Value: value}
 }
 
@@ -172,8 +172,6 @@ func (bc *CodeBlock) GetObjByName(name string) (ret *ObjInfo) {
 	}
 	return
 }
-
-
 
 func (bc *CodeBlock) IsParentContract() bool {
 	if bc.Parent != nil && bc.Parent.Type == ObjectType_Contract {

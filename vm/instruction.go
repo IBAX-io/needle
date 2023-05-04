@@ -11,21 +11,40 @@ import (
 
 type instruction func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error)
 
-var instructionTable = make(map[uint16]instruction)
+var instructionTable = make(map[compile.CmdT]instruction)
 
 type instructionCtx struct {
-	labels []int
-	ci     int
-	assign []*compile.VarInfo
-	tmpInt int64
-	tmpDec decimal.Decimal
-	top    []any
-
+	labels     []int
+	ci         int
+	assignVar  []*compile.VarInfo
+	tmpInt     int64
+	tmpDec     decimal.Decimal
+	top        []any
+	operands   []any
+	sp         int // stack position of operands
 	isContinue bool
 	isBreak    bool
 	isLoop     bool
 	size       int
 	bin        any
+}
+
+func newInstructionCtx() *instructionCtx {
+	return &instructionCtx{
+		labels:    make([]int, 0),
+		assignVar: make([]*compile.VarInfo, 0),
+		//top:       make([]any, 8),
+		operands: make([]any, 8),
+		//sp:        -1,
+		//tmpDec:    decimal.Zero,
+		//tmpInt:    int64(0),
+	}
+}
+
+func (ctx *instructionCtx) pushOperands(i int, v any) {
+	ctx.sp = i
+	ctx.operands[ctx.sp] = v
+	//ctx.operands = append(ctx.operands, v)
 }
 
 func init() {
@@ -48,7 +67,7 @@ func init() {
 		}
 		return
 	}
-	for i := uint16(compile.CmdExtend); i <= compile.CmdCallExtend; i++ {
+	for i := compile.CmdExtend; i <= compile.CmdCallExtend; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			if err = rt.SubCost(CostExtend); err != nil {
 				return
@@ -78,7 +97,7 @@ func init() {
 		rt.push(code.Value.(string))
 		return
 	}
-	for i := uint16(compile.CmdCall); i <= compile.CmdCallVariadic; i++ {
+	for i := compile.CmdCall; i <= compile.CmdCallVariadic; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			var cost = int64(CostCall)
 			if code.Value.(*compile.ObjInfo).Type == compile.ObjectType_ExtFunc {
@@ -115,12 +134,13 @@ func init() {
 	}
 
 	instructionTable[compile.CmdAssignVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ctx.assign = code.Value.([]*compile.VarInfo)
+		ctx.assignVar = code.Value.([]*compile.VarInfo)
 		return
 	}
+
 	instructionTable[compile.CmdAssign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		count := len(ctx.assign)
-		for ivar, item := range ctx.assign {
+		count := len(ctx.assignVar)
+		for ivar, item := range ctx.assignVar {
 			val := rt.stack[rt.len()-count+ivar]
 			if item.Owner == nil {
 				if item.Obj.Type == compile.ObjectType_ExtVar {
@@ -372,10 +392,100 @@ func init() {
 		switch ctx.top[0].(type) {
 		case float64:
 			rt.stack[ctx.size-1] = -ctx.top[0].(float64)
-		default:
+		case int64:
 			rt.stack[ctx.size-1] = -ctx.top[0].(int64)
+		default:
+			err = errUnsupportedType
+			ctx.isLoop = true
+			return
 		}
 		return
+	}
+
+	instructionTable[compile.CmdAssignMod] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		if len(ctx.assignVar) > 1 {
+			ctx.isLoop = true
+			err = fmt.Errorf("mod assign not support")
+			return
+		}
+		y := ctx.top[0]
+		item := ctx.assignVar[0]
+		if item.Owner == nil {
+			if item.Obj.Type == compile.ObjectType_ExtVar {
+				var n = item.Obj.GetExtendVariable().Name
+				if rt.limitName(n) {
+					err = fmt.Errorf(eSysVar, n)
+					ctx.isLoop = true
+					return
+				}
+				x, ok := rt.extend[n]
+				xt := reflect.TypeOf(x)
+				yt := reflect.TypeOf(y)
+				if ok && x != nil && xt != yt {
+					err = fmt.Errorf("$%s (type %s) cannot be represented by the type %s", n, yt, xt)
+					return
+				}
+				var ret any
+				ret, err = evaluateCmd(x, y, compile.CmdAssignMod.String())
+				if err != nil {
+					ctx.isLoop = true
+					return
+				}
+				rt.setExtendVar(n, ret)
+				rt.stack[ctx.size-1] = ret
+			}
+			return
+		}
+		for i := len(rt.blocks) - 1; i >= 0; i-- {
+			if item.Owner == rt.blocks[i].Block {
+				k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
+				switch v := rt.blocks[i].Block.Vars[item.Obj.GetVariable().Index]; v.String() {
+				case Decimal:
+					var yD decimal.Decimal
+					yD, err = ValueToDecimal(y)
+					if err != nil {
+						ctx.isLoop = true
+						return
+					}
+					if yD.IsZero() {
+						err = errDivZero
+						ctx.isLoop = true
+						return
+					}
+					x := rt.vars[k]
+					ret := x.(decimal.Decimal).Mod(yD)
+					rt.setVar(k, ret)
+					rt.stack[ctx.size-1] = ret
+				default:
+					if y != nil && v != reflect.TypeOf(y) {
+						err = fmt.Errorf("variable '%v' (type %s) cannot be represented by the type %s", item.Obj.GetVariable().Name, reflect.TypeOf(y), v)
+						break
+					}
+					switch y.(type) {
+					case int64:
+						if y.(int64) == 0 {
+							err = errDivZero
+							ctx.isLoop = true
+							return
+						}
+						ret := rt.vars[k].(int64) % y.(int64)
+						rt.setVar(k, ret)
+						rt.stack[ctx.size-1] = ret
+					default:
+						ctx.isLoop = true
+						err = fmt.Errorf(`invalid operation: the operator %s is not defined on %s`, compile.CmdAssignMod, v)
+						return
+					}
+				}
+				break
+			}
+		}
+		return
+	}
+	for i := compile.CmdInc; i <= compile.CmdDec; i++ {
+		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+			return
+		}
 	}
 	instructionTable[compile.CmdAdd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		switch ctx.top[1].(type) {
@@ -615,7 +725,7 @@ func init() {
 
 		return
 	}
-	for i := uint16(compile.CmdEqual); i <= compile.CmdNotEq; i++ {
+	for i := compile.CmdEqual; i <= compile.CmdNotEq; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			if ctx.top[1] == nil || ctx.top[0] == nil {
 				ctx.bin = ctx.top[0] == ctx.top[1]
@@ -676,7 +786,7 @@ func init() {
 			return
 		}
 	}
-	for i := uint16(compile.CmdLess); i <= compile.CmdNotLess; i++ {
+	for i := compile.CmdLess; i <= compile.CmdNotLess; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			switch ctx.top[1].(type) {
 			case string:
@@ -724,7 +834,7 @@ func init() {
 			return
 		}
 	}
-	for i := uint16(compile.CmdGreat); i <= compile.CmdNotGreat; i++ {
+	for i := compile.CmdGreat; i <= compile.CmdNotGreat; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			switch ctx.top[1].(type) {
 			case string:

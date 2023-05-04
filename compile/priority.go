@@ -2,7 +2,7 @@ package compile
 
 // opPriority contains command and its priority
 type opPriority struct {
-	Cmd      uint16 // identifier of the command
+	Cmd      CmdT   // identifier of the command
 	Priority uint16 // priority of the command
 }
 
@@ -21,9 +21,12 @@ var (
 		Sub:    {Cmd: CmdSub, Priority: 25},
 		Mul:    {Cmd: CmdMul, Priority: 30},
 		Quo:    {Cmd: CmdDiv, Priority: 30},
-		Neg:    {Cmd: CmdSign, Priority: CmdUnary},
-		Not:    {Cmd: CmdNot, Priority: CmdUnary},
+		Neg:    {Cmd: CmdSign, Priority: uint16(CmdUnary)},
+		Not:    {Cmd: CmdNot, Priority: uint16(CmdUnary)},
 		LPAREN: {Cmd: CmdSys, Priority: 0xff},
 		RPAREN: {Cmd: CmdSys, Priority: 0},
+		ModEq:  {Cmd: CmdAssignMod, Priority: 5},
+		Inc:    {Cmd: CmdInc, Priority: 5},
+		Dec:    {Cmd: CmdDec, Priority: 5},
 	}
 )

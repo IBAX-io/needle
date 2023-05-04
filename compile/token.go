@@ -215,6 +215,8 @@ var tokenToString = [...]string{
 	Or:     `||`,
 
 	ModEq: `%=`,
+	Inc:   `++`,
+	Dec:   `--`,
 }
 
 // Lookup maps an identifier to its keyword token

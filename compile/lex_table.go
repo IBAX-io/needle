@@ -48,6 +48,11 @@ var (
 			"@$":        {stateMustIdent, UNKNOWN, flagPush | flagNext},
 			".":         {stateDot, UNKNOWN, flagPush | flagNext},
 			"d":         {stateError, UNKNOWN, flagEnd},
+			"%":         {statePercent, UNKNOWN, flagPush | flagNext},
+		},
+		statePercent: {
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
+			"d": {stateMain, UNKNOWN, flagEnd},
 		},
 		stateString: {
 			"q": {stateMain, LITERAL, flagPop | flagNext},
@@ -138,6 +143,7 @@ const (
 	stateComment
 	stateComStop
 	stateComLine
+	statePercent
 )
 
 func init() {

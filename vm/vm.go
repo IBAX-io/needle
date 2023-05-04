@@ -2,7 +2,7 @@ package vm
 
 import (
 	"fmt"
-	compile2 "github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compile"
 	"regexp"
 	"strings"
 	"sync"
@@ -34,7 +34,7 @@ const (
 
 // VM is the main type of the virtual machine
 type VM struct {
-	*compile2.CodeBlock
+	*compile.CodeBlock
 	ExtCost       func(string) int64
 	FuncCallsDB   map[string]struct{}
 	Extern        bool  // extern mode of compilation
@@ -51,7 +51,7 @@ type Stacker interface {
 // NewVM creates a new virtual machine
 func NewVM() *VM {
 	vm := &VM{
-		CodeBlock:   compile2.NewCodeBlock(nil),
+		CodeBlock:   compile.NewCodeBlock(nil),
 		Extern:      true,
 		FuncCallsDB: make(map[string]struct{}),
 	}
@@ -66,11 +66,11 @@ func GetVM() *VM {
 	return _vm.smartVM
 }
 
-var smartObjects map[string]*compile2.ObjInfo
+var smartObjects map[string]*compile.ObjInfo
 var children uint32
 
 func SavepointSmartVMObjects() {
-	smartObjects = make(map[string]*compile2.ObjInfo)
+	smartObjects = make(map[string]*compile.ObjInfo)
 	for k, v := range GetVM().Objects {
 		smartObjects[k] = v
 	}
@@ -84,15 +84,15 @@ func (vm *VM) Call(name string, params []any, extend map[string]any) (ret []any,
 		return nil, fmt.Errorf(`object %s is empty`, name)
 	}
 	switch obj.Type {
-	case compile2.ObjectType_Contract:
+	case compile.ObjectType_Contract:
 		rt := NewRuntime(vm, extend[Extend_txcost].(int64))
 		ret, err = rt.Run(obj.GetCodeBlock().GetObjByName("action").GetCodeBlock(), extend)
 		extend[Extend_txcost] = rt.Cost()
-	case compile2.ObjectType_Func:
+	case compile.ObjectType_Func:
 		rt := NewRuntime(vm, extend[Extend_txcost].(int64))
 		ret, err = rt.Run(obj.GetCodeBlock(), extend)
 		extend[Extend_txcost] = rt.Cost()
-	case compile2.ObjectType_ExtFunc:
+	case compile.ObjectType_ExtFunc:
 		ret = obj.GetExtFuncInfo().Call(params)
 	default:
 		return nil, fmt.Errorf(`unknown object %s for call`, name)
@@ -101,7 +101,7 @@ func (vm *VM) Call(name string, params []any, extend map[string]any) (ret []any,
 }
 
 func RollbackSmartVMObjects() {
-	GetVM().Objects = make(map[string]*compile2.ObjInfo)
+	GetVM().Objects = make(map[string]*compile.ObjInfo)
 	for k, v := range smartObjects {
 		GetVM().Objects[k] = v
 	}
@@ -159,7 +159,7 @@ func getContractList(src string) (list []string) {
 	return
 }
 
-func VMGetContractByID(vm *VM, id int32) *compile2.ContractInfo {
+func VMGetContractByID(vm *VM, id int32) *compile.ContractInfo {
 	var tableID int64
 	if id > ShiftContractID {
 		tableID = int64(id - ShiftContractID)
@@ -169,7 +169,7 @@ func VMGetContractByID(vm *VM, id int32) *compile2.ContractInfo {
 	if len(vm.Children) <= int(idcont) {
 		return nil
 	}
-	if vm.Children[idcont] == nil || vm.Children[idcont].Type != compile2.ObjectType_Contract {
+	if vm.Children[idcont] == nil || vm.Children[idcont].Type != compile.ObjectType_Contract {
 		return nil
 	}
 	if tableID > 0 && vm.Children[idcont].GetContractInfo().Owner.TableID != tableID {
@@ -192,7 +192,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		return fmt.Errorf(`unknown object '%s'`, name)
 	}
 
-	if obj.Type != compile2.ObjectType_Contract {
+	if obj.Type != compile.ObjectType_Contract {
 		return fmt.Errorf(eUnknownContract, name)
 	}
 	contract := obj.GetCodeBlock()
@@ -206,7 +206,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		if !ok {
 			continue
 		}
-		if obj.Type == compile2.ObjectType_Func {
+		if obj.Type == compile.ObjectType_Func {
 			fn := obj.GetCodeBlock()
 			_, err := VMRun(vm, fn, extend)
 			if err != nil {
@@ -218,7 +218,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 }
 
 // VMRun executes CodeBlock in vm
-func VMRun(vm *VM, block *compile2.CodeBlock, extend map[string]any) (ret []any, err error) {
+func VMRun(vm *VM, block *compile.CodeBlock, extend map[string]any) (ret []any, err error) {
 	if block == nil {
 		return nil, fmt.Errorf(`code block is nil`)
 	}
@@ -259,8 +259,8 @@ func (vm *VM) FlushExtern() {
 }
 
 // Compile compiles a source code and loads the byte-code into the virtual machine,
-func (vm *VM) Compile(input []rune, owner *compile2.OwnerInfo) error {
-	root, err := compile2.CompileBlock(input, owner)
+func (vm *VM) Compile(input []rune, owner *compile.OwnerInfo) error {
+	root, err := compile.CompileBlock(input, owner)
 	if err != nil {
 		return err
 	}
@@ -269,15 +269,15 @@ func (vm *VM) Compile(input []rune, owner *compile2.OwnerInfo) error {
 }
 
 // FlushBlock loads the compiled CodeBlock into the virtual machine
-func (vm *VM) FlushBlock(root *compile2.CodeBlock) {
+func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 	shift := len(vm.Children)
 	for key, item := range root.Objects {
 		if cur, ok := vm.Objects[key]; ok {
 			switch item.Type {
-			case compile2.ObjectType_Contract:
-				root.Objects[key].GetCodeBlock().GetContractInfo().ID = cur.GetCodeBlock().GetContractInfo().ID + compile2.FlushMark
-			case compile2.ObjectType_Func:
-				root.Objects[key].GetCodeBlock().GetFuncInfo().ID = cur.GetCodeBlock().GetFuncInfo().ID + compile2.FlushMark
+			case compile.ObjectType_Contract:
+				root.Objects[key].GetCodeBlock().GetContractInfo().ID = cur.GetCodeBlock().GetContractInfo().ID + compile.FlushMark
+			case compile.ObjectType_Func:
+				root.Objects[key].GetCodeBlock().GetFuncInfo().ID = cur.GetCodeBlock().GetFuncInfo().ID + compile.FlushMark
 				vm.Objects[key].Value = root.Objects[key].Value
 			}
 		}
@@ -288,18 +288,18 @@ func (vm *VM) FlushBlock(root *compile2.CodeBlock) {
 			continue
 		}
 		switch item.Type {
-		case compile2.ObjectType_Contract:
-			if item.GetContractInfo().ID > compile2.FlushMark {
-				item.GetContractInfo().ID -= compile2.FlushMark
+		case compile.ObjectType_Contract:
+			if item.GetContractInfo().ID > compile.FlushMark {
+				item.GetContractInfo().ID -= compile.FlushMark
 				vm.Children[item.GetContractInfo().ID] = item
 				shift--
 				continue
 			}
 			item.Parent = vm.CodeBlock
 			item.GetContractInfo().ID += uint32(shift)
-		case compile2.ObjectType_Func:
-			if item.GetFuncInfo().ID > compile2.FlushMark {
-				item.GetFuncInfo().ID -= compile2.FlushMark
+		case compile.ObjectType_Func:
+			if item.GetFuncInfo().ID > compile.FlushMark {
+				item.GetFuncInfo().ID -= compile.FlushMark
 				vm.Children[item.GetFuncInfo().ID] = item
 				shift--
 				continue
@@ -400,5 +400,5 @@ func CurrentKeyFromAccount(account string) int {
         return 0
 }
 `
-	return vm.Compile([]rune(code), &compile2.OwnerInfo{StateID: uint32(state)})
+	return vm.Compile([]rune(code), &compile.OwnerInfo{StateID: uint32(state)})
 }
