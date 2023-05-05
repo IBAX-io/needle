@@ -953,4 +953,29 @@ func init() {
 			return
 		}
 	}
+	for i := compile.CmdShiftL; i <= compile.CmdShiftR; i++ {
+		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+			if reflect.TypeOf(ctx.top[0]).Kind() != reflect.Int64 {
+				err = fmt.Errorf("the shift count type untyped %T, must be an integer", ctx.top[0])
+				ctx.isLoop = true
+				return
+			}
+			if reflect.TypeOf(ctx.top[1]).Kind() != reflect.Int64 {
+				err = fmt.Errorf(`the operator %s is not defined on %T`, code.Cmd, ctx.top[1])
+				ctx.isLoop = true
+				return
+			}
+			if ctx.top[0].(int64) < 0 {
+				err = errShiftNegative
+				ctx.isLoop = true
+				return
+			}
+			if code.Cmd == compile.CmdShiftL {
+				ctx.bin = ctx.top[1].(int64) << ctx.top[0].(int64)
+				return
+			}
+			ctx.bin = ctx.top[1].(int64) >> ctx.top[0].(int64)
+			return
+		}
+	}
 }

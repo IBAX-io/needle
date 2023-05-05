@@ -25,6 +25,14 @@ func TestVM_Compile(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{"case1", args{[]rune(string(file)), &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}}, assert.NoError},
+		{"case2", args{[]rune(string(`
+contract ABC {
+    action{
+		$shift =2<<8
+		Println($shift)
+    }
+}
+`)), &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}}, assert.NoError},
 	}
 	limit := int64(100000)
 	extend := map[string]any{

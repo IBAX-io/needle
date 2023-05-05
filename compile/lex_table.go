@@ -41,7 +41,9 @@ var (
 			"|":         {stateOr, UNKNOWN, flagPush | flagNext},
 			"=":         {stateEq, UNKNOWN, flagPush | flagNext},
 			"/":         {stateSolidus, UNKNOWN, flagPush | flagNext},
-			"<>!":       {stateOpNeq, UNKNOWN, flagPush | flagNext},
+			"!":         {stateOpNeq, UNKNOWN, flagPush | flagNext},
+			"<":         {stateLess, UNKNOWN, flagPush | flagNext},
+			">":         {stateGreat, UNKNOWN, flagPush | flagNext},
 			"*+-":       {stateMain, OPERATOR, flagNext},
 			"01":        {stateNumber, UNKNOWN, flagPush | flagNext},
 			"a_r":       {stateIdentifier, UNKNOWN, flagPush | flagNext},
@@ -96,6 +98,16 @@ var (
 			"=": {stateNumber, OPERATOR, flagPop | flagNext},
 			"d": {stateMain, OPERATOR, flagPop},
 		},
+		stateLess: {
+			"=": {stateNumber, OPERATOR, flagPop | flagNext},
+			"<": {stateMain, OPERATOR, flagPop | flagNext},
+			"d": {stateMain, UNKNOWN, flagPop},
+		},
+		stateGreat: {
+			"=": {stateNumber, OPERATOR, flagPop | flagNext},
+			">": {stateMain, OPERATOR, flagPop | flagNext},
+			"d": {stateMain, UNKNOWN, flagPop},
+		},
 		stateNumber: {
 			"01.": {stateNumber, UNKNOWN, flagNext},
 			"a_r": {stateError, UNKNOWN, flagEnd},
@@ -144,6 +156,8 @@ const (
 	stateComStop
 	stateComLine
 	statePercent
+	stateLess
+	stateGreat
 )
 
 func init() {

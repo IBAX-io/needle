@@ -320,10 +320,6 @@ main:
 			} else if prevLex == OPERATOR && op.Priority != uint16(CmdUnary) {
 				return errOper
 			}
-			if prevType == IDENTIFIER {
-				fmt.Println("op", lexeme)
-				//bytecode.push(s)
-			}
 			//buffer is stack
 			byteOper := newByteCode(op.Cmd, lexeme, lexeme.Line, op.Priority)
 			for {
@@ -456,7 +452,7 @@ main:
 				cmd = newByteCode(CmdVar, lexeme, lexeme.Line, &VarInfo{Obj: objInfo, Owner: tobj})
 			}
 		default:
-			fmt.Println("other-", lexeme.Type, lexeme.Value)
+			//fmt.Println("other-", lexeme.Type, lexeme.Value)
 		}
 		if lexeme.Type != NEWLINE {
 			prevLex = lexeme.Type

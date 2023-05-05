@@ -39,6 +39,7 @@ var (
 	errContractPars       = errors.New(`wrong contract parameters`)
 	errWrongCountPars     = errors.New(`wrong count of parameters`)
 	errDivZero            = errors.New(`divided by zero`)
+	errShiftNegative      = errors.New(`a negative shift count`)
 	errUnsupportedType    = errors.New(`unsupported combination of types in the operator`)
 	errMaxArrayIndex      = errors.New(`the index is out of range`)
 	errMaxMapCount        = errors.New(`the maxumim length of map`)

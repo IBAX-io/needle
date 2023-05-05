@@ -1,12 +1,13 @@
 contract ABC {
     action{
-            var se m int
-            se, m = 39,59
-            se = 29
-            se = 19
-            $PP = 11
+             $PP = 11
             $PP %= 234 & 23 % 33
             Println($PP)
+
+            //$shift = 13<<4
+           // Println($shift)
+            //$shift = 13>>2
+            //Println($shift)
     }
 }
  

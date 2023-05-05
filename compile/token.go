@@ -214,9 +214,11 @@ var tokenToString = [...]string{
 	GrEq:   `>=`,
 	Or:     `||`,
 
-	ModEq: `%=`,
-	Inc:   `++`,
-	Dec:   `--`,
+	ModEq:  `%=`,
+	Inc:    `++`,
+	Dec:    `--`,
+	LSHIFT: `<<`,
+	RSHIFT: `>>`,
 }
 
 // Lookup maps an identifier to its keyword token
