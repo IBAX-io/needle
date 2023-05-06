@@ -14,25 +14,22 @@ import (
 )
 
 func TestVM_Compile(t *testing.T) {
-	type args struct {
-		input []rune
-		owner *compile.OwnerInfo
-	}
 	file, _ := os.ReadFile("../examples/scope.sim")
 	tests := []struct {
 		name    string
-		args    args
+		args    []rune
 		wantErr assert.ErrorAssertionFunc
 	}{
-		{"case1", args{[]rune(string(file)), &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}}, assert.NoError},
-		{"case2", args{[]rune(string(`
+		{"case1", []rune(string(file)), assert.NoError},
+		{"case2", []rune(string(`
 contract ABC {
     action{
-		$shift =2<<8
+		$shift = 512
+		$shift >> = 8
 		Println($shift)
     }
 }
-`)), &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}}, assert.NoError},
+`)), assert.NoError},
 	}
 	limit := int64(100000)
 	extend := map[string]any{
@@ -47,7 +44,7 @@ contract ABC {
 			vm.Objects = compile.NewExtendData(
 				obj, map[string]string{}, writeFuncs,
 			).MakeObj()
-			tt.wantErr(t, vm.Compile(tt.args.input, tt.args.owner))
+			tt.wantErr(t, vm.Compile(tt.args, &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}))
 			//func
 			//t.Error(vm.Call("adv", nil, extend))
 			//Extend func

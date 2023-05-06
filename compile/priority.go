@@ -21,7 +21,6 @@ var (
 		Sub:    {Cmd: CmdSub, Priority: 25},
 		Mul:    {Cmd: CmdMul, Priority: 30},
 		Quo:    {Cmd: CmdDiv, Priority: 30},
-		//Neg:    {Cmd: CmdSign, Priority: uint16(CmdUnary)},
 		Not:    {Cmd: CmdNot, Priority: uint16(CmdUnary)},
 		LPAREN: {Cmd: CmdSys, Priority: 0xff},
 		RPAREN: {Cmd: CmdSys, Priority: 0},
@@ -29,8 +28,10 @@ var (
 		Inc:    {Cmd: CmdInc, Priority: 5},
 		Dec:    {Cmd: CmdDec, Priority: 5},
 		MOD:    {Cmd: CmdMod, Priority: 30},
-		BITAND:    {Cmd: CmdBitAnd, Priority: 30},
-		LSHIFT:    {Cmd: CmdShiftL, Priority: 30},
-		RSHIFT:    {Cmd: CmdShiftR, Priority: 30},
+		BITAND: {Cmd: CmdBitAnd, Priority: 30},
+		LSHIFT: {Cmd: CmdShiftL, Priority: 30},
+		RSHIFT: {Cmd: CmdShiftR, Priority: 30},
+		LshEq:  {Cmd: CmdAssignLShift, Priority: 5},
+		RshEq:  {Cmd: CmdAssignRShift, Priority: 5},
 	}
 )

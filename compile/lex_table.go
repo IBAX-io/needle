@@ -95,18 +95,22 @@ var (
 			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateOpNeq: {
-			"=": {stateNumber, OPERATOR, flagPop | flagNext},
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
 			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateLess: {
 			"=": {stateNumber, OPERATOR, flagPop | flagNext},
-			"<": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateMain, UNKNOWN, flagPop},
+			"<": {stateShiftEq, UNKNOWN, flagPop | flagNext},
+			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateGreat: {
 			"=": {stateNumber, OPERATOR, flagPop | flagNext},
-			">": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateMain, UNKNOWN, flagPop},
+			">": {stateShiftEq, UNKNOWN, flagPop | flagNext},
+			"d": {stateMain, OPERATOR, flagPop},
+		},
+		stateShiftEq: {
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
+			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateNumber: {
 			"01.": {stateNumber, UNKNOWN, flagNext},
@@ -158,6 +162,7 @@ const (
 	statePercent
 	stateLess
 	stateGreat
+	stateShiftEq
 )
 
 func init() {

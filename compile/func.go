@@ -36,7 +36,7 @@ func fnError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, errors[state], lexeme.Line-1)
 	}
 	logger.WithFields(log.Fields{"error": errors[state], "lex_value": lexeme.Value, "type": ParseError}).Error("parsing error")
-	return fmt.Errorf(`%s %s %v [Ln:%d Col:%d]`, errors[state], lexeme.Type, lexeme.Value, lexeme.Line, lexeme.Column)
+	return fmt.Errorf(`%s %s %v [%d:%d]`, errors[state], lexeme.Type, lexeme.Value, lexeme.Line, lexeme.Column)
 }
 
 // StateName checks the name of the contract and modifies it to @[state]name if it is necessary.
@@ -401,7 +401,7 @@ func fnFieldTag(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 
 func fnElse(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if buf.get(len(*buf)-2).Code.peek().Cmd != CmdIf {
-		return fmt.Errorf(`there is not if before %v [Ln:%d Col:%d]`, lexeme.Type, lexeme.Line, lexeme.Column)
+		return fmt.Errorf(`there is not if before %v [%d:%d]`, lexeme.Type, lexeme.Line, lexeme.Column)
 	}
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdElse, lexeme, lexeme.Line, buf.peek()))
 	return nil

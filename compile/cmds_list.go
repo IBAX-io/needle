@@ -46,16 +46,18 @@ const (
 const (
 	CmdNot CmdT = iota | 0x0100
 	CmdSign
-	CmdAssignAdd // +=
-	CmdAssignSub // -=
-	CmdAssignMul // *=
-	CmdAssignDiv // /=
-	CmdAssignMod // %=
-	CmdAssignAnd // &=
-	CmdAssignOr  // |=
-	CmdAssignXor // ^=
-	CmdInc       // ++
-	CmdDec       // --
+	CmdAssignAdd    // +=
+	CmdAssignSub    // -=
+	CmdAssignMul    // *=
+	CmdAssignDiv    // /=
+	CmdAssignMod    // %=
+	CmdAssignAnd    // &=
+	CmdAssignOr     // |=
+	CmdAssignXor    // ^=
+	CmdInc          // ++
+	CmdDec          // --
+	CmdAssignLShift // <<=
+	CmdAssignRShift // >>=
 )
 
 const (
@@ -125,4 +127,6 @@ var cmdName = map[CmdT]string{
 	CmdBitAnd:       `&`,
 	CmdShiftL:       `<<`,
 	CmdShiftR:       `>>`,
+	CmdAssignLShift: `<<=`,
+	CmdAssignRShift: `>>=`,
 }

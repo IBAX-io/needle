@@ -72,24 +72,24 @@ const (
 	GrEq   = 0x3e3d // >=
 	Or     = 0x7c7c // ||
 
-	BITAND = 0x0026 // &
-	BITOR  = 0x007c // |
-	BITXOR = 0x005e // ^
-	MOD    = 0x0025 // %
-	LSHIFT = 0x3c3c // <<
-	RSHIFT = 0x3e3e // >>
-	AddEq  = 0x2b3d // +=
-	SubEq  = 0x2d3d // -=
-	MulEq  = 0x2a3d // *=
-	DivEq  = 0x2f3d // /=
-	ModEq  = 0x253d // %=
-	LshEq  = 0x3c3d // <<=
-	RshEq  = 0x3e3d // >>=
-	AndEq  = 0x263d // &=
-	OrEq   = 0x7c3d // |=
-	XorEq  = 0x5e3d // ^=
-	Inc    = 0x2b2b // ++
-	Dec    = 0x2d2d // --
+	BITAND = 0x0026   // &
+	BITOR  = 0x007c   // |
+	BITXOR = 0x005e   // ^
+	MOD    = 0x0025   // %
+	LSHIFT = 0x3c3c   // <<
+	RSHIFT = 0x3e3e   // >>
+	AddEq  = 0x2b3d   // +=
+	SubEq  = 0x2d3d   // -=
+	MulEq  = 0x2a3d   // *=
+	DivEq  = 0x2f3d   // /=
+	ModEq  = 0x253d   // %=
+	LshEq  = 0x3c3c3d // <<=
+	RshEq  = 0x3e3e3d // >>=
+	AndEq  = 0x263d   // &=
+	OrEq   = 0x7c3d   // |=
+	XorEq  = 0x5e3d   // ^=
+	Inc    = 0x2b2b   // ++
+	Dec    = 0x2d2d   // --
 )
 
 // The list of keyword identifiers for IDENTIFIER.
@@ -137,7 +137,7 @@ const (
 	FILE
 )
 
-var tokenToString = [...]string{
+var tokenToString = map[Token]string{
 	UNKNOWN: `unknown`,
 	//basic token
 	SYSTEM:     `SYSTEM`,
@@ -214,11 +214,14 @@ var tokenToString = [...]string{
 	GrEq:   `>=`,
 	Or:     `||`,
 
+	MOD:    `% `,
 	ModEq:  `%=`,
 	Inc:    `++`,
 	Dec:    `--`,
 	LSHIFT: `<<`,
 	RSHIFT: `>>`,
+	LshEq:  `<<=`,
+	RshEq:  `>>=`,
 }
 
 // Lookup maps an identifier to its keyword token
@@ -229,7 +232,7 @@ func Lookup(ident string) (Token, bool) {
 
 func (tok Token) String() string {
 	s := ""
-	if 0 <= tok && tok < Token(len(tokenToString)) {
+	if 0 <= tok {
 		s = tokenToString[tok]
 	}
 	if s == "" {

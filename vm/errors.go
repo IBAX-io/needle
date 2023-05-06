@@ -20,9 +20,9 @@ const (
 	eMapIndex             = `index of map cannot be type %s`
 	eUnknownIdent         = `unknown identifier %s`
 	eWrongVar             = `wrong var %v`
-	eDataType             = `expecting type of the data field [Ln:%d Col:%d]`
-	eDataName             = `expecting name of the data field [Ln:%d Col:%d]`
-	eDataTag              = `unexpected tag [Ln:%d Col:%d]`
+	eDataType             = `expecting type of the data field [%d:%d]`
+	eDataName             = `expecting name of the data field [%d:%d]`
+	eDataTag              = `unexpected tag [%d:%d]`
 	eConditionNotAllowed  = `condition %s is not allowed`
 )
 

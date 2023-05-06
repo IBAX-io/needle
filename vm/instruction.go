@@ -482,6 +482,88 @@ func init() {
 		}
 		return
 	}
+	for i := compile.CmdAssignLShift; i <= compile.CmdAssignRShift; i++ {
+		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+			if len(ctx.assignVar) > 1 {
+				ctx.isLoop = true
+				err = fmt.Errorf("mod assign not support")
+				return
+			}
+			y := ctx.top[0]
+			item := ctx.assignVar[0]
+			if item.Owner == nil {
+				if item.Obj.Type == compile.ObjectType_ExtVar {
+					var n = item.Obj.GetExtendVariable().Name
+					if rt.limitName(n) {
+						err = fmt.Errorf(eSysVar, n)
+						ctx.isLoop = true
+						return
+					}
+					x, ok := rt.extend[n]
+					xt := reflect.TypeOf(x)
+					yt := reflect.TypeOf(y)
+					if ok && x != nil && xt != yt {
+						err = fmt.Errorf("$%s (type %s) cannot be represented by the type %s", n, yt, xt)
+						return
+					}
+					var ret any
+					ret, err = evaluateCmd(x, y, code.Cmd.String())
+					if err != nil {
+						ctx.isLoop = true
+						return
+					}
+					rt.setExtendVar(n, ret)
+					rt.stack[ctx.size-1] = ret
+				}
+				return
+			}
+			for i := len(rt.blocks) - 1; i >= 0; i-- {
+				if item.Owner == rt.blocks[i].Block {
+					k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
+					switch v := rt.blocks[i].Block.Vars[item.Obj.GetVariable().Index]; v.String() {
+					case Decimal:
+						var yD decimal.Decimal
+						yD, err = ValueToDecimal(y)
+						if err != nil {
+							ctx.isLoop = true
+							return
+						}
+						if yD.IsZero() {
+							err = errDivZero
+							ctx.isLoop = true
+							return
+						}
+						x := rt.vars[k]
+						ret := x.(decimal.Decimal).Mod(yD)
+						rt.setVar(k, ret)
+						rt.stack[ctx.size-1] = ret
+					default:
+						if y != nil && v != reflect.TypeOf(y) {
+							err = fmt.Errorf("variable '%v' (type %s) cannot be represented by the type %s", item.Obj.GetVariable().Name, reflect.TypeOf(y), v)
+							break
+						}
+						switch y.(type) {
+						case int64:
+							if y.(int64) == 0 {
+								err = errDivZero
+								ctx.isLoop = true
+								return
+							}
+							ret := rt.vars[k].(int64) % y.(int64)
+							rt.setVar(k, ret)
+							rt.stack[ctx.size-1] = ret
+						default:
+							ctx.isLoop = true
+							err = fmt.Errorf(`invalid operation: the operator %s is not defined on %s`, compile.CmdAssignMod, v)
+							return
+						}
+					}
+					break
+				}
+			}
+			return
+		}
+	}
 	for i := compile.CmdInc; i <= compile.CmdDec; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			return

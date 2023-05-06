@@ -58,7 +58,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 		}
 
 		if curState == Error {
-			return nil, fmt.Errorf(`unknown lexeme '%s' [Ln:%d Col:%d]`,
+			return nil, fmt.Errorf(`unknown lexeme '%s' [%d:%d]`,
 				string(input[off:off+1]), line, off-offline+1)
 		}
 		if hasSkip(flag) {
@@ -133,13 +133,13 @@ func NewLexer(input []rune) (Lexemes, error) {
 				if strings.ContainsAny(name, `.`) {
 					val, err := strconv.ParseFloat(name, 64)
 					if err != nil {
-						return nil, fmt.Errorf(`%v %s [Ln:%d Col:%d]`, err, name, line, off-offline+1)
+						return nil, fmt.Errorf(`%v %s [%d:%d]`, err, name, line, off-offline+1)
 					}
 					value = val
 				} else if val, err := strconv.ParseInt(name, 10, 64); err == nil {
 					value = val
 				} else {
-					return nil, fmt.Errorf(`%v %s [Ln:%d Col:%d]`, err, name, line, off-offline+1)
+					return nil, fmt.Errorf(`%v %s [%d:%d]`, err, name, line, off-offline+1)
 				}
 			case IDENTIFIER:
 				name := string(input[lexOffset:right])
@@ -188,14 +188,11 @@ func NewLexer(input []rune) (Lexemes, error) {
 					value = name
 				}
 			default:
-				fmt.Println("error", off, tk, start, off, string(input[start:off]))
-
+				//fmt.Println("error---", off, tk, start, off, string(input[start:off]))
 			}
 			if tk != COMMENT {
 				lexemes = append(lexemes, NewLexeme(tk, value, line, lexOffset-offline+1))
 			}
-		} else {
-			//fmt.Println("error", off, tk, start, off, string(input[start:off]))
 		}
 		if hasPush(flag) {
 			start = off
