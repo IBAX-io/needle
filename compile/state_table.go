@@ -172,7 +172,7 @@ func init() {
 		IDENTIFIER: {stateAssign, fnAssignVar},
 		EXTEND:     {stateAssign, fnAssignVar},
 		EQ:         {stateEval | stateToBody, fnAssign},
-		OPERATOR:         {stateEval | stateToBody, fnAssign},
+		OPERATOR:   {stateEval | stateToBody, fnAssign},
 		UNKNOWN:    {errAssign, fnError},
 	}
 	stateTable[stateTX] = map[Token]compileState{

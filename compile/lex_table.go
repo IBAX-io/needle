@@ -87,7 +87,7 @@ var (
 		},
 		stateEq: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateMain, SYSTEM, flagPop},
+			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateSolidus: {
 			"/": {stateComLine, UNKNOWN, flagPop | flagNext},

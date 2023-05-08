@@ -1,7 +1,6 @@
 package compile
 
 import (
-	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -79,7 +78,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 				name := string(input[lexOffset:right])
 				if name != `else` && name != `elif` {
 					for i := 0; i < ifbuf[len(ifbuf)-1].count; i++ {
-						lexemes = append(lexemes, NewLexeme(RBRACE, uint32(keyRBRACE), line, lexOffset-offline+1))
+						lexemes = append(lexemes, NewLexeme(RBRACE, RBRACE, line, lexOffset-offline+1))
 					}
 					ifbuf = ifbuf[:len(ifbuf)-1]
 				} else {
@@ -94,8 +93,8 @@ func NewLexer(input []rune) (Lexemes, error) {
 					offline = off
 				}
 			case SYSTEM:
-				ch := Token(input[lexOffset])
-				tk |= ch << 8
+				ch := input[lexOffset]
+				tk = system2Token[ch]
 				value = ch
 				if len(ifbuf) > 0 {
 					if ch == '{' {
@@ -126,8 +125,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 				val = strings.Replace(val, `\n`, "\n", -1)
 				value = val
 			case OPERATOR:
-				oper := []byte(string(input[lexOffset:right]))
-				value = Token(binary.BigEndian.Uint32(append(make([]byte, 4-len(oper)), oper...)))
+				value = string(input[lexOffset:right])
 			case NUMBER:
 				name := string(input[lexOffset:right])
 				if strings.ContainsAny(name, `.`) {
@@ -149,41 +147,37 @@ func NewLexer(input []rune) (Lexemes, error) {
 				} else if keyID, ok := KeywordValue[name]; ok {
 					switch keyID {
 					case ELIF:
-						if len(ifbuf) > 0 {
-							lexemes = append(lexemes,
-								NewLexeme(ELSE, uint32(keyElse), line, lexOffset-offline+1),
-								NewLexeme(LBRACE, uint32(keyLBRACE), line, lexOffset-offline+1))
-							tk = IF
-							value = uint32(keyIf)
-							ifbuf[len(ifbuf)-1].count++
+						if len(ifbuf) == 0 {
+							return nil, fmt.Errorf(`expected statement, found '%s' [%d:%d]`, name, line, lexOffset-offline+1)
 						}
+						lexemes = append(lexemes,
+							NewLexeme(ELSE, ELSE, line, lexOffset-offline+1),
+							NewLexeme(LBRACE, LBRACE, line, lexOffset-offline+1))
+						tk, value = IF, IF
+						ifbuf[len(ifbuf)-1].count++
 					case ACTION, CONDITIONS:
-						if len(lexemes) > 0 {
-							lexf := lexemes[len(lexemes)-1]
-							if lexf.Type&0xff != KEYWORD || lexf.Value.(Token) != keyFunc {
-								lexemes = append(lexemes, NewLexeme(FUNC, uint32(keyFunc), line, lexOffset-offline+1))
-							}
+						if len(lexemes) == 0 {
+							return nil, fmt.Errorf(`'%s' can't be the first statement [%d:%d]`, name, line, lexOffset-offline+1)
+						}
+						lexf := lexemes[len(lexemes)-1]
+						if lexf.Type&0xff != KEYWORD || lexf.Value.(Token) != FUNC {
+							lexemes = append(lexemes, NewLexeme(FUNC, FUNC, line, lexOffset-offline+1))
 						}
 						value = name
 					case TRUE:
-						tk = NUMBER
-						value = true
+						tk, value = NUMBER, true
 					case FALSE:
-						tk = NUMBER
-						value = false
+						tk, value = NUMBER, false
 					case NIL:
-						tk = NUMBER
-						value = nil
+						tk, value = NUMBER, nil
 					default:
 						if keyID == IF {
 							ifbuf = append(ifbuf, ifBuf{})
 						}
-						tk = keyID
-						value = keyID
+						tk, value = keyID, keyID
 					}
 				} else if tInfo, ok := TypeNameReflect[TypeNameValue[name]]; ok {
-					tk = TYPENAME
-					value = tInfo
+					tk, value = TYPENAME, tInfo
 				} else {
 					value = name
 				}

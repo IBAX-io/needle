@@ -167,9 +167,7 @@ main:
 				}
 			}
 			break main
-		case LPAREN:
-			buffer.push(newByteCode(CmdSys, lexeme, lexeme.Line, uint16(0xff)))
-		case LBRACK:
+		case LPAREN, LBRACK:
 			buffer.push(newByteCode(CmdSys, lexeme, lexeme.Line, uint16(0xff)))
 		case COMMA:
 			if len(parcount) > 0 {
@@ -304,7 +302,7 @@ main:
 				return errMultiIndex
 			}
 		case OPERATOR:
-			op, ok := operator[lexeme.Value.(Token)]
+			op, ok := operator[lexeme.Value.(string)]
 			if !ok {
 				return fmt.Errorf(`unknown operator %v`, lexeme.Value)
 			}
@@ -312,7 +310,7 @@ main:
 			if i > 0 {
 				prevType = (*lexemes)[i-1].Type
 			}
-			if op.Cmd == CmdSub && (i == 0 || (prevType != NUMBER && prevType != IDENTIFIER &&
+			if (op.Cmd == CmdSub || op.Cmd == CmdAdd) && (i == 0 || (prevType != NUMBER && prevType != IDENTIFIER &&
 				prevType != EXTEND && prevType != LITERAL && prevType != RBRACE &&
 				prevType != RBRACK && prevType != RPAREN)) {
 				op.Cmd = CmdSign
@@ -574,7 +572,7 @@ main:
 				for ikey, v := range KeywordValue {
 					if fmt.Sprint(v) == fmt.Sprint(lexeme.Value) {
 						key = ikey
-						if v == keyFunc && i < len(*lexemes)-1 && (*lexemes)[i+1].Type&0xff == IDENTIFIER {
+						if v == FUNC && i < len(*lexemes)-1 && (*lexemes)[i+1].Type&0xff == IDENTIFIER {
 							continue main
 						}
 						break

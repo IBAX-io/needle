@@ -27,8 +27,6 @@ const (
 	EXTEND   // Referring to an external variable of IDENTIFIER
 )
 
-func (tok Token) IsBasic() bool { return UNKNOWN < tok && tok < EXTEND }
-
 const Error = 0xff
 
 // flags of lexical states
@@ -42,56 +40,106 @@ const (
 
 // Delimiters for SYSTEM.
 const (
-	LPAREN = SYSTEM | ('(' << 8)
-	RPAREN = SYSTEM | (')' << 8)
-	COMMA  = SYSTEM | (',' << 8)
-	DOT    = SYSTEM | ('.' << 8)
-	COLON  = SYSTEM | (':' << 8)
-	EQ     = SYSTEM | ('=' << 8)
-	LBRACK = SYSTEM | ('[' << 8)
-	RBRACK = SYSTEM | (']' << 8)
-	LBRACE = SYSTEM | ('{' << 8)
-	RBRACE = SYSTEM | ('}' << 8)
+	LPAREN = SYSTEM | ((iota + 1) << 8)
+	RPAREN
+	COMMA
+	DOT
+	COLON
+	EQ
+	LBRACK
+	RBRACK
+	LBRACE
+	RBRACE
+)
+
+var system2Token = map[rune]Token{
+	'(': LPAREN,
+	')': RPAREN,
+	',': COMMA,
+	'.': DOT,
+	':': COLON,
+	'=': EQ,
+	'[': LBRACK,
+	']': RBRACK,
+	'{': LBRACE,
+	'}': RBRACE,
+}
+
+const (
+	OpUnary = iota + 0x0100
 )
 
 // Operations for Operator.
 const (
-	Not    Token = 0x0021 // !
-	Mul          = 0x002a // *
-	Add          = 0x002b // +
-	Sub          = 0x002d // -
-	Neg          = 0x012d // - unary
-	Quo          = 0x002f // / quotient
-	Less         = 0x003c // <
-	Great        = 0x003e // >
-	Assign       = 0x003d // =
-
-	NotEq  = 0x213d // !=
-	And    = 0x2626 // &&
-	LessEq = 0x3c3d // <=
-	EqEq   = 0x3d3d // ==
-	GrEq   = 0x3e3d // >=
-	Or     = 0x7c7c // ||
-
-	BITAND = 0x0026   // &
-	BITOR  = 0x007c   // |
-	BITXOR = 0x005e   // ^
-	MOD    = 0x0025   // %
-	LSHIFT = 0x3c3c   // <<
-	RSHIFT = 0x3e3e   // >>
-	AddEq  = 0x2b3d   // +=
-	SubEq  = 0x2d3d   // -=
-	MulEq  = 0x2a3d   // *=
-	DivEq  = 0x2f3d   // /=
-	ModEq  = 0x253d   // %=
-	LshEq  = 0x3c3c3d // <<=
-	RshEq  = 0x3e3e3d // >>=
-	AndEq  = 0x263d   // &=
-	OrEq   = 0x7c3d   // |=
-	XorEq  = 0x5e3d   // ^=
-	Inc    = 0x2b2b   // ++
-	Dec    = 0x2d2d   // --
+	OpNot = OPERATOR | ((iota + 1) << 8)
+	OpMul
+	OpAdd
+	OpSub
+	OpNeg
+	OpQuo
+	OpLess
+	OpGreat
+	OpAssign
+	OpNotEq
+	OpAnd
+	OpLessEq
+	OpEqEq
+	OpGrEq
+	OpOr
+	OpBITAND
+	OpBITOR
+	OpBITXOR
+	OpMOD
+	OpLSHIFT
+	OpRSHIFT
+	OpAddEq
+	OpSubEq
+	OpMulEq
+	OpDivEq
+	OpModEq
+	OpLshEq
+	OpRshEq
+	OpAndEq
+	OpOrEq
+	OpXorEq
+	OpInc
+	OpDec
 )
+
+var op2Token = map[string]Token{
+	"!":   OpNot,
+	"*":   OpMul,
+	"+":   OpAdd,
+	"-":   OpSub,
+	"/":   OpQuo,
+	"<":   OpLess,
+	">":   OpGreat,
+	"=":   OpAssign,
+	"!=":  OpNotEq,
+	"&&":  OpAnd,
+	"<=":  OpLessEq,
+	"==":  OpEqEq,
+	">=":  OpGrEq,
+	"||":  OpOr,
+	"&":   OpBITAND,
+	"|":   OpBITOR,
+	"^":   OpBITXOR,
+	"%":   OpMOD,
+	"<<":  OpLSHIFT,
+	">>":  OpRSHIFT,
+	"+=":  OpAddEq,
+	"-=":  OpSubEq,
+	"*=":  OpMulEq,
+	"/=":  OpDivEq,
+	"%=":  OpModEq,
+	"<<=": OpLshEq,
+	">>=": OpRshEq,
+	"&=":  OpAndEq,
+	"|=":  OpOrEq,
+	"^=":  OpXorEq,
+	"++":  OpInc,
+	"--":  OpDec,
+}
 
 // The list of keyword identifiers for IDENTIFIER.
 const (
@@ -118,142 +166,6 @@ const (
 	ERROR
 )
 
-const keyFunc = FUNC >> 8
-const keyIf = IF >> 8
-const keyElse = ELSE >> 8
-const keyLBRACE = LBRACE >> 8
-const keyRBRACE = RBRACE >> 8
-
-// data types for parameters and variables for Type.
-const (
-	BOOL = TYPENAME | ((iota + 1) << 8)
-	BYTES
-	INT
-	ADDRESS
-	ARRAY
-	MAP
-	MONEY
-	FLOAT
-	STRING
-	FILE
-)
-
-var tokenToString = map[Token]string{
-	UNKNOWN: `unknown`,
-	//basic token
-	SYSTEM:     `SYSTEM`,
-	OPERATOR:   `OPERATOR`,
-	NUMBER:     `NUMBER`,
-	IDENTIFIER: `IDENTIFIER`,
-	NEWLINE:    `NEWLINE`,
-	LITERAL:    `LITERAL`,
-	COMMENT:    `COMMENT`,
-	KEYWORD:    `KEYWORD`,
-	TYPENAME:   `TYPENAME`,
-	EXTEND:     `EXTEND`,
-
-	//keyword
-	CONTRACT:   `contract`,
-	FUNC:       `func`,
-	RETURN:     `return`,
-	IF:         `if`,
-	ELIF:       `elif`,
-	ELSE:       `else`,
-	WHILE:      `while`,
-	TRUE:       `true`,
-	FALSE:      `false`,
-	VAR:        `var`,
-	TX:         `data`,
-	SETTINGS:   `settings`,
-	BREAK:      `break`,
-	CONTINUE:   `continue`,
-	ERRWARNING: `warning`,
-	ERRINFO:    `info`,
-	NIL:        `nil`,
-	ACTION:     `action`,
-	CONDITIONS: `conditions`,
-	TAIL:       `...`,
-	ERROR:      `error`,
-
-	//name of data type
-	BOOL:    `bool`,
-	BYTES:   `bytes`,
-	INT:     `int`,
-	ADDRESS: `address`,
-	ARRAY:   `array`,
-	MAP:     `map`,
-	MONEY:   `money`,
-	FLOAT:   `float`,
-	STRING:  `string`,
-	FILE:    `file`,
-
-	//delimiters
-	LPAREN: `(`,
-	RPAREN: `)`,
-	COMMA:  `,`,
-	DOT:    `.`,
-	COLON:  `:`,
-	EQ:     `=`,
-	LBRACK: `[`,
-	RBRACK: `]`,
-	LBRACE: `{`,
-	RBRACE: `}`,
-
-	//operators
-	Not:    `!`,
-	Mul:    `*`,
-	Add:    `+`,
-	Sub:    `-`,
-	Neg:    `-`,
-	Quo:    `/`,
-	Less:   `<`,
-	Great:  `>`,
-	NotEq:  `!=`,
-	And:    `&&`,
-	LessEq: `<=`,
-	EqEq:   `==`,
-	GrEq:   `>=`,
-	Or:     `||`,
-
-	MOD:    `% `,
-	ModEq:  `%=`,
-	BITAND: `&`,
-	BITOR:  `|`,
-	BITXOR: `^`,
-
-	AddEq: `+=`,
-	SubEq: `-=`,
-	MulEq: `*=`,
-	DivEq: `/=`,
-	AndEq: `&=`,
-	OrEq:  `|=`,
-	XorEq: `^=`,
-
-	Inc:    `++`,
-	Dec:    `--`,
-	LSHIFT: `<<`,
-	RSHIFT: `>>`,
-	LshEq:  `<<=`,
-	RshEq:  `>>=`,
-}
-
-// Lookup maps an identifier to its keyword token
-func Lookup(ident string) (Token, bool) {
-	tok, ok := KeywordValue[ident]
-	return tok, ok
-}
-
-func (tok Token) String() string {
-	s := ""
-	if 0 <= tok {
-		s = tokenToString[tok]
-	}
-	if s == "" {
-		s = "token(" + strconv.Itoa(int(tok)) + ")"
-	}
-	return s
-}
-
 // KeywordValue is a map of keywords to tokens
 var KeywordValue = map[string]Token{
 	`contract`:   CONTRACT,
@@ -278,6 +190,20 @@ var KeywordValue = map[string]Token{
 	`...`:        TAIL,
 	`error`:      ERROR,
 }
+
+// data types for parameters and variables for Type.
+const (
+	BOOL = TYPENAME | ((iota + 1) << 8)
+	BYTES
+	INT
+	ADDRESS
+	ARRAY
+	MAP
+	MONEY
+	FLOAT
+	STRING
+	FILE
+)
 
 // TypeNameValue is a map of types to tokens
 var TypeNameValue = map[string]Token{
@@ -315,4 +241,117 @@ func GetFieldDefaultValue(fieldType Token) any {
 	}
 	defaultValue := reflect.Zero(t).Interface()
 	return defaultValue
+}
+
+var tokenToString = map[Token]string{
+	UNKNOWN: `UNKNOWN`,
+	//basic token
+	SYSTEM:     `SYSTEM`,
+	OPERATOR:   `OPERATOR`,
+	NUMBER:     `NUMBER`,
+	IDENTIFIER: `IDENTIFIER`,
+	NEWLINE:    `NEWLINE`,
+	LITERAL:    `LITERAL`,
+	COMMENT:    `COMMENT`,
+	KEYWORD:    `KEYWORD`,
+	TYPENAME:   `TYPENAME`,
+	EXTEND:     `EXTEND`,
+
+	//system
+	LPAREN: `LPAREN`,
+	RPAREN: `RPAREN`,
+	COMMA:  `COMMA`,
+	DOT:    `DOT`,
+	COLON:  `COLON`,
+	EQ:     `EQ`,
+	LBRACK: `LBRACK`,
+	RBRACK: `RBRACK`,
+	LBRACE: `LBRACE`,
+	RBRACE: `RBRACE`,
+
+	//operator
+	OpNot:    `OpNot`,
+	OpMul:    `OpMul`,
+	OpAdd:    `OpAdd`,
+	OpSub:    `OpSub`,
+	OpQuo:    `OpQuo`,
+	OpLess:   `OpLess`,
+	OpGreat:  `OpGreat`,
+	OpAssign: `OpAssign`,
+	OpNotEq:  `OpNotEq`,
+	OpAnd:    `OpAnd`,
+	OpLessEq: `OpLessEq`,
+	OpEqEq:   `OpEqEq`,
+	OpGrEq:   `OpGrEq`,
+	OpOr:     `OpOr`,
+	OpBITAND: `OpBITAND`,
+	OpBITOR:  `OpBITOR`,
+	OpBITXOR: `OpBITXOR`,
+	OpMOD:    `OpMOD`,
+	OpLSHIFT: `OpLSHIFT`,
+	OpRSHIFT: `OpRSHIFT`,
+	OpAddEq:  `OpAddEq`,
+	OpSubEq:  `OpSubEq`,
+	OpMulEq:  `OpMulEq`,
+	OpDivEq:  `OpDivEq`,
+	OpModEq:  `OpModEq`,
+	OpLshEq:  `OpLshEq`,
+	OpRshEq:  `OpRshEq`,
+	OpAndEq:  `OpAndEq`,
+	OpOrEq:   `OpOrEq`,
+	OpXorEq:  `OpXorEq`,
+	OpInc:    `OpInc`,
+	OpDec:    `OpDec`,
+
+	//keyword
+	CONTRACT:   `CONTRACT`,
+	FUNC:       `FUNC`,
+	RETURN:     `RETURN`,
+	IF:         `IF`,
+	ELIF:       `ELIF`,
+	ELSE:       `ELSE`,
+	WHILE:      `WHILE`,
+	TRUE:       `TRUE`,
+	FALSE:      `FALSE`,
+	VAR:        `VAR`,
+	TX:         `TX`,
+	SETTINGS:   `SETTINGS`,
+	BREAK:      `BREAK`,
+	CONTINUE:   `CONTINUE`,
+	ERRWARNING: `ERRWARNING`,
+	ERRINFO:    `ERRINFO`,
+	NIL:        `NIL`,
+	ACTION:     `ACTION`,
+	CONDITIONS: `CONDITIONS`,
+	TAIL:       `TAIL`,
+	ERROR:      `ERROR`,
+
+	//typename
+	BOOL:    `BOOL`,
+	BYTES:   `BYTES`,
+	INT:     `INT`,
+	ADDRESS: `ADDRESS`,
+	ARRAY:   `ARRAY`,
+	MAP:     `MAP`,
+	MONEY:   `MONEY`,
+	FLOAT:   `FLOAT`,
+	STRING:  `STRING`,
+	FILE:    `FILE`,
+}
+
+// Lookup maps an identifier to its keyword token
+func Lookup(ident string) (Token, bool) {
+	tok, ok := KeywordValue[ident]
+	return tok, ok
+}
+
+func (tok Token) String() string {
+	s := ""
+	if 0 <= tok {
+		s = tokenToString[tok]
+	}
+	if s == "" {
+		s = "token(" + strconv.Itoa(int(tok)) + ")"
+	}
+	return s
 }

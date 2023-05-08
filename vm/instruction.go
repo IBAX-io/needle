@@ -389,7 +389,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdSign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if code.Lexeme.Value.(compile.Token) == compile.Add {
+		if code.Lexeme.Value.(compile.Token) == compile.OpAdd {
 			return
 		}
 		switch ctx.top[0].(type) {
