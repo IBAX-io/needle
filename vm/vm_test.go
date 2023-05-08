@@ -21,11 +21,11 @@ func TestVM_Compile(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{"case1", []rune(string(file)), assert.NoError},
-		{"case2", []rune(string(`
+		{"case2", []rune((`
 contract ABC {
     action{
-		$shift = 512
-		$shift >> = 8
+		$shift = 512==3
+		$shift = 8>2
 		Println($shift)
     }
 }

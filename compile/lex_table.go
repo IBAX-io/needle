@@ -99,12 +99,12 @@ var (
 			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateLess: {
-			"=": {stateNumber, OPERATOR, flagPop | flagNext},
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
 			"<": {stateShiftEq, UNKNOWN, flagPop | flagNext},
 			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateGreat: {
-			"=": {stateNumber, OPERATOR, flagPop | flagNext},
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
 			">": {stateShiftEq, UNKNOWN, flagPop | flagNext},
 			"d": {stateMain, OPERATOR, flagPop},
 		},

@@ -61,22 +61,24 @@ const (
 )
 
 const (
-	CmdAdd CmdT = iota | 0x0200 // +
-	CmdSub                      // -
-	CmdMul                      // *
-	CmdDiv                      // /
-	CmdMod                      // %
-	CmdAnd                      // &&
-	CmdBitAnd
-	CmdOr       // ||
-	CmdEqual    // ==
-	CmdNotEq    // !=
-	CmdLess     // <
-	CmdNotLess  // >=
-	CmdGreat    // >
-	CmdNotGreat // <=
-	CmdShiftL   // <<
-	CmdShiftR   // >>
+	CmdAdd      CmdT = iota | 0x0200 // +
+	CmdSub                           // -
+	CmdMul                           // *
+	CmdDiv                           // /
+	CmdMod                           // %
+	CmdAnd                           // &&
+	CmdBitAnd                        // &
+	CmdBitXor                        // ^
+	CmdBitOr                         // |
+	CmdOr                            // ||
+	CmdEqual                         // ==
+	CmdNotEq                         // !=
+	CmdLess                          // <
+	CmdNotLess                       // >=
+	CmdGreat                         // >
+	CmdNotGreat                      // <=
+	CmdShiftL                        // <<
+	CmdShiftR                        // >>
 
 	CmdSys   CmdT = 0xff
 	CmdUnary CmdT = 50
@@ -129,4 +131,13 @@ var cmdName = map[CmdT]string{
 	CmdShiftR:       `>>`,
 	CmdAssignLShift: `<<=`,
 	CmdAssignRShift: `>>=`,
+	CmdAssignAdd:    `+=`,
+	CmdAssignSub:    `-=`,
+	CmdAssignMul:    `*=`,
+	CmdAssignDiv:    `/=`,
+	CmdAssignAnd:    `&=`,
+	CmdAssignOr:     `|=`,
+	CmdAssignXor:    `^=`,
+	CmdBitXor:       `^`,
+	CmdBitOr:        `|`,
 }

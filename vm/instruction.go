@@ -389,6 +389,9 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdSign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		if code.Lexeme.Value.(compile.Token) == compile.Add {
+			return
+		}
 		switch ctx.top[0].(type) {
 		case float64:
 			rt.stack[ctx.size-1] = -ctx.top[0].(float64)

@@ -33,5 +33,14 @@ var (
 		RSHIFT: {Cmd: CmdShiftR, Priority: 30},
 		LshEq:  {Cmd: CmdAssignLShift, Priority: 5},
 		RshEq:  {Cmd: CmdAssignRShift, Priority: 5},
+		AndEq:  {Cmd: CmdAssignAnd, Priority: 5},
+		OrEq:   {Cmd: CmdAssignOr, Priority: 5},
+		XorEq:  {Cmd: CmdAssignXor, Priority: 5},
+		BITOR:  {Cmd: CmdBitOr, Priority: 30},
+		BITXOR: {Cmd: CmdBitXor, Priority: 30},
+		SubEq:  {Cmd: CmdAssignSub, Priority: 5},
+		AddEq:  {Cmd: CmdAssignAdd, Priority: 5},
+		DivEq:  {Cmd: CmdAssignDiv, Priority: 5},
+		MulEq:  {Cmd: CmdAssignMul, Priority: 5},
 	}
 )

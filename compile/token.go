@@ -56,14 +56,15 @@ const (
 
 // Operations for Operator.
 const (
-	Not   Token = 0x0021 // !
-	Mul         = 0x002a // *
-	Add         = 0x002b // +
-	Sub         = 0x002d // -
-	Neg         = 0x012d // - unary
-	Quo         = 0x002f // / quotient
-	Less        = 0x003c // <
-	Great       = 0x003e // >
+	Not    Token = 0x0021 // !
+	Mul          = 0x002a // *
+	Add          = 0x002b // +
+	Sub          = 0x002d // -
+	Neg          = 0x012d // - unary
+	Quo          = 0x002f // / quotient
+	Less         = 0x003c // <
+	Great        = 0x003e // >
+	Assign       = 0x003d // =
 
 	NotEq  = 0x213d // !=
 	And    = 0x2626 // &&
@@ -216,6 +217,18 @@ var tokenToString = map[Token]string{
 
 	MOD:    `% `,
 	ModEq:  `%=`,
+	BITAND: `&`,
+	BITOR:  `|`,
+	BITXOR: `^`,
+
+	AddEq: `+=`,
+	SubEq: `-=`,
+	MulEq: `*=`,
+	DivEq: `/=`,
+	AndEq: `&=`,
+	OrEq:  `|=`,
+	XorEq: `^=`,
+
 	Inc:    `++`,
 	Dec:    `--`,
 	LSHIFT: `<<`,
