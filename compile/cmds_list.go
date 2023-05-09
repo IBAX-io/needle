@@ -81,7 +81,7 @@ const (
 	CmdShiftR                        // >>
 
 	CmdSys   CmdT = 0xff
-	CmdUnary CmdT = 50
+	CmdUnary   = 50
 )
 
 var cmdName = map[CmdT]string{

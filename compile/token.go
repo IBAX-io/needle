@@ -65,80 +65,75 @@ var system2Token = map[rune]Token{
 	'}': RBRACE,
 }
 
-const (
-	OpUnary = iota + 0x0100
-)
-
 // Operations for Operator.
 const (
-	OpNot = OPERATOR | ((iota + 1) << 8)
-	OpMul
-	OpAdd
-	OpSub
-	OpNeg
-	OpQuo
-	OpLess
-	OpGreat
-	OpAssign
-	OpNotEq
-	OpAnd
-	OpLessEq
-	OpEqEq
-	OpGrEq
-	OpOr
-	OpBITAND
-	OpBITOR
-	OpBITXOR
-	OpMOD
-	OpLSHIFT
-	OpRSHIFT
-	OpAddEq
-	OpSubEq
-	OpMulEq
-	OpDivEq
-	OpModEq
-	OpLshEq
-	OpRshEq
-	OpAndEq
-	OpOrEq
-	OpXorEq
-	OpInc
-	OpDec
+	Not = OPERATOR | ((iota + 1) << 8)
+	Mul
+	Add
+	Sub
+	Quo
+	MOD
+	Less
+	Great
+	Assign
+	NotEq
+	And
+	LessEq
+	EqEq
+	GrEq
+	Or
+	BitAnd
+	BitOr
+	BitXor
+	LSHIFT
+	RSHIFT
+	AddEq
+	SubEq
+	MulEq
+	DivEq
+	ModEq
+	LshEq
+	RshEq
+	AndEq
+	OrEq
+	XorEq
+	Inc
+	Dec
 )
 
 var op2Token = map[string]Token{
-	"!":   OpNot,
-	"*":   OpMul,
-	"+":   OpAdd,
-	"-":   OpSub,
-	"/":   OpQuo,
-	"<":   OpLess,
-	">":   OpGreat,
-	"=":   OpAssign,
-	"!=":  OpNotEq,
-	"&&":  OpAnd,
-	"<=":  OpLessEq,
-	"==":  OpEqEq,
-	">=":  OpGrEq,
-	"||":  OpOr,
-	"&":   OpBITAND,
-	"|":   OpBITOR,
-	"^":   OpBITXOR,
-	"%":   OpMOD,
-	"<<":  OpLSHIFT,
-	">>":  OpRSHIFT,
-	"+=":  OpAddEq,
-	"-=":  OpSubEq,
-	"*=":  OpMulEq,
-	"/=":  OpDivEq,
-	"%=":  OpModEq,
-	"<<=": OpLshEq,
-	">>=": OpRshEq,
-	"&=":  OpAndEq,
-	"|=":  OpOrEq,
-	"^=":  OpXorEq,
-	"++":  OpInc,
-	"--":  OpDec,
+	"!":   Not,
+	"*":   Mul,
+	"+":   Add,
+	"-":   Sub,
+	"/":   Quo,
+	"<":   Less,
+	">":   Great,
+	"=":   Assign,
+	"!=":  NotEq,
+	"&&":  And,
+	"<=":  LessEq,
+	"==":  EqEq,
+	">=":  GrEq,
+	"||":  Or,
+	"&":   BitAnd,
+	"|":   BitOr,
+	"^":   BitXor,
+	"%":   MOD,
+	"<<":  LSHIFT,
+	">>":  RSHIFT,
+	"+=":  AddEq,
+	"-=":  SubEq,
+	"*=":  MulEq,
+	"/=":  DivEq,
+	"%=":  ModEq,
+	"<<=": LshEq,
+	">>=": RshEq,
+	"&=":  AndEq,
+	"|=":  OrEq,
+	"^=":  XorEq,
+	"++":  Inc,
+	"--":  Dec,
 }
 
 // The list of keyword identifiers for IDENTIFIER.
@@ -270,38 +265,38 @@ var tokenToString = map[Token]string{
 	RBRACE: `RBRACE`,
 
 	//operator
-	OpNot:    `OpNot`,
-	OpMul:    `OpMul`,
-	OpAdd:    `OpAdd`,
-	OpSub:    `OpSub`,
-	OpQuo:    `OpQuo`,
-	OpLess:   `OpLess`,
-	OpGreat:  `OpGreat`,
-	OpAssign: `OpAssign`,
-	OpNotEq:  `OpNotEq`,
-	OpAnd:    `OpAnd`,
-	OpLessEq: `OpLessEq`,
-	OpEqEq:   `OpEqEq`,
-	OpGrEq:   `OpGrEq`,
-	OpOr:     `OpOr`,
-	OpBITAND: `OpBITAND`,
-	OpBITOR:  `OpBITOR`,
-	OpBITXOR: `OpBITXOR`,
-	OpMOD:    `OpMOD`,
-	OpLSHIFT: `OpLSHIFT`,
-	OpRSHIFT: `OpRSHIFT`,
-	OpAddEq:  `OpAddEq`,
-	OpSubEq:  `OpSubEq`,
-	OpMulEq:  `OpMulEq`,
-	OpDivEq:  `OpDivEq`,
-	OpModEq:  `OpModEq`,
-	OpLshEq:  `OpLshEq`,
-	OpRshEq:  `OpRshEq`,
-	OpAndEq:  `OpAndEq`,
-	OpOrEq:   `OpOrEq`,
-	OpXorEq:  `OpXorEq`,
-	OpInc:    `OpInc`,
-	OpDec:    `OpDec`,
+	Not:    `Not`,
+	Mul:    `Mul`,
+	Add:    `Add`,
+	Sub:    `Sub`,
+	Quo:    `Quo`,
+	MOD:    `MOD`,
+	Less:   `Less`,
+	Great:  `Great`,
+	Assign: `Assign`,
+	NotEq:  `NotEq`,
+	And:    `And`,
+	LessEq: `LessEq`,
+	EqEq:   `EqEq`,
+	GrEq:   `GrEq`,
+	Or:     `Or`,
+	BitAnd: `BitAnd`,
+	BitOr:  `BitOr`,
+	BitXor: `BitXor`,
+	LSHIFT: `LSHIFT`,
+	RSHIFT: `RSHIFT`,
+	AddEq:  `AddEq`,
+	SubEq:  `SubEq`,
+	MulEq:  `MulEq`,
+	DivEq:  `DivEq`,
+	ModEq:  `ModEq`,
+	LshEq:  `LshEq`,
+	RshEq:  `RshEq`,
+	AndEq:  `AndEq`,
+	OrEq:   `OrEq`,
+	XorEq:  `XorEq`,
+	Inc:    `Inc`,
+	Dec:    `Dec`,
 
 	//keyword
 	CONTRACT:   `CONTRACT`,

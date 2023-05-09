@@ -44,13 +44,37 @@ var (
 			"!":         {stateOpNeq, UNKNOWN, flagPush | flagNext},
 			"<":         {stateLess, UNKNOWN, flagPush | flagNext},
 			">":         {stateGreat, UNKNOWN, flagPush | flagNext},
-			"*+-":       {stateMain, OPERATOR, flagNext},
+			"*":         {stateMul, UNKNOWN, flagPush | flagNext},
+			"^":         {stateBitXor, UNKNOWN, flagPush | flagNext},
+			"+":         {stateAdd, UNKNOWN, flagPush | flagNext},
+			"-":         {stateSub, UNKNOWN, flagPush | flagNext},
 			"01":        {stateNumber, UNKNOWN, flagPush | flagNext},
 			"a_r":       {stateIdentifier, UNKNOWN, flagPush | flagNext},
 			"@$":        {stateMustIdent, UNKNOWN, flagPush | flagNext},
 			".":         {stateDot, UNKNOWN, flagPush | flagNext},
 			"d":         {stateError, UNKNOWN, flagEnd},
 			"%":         {statePercent, UNKNOWN, flagPush | flagNext},
+		},
+		stateBitXor: {
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
+			"d": {stateMain, OPERATOR, flagPop},
+		},
+		stateMul: {
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
+			"d": {stateMain, OPERATOR, flagPop},
+		},
+		stateAdd: {
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
+			"+": {stateDouble, UNKNOWN, flagPop | flagNext},
+			"d": {stateMain, OPERATOR, flagPop},
+		},
+		stateSub: {
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
+			"-": {stateDouble, UNKNOWN, flagPop | flagNext},
+			"d": {stateMain, OPERATOR, flagPop},
+		},
+		stateDouble: {
+			"d": {stateMain, OPERATOR, flagPop},
 		},
 		statePercent: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
@@ -78,18 +102,19 @@ var (
 			"d": {stateError, UNKNOWN, flagEnd},
 		},
 		stateAnd: {
-			"&": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateMain, OPERATOR, flagPop},
+			"&=": {stateMain, OPERATOR, flagPop | flagNext},
+			"d":  {stateMain, OPERATOR, flagPop},
 		},
 		stateOr: {
-			"|": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateError, UNKNOWN, flagEnd},
+			"|=": {stateMain, OPERATOR, flagPop | flagNext},
+			"d":  {stateMain, OPERATOR, flagPop},
 		},
 		stateEq: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
 			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateSolidus: {
+			"=": {stateMain, OPERATOR, flagPop | flagNext},
 			"/": {stateComLine, UNKNOWN, flagPop | flagNext},
 			"*": {stateComment, UNKNOWN, flagNext},
 			"d": {stateMain, OPERATOR, flagPop},
@@ -163,6 +188,11 @@ const (
 	stateLess
 	stateGreat
 	stateShiftEq
+	stateDouble
+	stateAdd
+	stateSub
+	stateMul
+	stateBitXor
 )
 
 func init() {

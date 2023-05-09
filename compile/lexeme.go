@@ -57,7 +57,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 		}
 
 		if curState == Error {
-			return nil, fmt.Errorf(`unknown lexeme '%s' [%d:%d]`,
+			return nil, fmt.Errorf("unknown lexeme '%s' [%d:%d]",
 				string(input[off:off+1]), line, off-offline+1)
 		}
 		if hasSkip(flag) {
