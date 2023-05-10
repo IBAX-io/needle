@@ -81,7 +81,7 @@ const (
 	CmdShiftR                        // >>
 
 	CmdSys   CmdT = 0xff
-	CmdUnary   = 50
+	CmdUnary      = 50
 )
 
 var cmdName = map[CmdT]string{
@@ -108,20 +108,20 @@ var cmdName = map[CmdT]string{
 	CmdMapInit:      `MAPINIT`,
 	CmdArrayInit:    `ARRAYINIT`,
 	CmdError:        `ERROR`,
-	CmdNot:          `NOT`,
+	CmdNot:          `!`,
 	CmdSign:         `SIGN`,
-	CmdAdd:          `ADD`,
-	CmdSub:          `SUB`,
-	CmdMul:          `MUL`,
-	CmdDiv:          `DIV`,
-	CmdAnd:          `AND`,
-	CmdOr:           `OR`,
-	CmdEqual:        `EQUAL`,
-	CmdNotEq:        `NOTEQ`,
-	CmdLess:         `LESS`,
-	CmdNotLess:      `NOTLESS`,
-	CmdGreat:        `GREAT`,
-	CmdNotGreat:     `NOTGREAT`,
+	CmdAdd:          `+`,
+	CmdSub:          `-`,
+	CmdMul:          `*`,
+	CmdDiv:          `/`,
+	CmdAnd:          `&&`,
+	CmdOr:           `||`,
+	CmdEqual:        `==`,
+	CmdNotEq:        `!=`,
+	CmdLess:         `<`,
+	CmdNotLess:      `>=`,
+	CmdGreat:        `>`,
+	CmdNotGreat:     `<=`,
 	CmdAssignMod:    `%=`,
 	CmdInc:          `++`,
 	CmdDec:          `--`,

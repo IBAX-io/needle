@@ -59,7 +59,7 @@ func add(x, y interface{}) (interface{}, error) {
 		}
 	case float64:
 		if y, ok := y.(float64); ok {
-			return x + y, nil
+			return decimal.NewFromFloat(x).Add(decimal.NewFromFloat(y)).InexactFloat64(), nil
 		}
 	case string:
 		if y, ok := y.(string); ok {
@@ -103,7 +103,7 @@ func subtract(x, y interface{}) (interface{}, error) {
 		}
 	case float64:
 		if y, ok := y.(float64); ok {
-			return x - y, nil
+			return decimal.NewFromFloat(x).Sub(decimal.NewFromFloat(y)).InexactFloat64(), nil
 		}
 	case decimal.Decimal:
 		if y, ok := y.(decimal.Decimal); ok {
@@ -143,7 +143,7 @@ func multiply(x, y interface{}) (interface{}, error) {
 		}
 	case float64:
 		if y, ok := y.(float64); ok {
-			return x * y, nil
+			return decimal.NewFromFloat(x).Mul(decimal.NewFromFloat(y)).InexactFloat64(), nil
 		}
 	case decimal.Decimal:
 		if y, ok := y.(decimal.Decimal); ok {
@@ -176,7 +176,7 @@ func divide(x, y interface{}) (interface{}, error) {
 			if y == 0 {
 				return nil, fmt.Errorf("division by zero for /")
 			}
-			return x / y, nil
+			return decimal.NewFromFloat(x).Div(decimal.NewFromFloat(y)).InexactFloat64(), nil
 		}
 	case decimal.Decimal:
 		if y, ok := y.(decimal.Decimal); ok {
@@ -212,7 +212,7 @@ func modulo(x, y interface{}) (interface{}, error) {
 			if y == 0 {
 				return nil, fmt.Errorf("division by zero for %s", "%")
 			}
-			return float64(int64(x) % int64(y)), nil
+			return decimal.NewFromFloat(x).Mod(decimal.NewFromFloat(y)).InexactFloat64(), nil
 		}
 	case decimal.Decimal:
 		if y, ok := y.(decimal.Decimal); ok {

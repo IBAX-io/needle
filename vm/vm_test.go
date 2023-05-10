@@ -3,31 +3,26 @@ package vm
 import (
 	"fmt"
 	"github.com/IBAX-io/needle/compile"
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/shopspring/decimal"
 )
 
 func TestVM_Compile(t *testing.T) {
 	file, _ := os.ReadFile("../examples/scope.sim")
+	expr, _ := os.ReadFile("../examples/expr.sim")
 	tests := []struct {
 		name    string
+		method  string
 		args    []rune
 		wantErr assert.ErrorAssertionFunc
 	}{
-		{"case1", []rune(string(file)), assert.NoError},
-		{"case2", []rune((`
-    func operand  { 
-		 var a int a2 string
-		 a,a2 += 23,"ds"; Println("+=",a,a2)
-		 a2 += "hello"; Println("+=",a2)
-}
-`)), assert.NoError},
+		{"case_contract", "@1ABC", []rune(string(file)), assert.NoError},
+		{"case_expr", "operand", []rune(string(expr)), assert.NoError},
+		{"case_expr_add", "operand_add", []rune(string(expr)), assert.NoError},
 	}
 	limit := int64(100000)
 	extend := map[string]any{
@@ -43,12 +38,8 @@ func TestVM_Compile(t *testing.T) {
 				obj, map[string]string{}, writeFuncs,
 			).MakeObj()
 			tt.wantErr(t, vm.Compile(tt.args, &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}))
-			//func
-			t.Error(vm.Call("operand", nil, extend))
-			//Extend func
-			//t.Error(vm.Call("str", []any{"ps5"}, map[string]any{}))
-			//contract
-			//t.Log(vm.Call("@1ABC", nil, extend))
+			//func|contract|golang func
+			t.Error(vm.Call(tt.method, nil, extend))
 		})
 	}
 	fmt.Println("time used", time.Since(start), limit-extend[Extend_txcost].(int64))

@@ -1,0 +1,31 @@
+func operand {
+    var a int a2 string
+    a = +1; Println("+=",a)
+    a2 + = "hello"; Println("+=",a2)
+    //a,a2 += 23,"ds"; Println("+=",a,a2)
+    var b int
+    b = 2 << 8
+    Println("b=",b)
+}
+
+func operand_add {
+   var a b int
+    a = 10
+    b = 20
+    Println("a + b gives", a + b)
+
+    var a2 b2 string
+    a2 = "10"
+    b2 = "20"
+    Println("a + b gives", a2 + b2)
+
+    var a3 b3 money
+    a3 = 10
+    b3 = 20
+    Println("a + b gives", a3 + b3)
+
+    var a4 float b4 float
+    a4 = 10.1
+    b4 = 20.2
+    Println("a + b gives", a4 + b4)
+}

@@ -19,24 +19,14 @@ func fnNothing(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 }
 
 func fnError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	errors := []string{`no error`,
-		`unknown command`,          // errUnknownCmd
-		`must be the name`,         // errMustName
-		`must be '{'`,              // errMustLCurly
-		`must be '}'`,              // errMustRCurly
-		`wrong parameters`,         // errParams
-		`wrong variables`,          // errVars
-		`must be type`,             // errVarType
-		`must be '='`,              // errAssign
-		`must be number or string`, // errStrNum
-	}
+	err := errTable[int(state)]
 	logger := lexeme.GetLogger()
 	if lexeme.Type == NEWLINE {
-		logger.WithFields(log.Fields{"error": errors[state], "lex_value": lexeme.Value, "type": ParseError}).Error("unexpected new line")
-		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, errors[state], lexeme.Line-1)
+		logger.WithFields(log.Fields{"error": err, "lex_value": lexeme.Value, "type": ParseError}).Error("unexpected new line")
+		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, err, lexeme.Line-1)
 	}
-	logger.WithFields(log.Fields{"error": errors[state], "lex_value": lexeme.Value, "type": ParseError}).Error("parsing error")
-	return fmt.Errorf(`%s %s %v [%d:%d]`, errors[state], lexeme.Type, lexeme.Value, lexeme.Line, lexeme.Column)
+	logger.WithFields(log.Fields{"error": err, "lex_value": lexeme.Value, "type": ParseError}).Error("parsing error")
+	return fmt.Errorf(`%s %s %v [%d:%d]`, err, lexeme.Type, lexeme.Value, lexeme.Line, lexeme.Column)
 }
 
 // StateName checks the name of the contract and modifies it to @[state]name if it is necessary.

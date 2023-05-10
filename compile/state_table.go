@@ -56,6 +56,18 @@ const (
 	errStrNum                // must be number or string
 )
 
+var errTable = map[int]string{
+	errUnknownCmd: "unknown command",
+	errMustName:   "must be the name",
+	errMustLCurly: "must be '{'",
+	errMustRCurly: "must be '}'",
+	errParams:     "wrong parameters",
+	errVars:       "wrong variables",
+	errVarType:    "must be type",
+	errAssign:     "must be '='",
+	errStrNum:     "must be number or string",
+}
+
 // contains a new state and a handle function
 type compileState struct {
 	newState   stateType   // a new state
