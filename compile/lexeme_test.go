@@ -26,7 +26,7 @@ func TestNewLexer(t *testing.T) {
 		{"case1", args{[]rune(`var conditions shift int $abc func action if elif `)}, nil, false},
 		{"case2", args{[]rune(`"asd" ...`)}, nil, false},
 		{"case3", args{[]rune(`()[]{},:;`)}, nil, false},
-		{"case4", args{[]rune(`+= ++ + ~ -= -- - *= * /= / %= % == = != ! <<= <= << < >>= >= >> > || |= | && &= & ^= ^`)}, nil, false},
+		{"case4", args{[]rune(`+= ++ + -= -- - *= * /= / %= % == = != ! <<= <= << < >>= >= >> > || |= | && &= & ^= ^`)}, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

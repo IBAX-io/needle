@@ -46,6 +46,8 @@ const (
 const (
 	CmdNot CmdT = iota | 0x0100
 	CmdSign
+	CmdInc          // ++
+	CmdDec          // --
 	CmdAssignAdd    // +=
 	CmdAssignSub    // -=
 	CmdAssignMul    // *=
@@ -54,8 +56,6 @@ const (
 	CmdAssignAnd    // &=
 	CmdAssignOr     // |=
 	CmdAssignXor    // ^=
-	CmdInc          // ++
-	CmdDec          // --
 	CmdAssignLShift // <<=
 	CmdAssignRShift // >>=
 )

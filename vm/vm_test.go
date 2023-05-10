@@ -22,12 +22,10 @@ func TestVM_Compile(t *testing.T) {
 	}{
 		{"case1", []rune(string(file)), assert.NoError},
 		{"case2", []rune((`
-contract ABC {
-    action{
-		$shift = 512==3
-		$shift = 8>2
-		Println($shift)
-    }
+    func operand  { 
+		 var a int a2 string
+		 a,a2 += 23,"ds"; Println("+=",a,a2)
+		 a2 += "hello"; Println("+=",a2)
 }
 `)), assert.NoError},
 	}
@@ -46,11 +44,11 @@ contract ABC {
 			).MakeObj()
 			tt.wantErr(t, vm.Compile(tt.args, &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}))
 			//func
-			//t.Error(vm.Call("adv", nil, extend))
+			t.Error(vm.Call("operand", nil, extend))
 			//Extend func
 			//t.Error(vm.Call("str", []any{"ps5"}, map[string]any{}))
 			//contract
-			t.Log(vm.Call("@1ABC", nil, extend))
+			//t.Log(vm.Call("@1ABC", nil, extend))
 		})
 	}
 	fmt.Println("time used", time.Since(start), limit-extend[Extend_txcost].(int64))
