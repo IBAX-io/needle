@@ -111,7 +111,7 @@ var (
 		},
 		stateEq: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateMain, OPERATOR, flagPop},
+			"d": {stateMain, SYSTEM, flagPop},
 		},
 		stateSolidus: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},

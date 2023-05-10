@@ -125,7 +125,12 @@ func NewLexer(input []rune) (Lexemes, error) {
 				val = strings.Replace(val, `\n`, "\n", -1)
 				value = val
 			case OPERATOR:
-				value = string(input[lexOffset:right])
+				val := string(input[lexOffset:right])
+				var ok bool
+				value, ok = op2Token[val]
+				if !ok {
+					return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, line, off-offline+1)
+				}
 			case NUMBER:
 				name := string(input[lexOffset:right])
 				if strings.ContainsAny(name, `.`) {
