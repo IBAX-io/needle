@@ -2,7 +2,6 @@ package vm
 
 import (
 	"fmt"
-
 	"github.com/shopspring/decimal"
 )
 
@@ -259,6 +258,9 @@ func leftShift(x, y interface{}) (interface{}, error) {
 	switch x := x.(type) {
 	case int64:
 		if y, ok := y.(int64); ok {
+			if y < 0 {
+				return nil, fmt.Errorf("division by zero for <<")
+			}
 			return x << y, nil
 		}
 	}
@@ -324,6 +326,9 @@ func rightShift(x, y interface{}) (interface{}, error) {
 	switch x := x.(type) {
 	case int64:
 		if y, ok := y.(int64); ok {
+			if y < 0 {
+				return nil, fmt.Errorf("division by zero for >>")
+			}
 			return x >> y, nil
 		}
 	}

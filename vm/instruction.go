@@ -737,26 +737,22 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compile.CmdBitAnd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		switch ctx.top[1].(type) {
-		case int64:
-			switch ctx.top[0].(type) {
-			case int64:
-				if ctx.tmpInt, err = ValueToInt(ctx.top[0]); err == nil {
-					ctx.bin = ctx.top[1].(int64) & ctx.tmpInt
-				}
-			default:
-				err = errUnsupportedType
+
+	for i := compile.CmdBitAnd; i <= compile.CmdBitOr; i++ {
+		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+			var ret any
+			x := ctx.top[1]
+			y := ctx.top[0]
+			ret, err = evaluateCmd(x, y, code.Cmd.String())
+			if err != nil {
 				ctx.isLoop = true
 				return
 			}
-		default:
-			err = errUnsupportedType
-			ctx.isLoop = true
+			ctx.bin = ret
 			return
 		}
-		return
 	}
+
 	instructionTable[compile.CmdAnd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		ctx.bin = valueToBool(ctx.top[1]) && valueToBool(ctx.top[0])
 		return
@@ -827,7 +823,7 @@ func init() {
 			return
 		}
 	}
-	for i := compile.CmdLess; i <= compile.CmdNotLess; i++ {
+	for i := compile.CmdLess; i <= compile.CmdGrEq; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			switch ctx.top[1].(type) {
 			case string:
@@ -869,13 +865,13 @@ func init() {
 				}
 				ctx.bin = ctx.top[1].(decimal.Decimal).Cmp(ctx.tmpDec) < 0
 			}
-			if code.Cmd == compile.CmdNotLess {
+			if code.Cmd == compile.CmdGrEq {
 				ctx.bin = !ctx.bin.(bool)
 			}
 			return
 		}
 	}
-	for i := compile.CmdGreat; i <= compile.CmdNotGreat; i++ {
+	for i := compile.CmdGreat; i <= compile.CmdLessEq; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			switch ctx.top[1].(type) {
 			case string:
@@ -917,7 +913,7 @@ func init() {
 				}
 				ctx.bin = ctx.top[1].(decimal.Decimal).Cmp(ctx.tmpDec) > 0
 			}
-			if code.Cmd == compile.CmdNotGreat {
+			if code.Cmd == compile.CmdLessEq {
 				ctx.bin = !ctx.bin.(bool)
 			}
 			return
@@ -925,26 +921,15 @@ func init() {
 	}
 	for i := compile.CmdShiftL; i <= compile.CmdShiftR; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-			if reflect.TypeOf(ctx.top[0]).Kind() != reflect.Int64 {
-				err = fmt.Errorf("the shift count type untyped %T, must be an integer", ctx.top[0])
+			var ret any
+			x := ctx.top[1]
+			y := ctx.top[0]
+			ret, err = evaluateCmd(x, y, code.Cmd.String())
+			if err != nil {
 				ctx.isLoop = true
 				return
 			}
-			if reflect.TypeOf(ctx.top[1]).Kind() != reflect.Int64 {
-				err = fmt.Errorf(`the operator %s is not defined on %T`, code.Cmd, ctx.top[1])
-				ctx.isLoop = true
-				return
-			}
-			if ctx.top[0].(int64) < 0 {
-				err = errShiftNegative
-				ctx.isLoop = true
-				return
-			}
-			if code.Cmd == compile.CmdShiftL {
-				ctx.bin = ctx.top[1].(int64) << ctx.top[0].(int64)
-				return
-			}
-			ctx.bin = ctx.top[1].(int64) >> ctx.top[0].(int64)
+			ctx.bin = ret
 			return
 		}
 	}

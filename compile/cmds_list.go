@@ -74,9 +74,9 @@ const (
 	CmdEqual                         // ==
 	CmdNotEq                         // !=
 	CmdLess                          // <
-	CmdNotLess                       // >=
+	CmdGrEq                          // >=
 	CmdGreat                         // >
-	CmdNotGreat                      // <=
+	CmdLessEq                        // <=
 	CmdShiftL                        // <<
 	CmdShiftR                        // >>
 
@@ -119,9 +119,9 @@ var cmdName = map[CmdT]string{
 	CmdEqual:        `==`,
 	CmdNotEq:        `!=`,
 	CmdLess:         `<`,
-	CmdNotLess:      `>=`,
+	CmdGrEq:         `>=`,
 	CmdGreat:        `>`,
-	CmdNotGreat:     `<=`,
+	CmdLessEq:       `<=`,
 	CmdAssignMod:    `%=`,
 	CmdInc:          `++`,
 	CmdDec:          `--`,
