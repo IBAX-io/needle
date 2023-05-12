@@ -405,7 +405,7 @@ func init() {
 		return
 	}
 
-	for i := compile.CmdAssignAdd; i <= compile.CmdAssignRShift; i++ {
+	for i := compile.CmdInc; i <= compile.CmdAssignRShift; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			if len(ctx.assignVar) != 1 {
 				ctx.isLoop = true
@@ -452,11 +452,7 @@ func init() {
 			return
 		}
 	}
-	for i := compile.CmdInc; i <= compile.CmdDec; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-			return
-		}
-	}
+
 	instructionTable[compile.CmdAdd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		switch ctx.top[1].(type) {
 		case string:

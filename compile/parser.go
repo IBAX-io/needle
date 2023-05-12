@@ -124,7 +124,7 @@ func parserEval(lexemes *Lexemes, ind *int, block *CodeBlocks) error {
 	parcount := make([]int, 0, 20)
 	setIndex := false
 	noMap := false
-	prevLex := Token(0)
+	prevLex := &Lexeme{}
 main:
 	for ; i < len(*lexemes); i++ {
 		var cmd *ByteCode
@@ -153,12 +153,12 @@ main:
 		switch lexeme.Type {
 		case RBRACE, LBRACE:
 			i--
-			if prevLex == COMMA || prevLex == OPERATOR {
+			if prevLex.Type == COMMA || prevLex.Type == OPERATOR {
 				return errEndExp
 			}
 			break main
 		case NEWLINE:
-			if i > 0 && ((*lexemes)[i-1].Type == COMMA || (*lexemes)[i-1].Type == OPERATOR) {
+			if i > 0 && ((*lexemes)[i-1].Type == COMMA || (*lexemes)[i-1].Type == OPERATOR && ((*lexemes)[i-1].Value != Inc && (*lexemes)[i-1].Value != Dec)) {
 				continue main
 			}
 			for k := len(buffer) - 1; k >= 0; k-- {
@@ -315,7 +315,7 @@ main:
 				prevType != RBRACK && prevType != RPAREN)) {
 				op.Cmd = CmdSign
 				op.Priority = uint16(CmdUnary)
-			} else if prevLex == OPERATOR && op.Priority != uint16(CmdUnary) {
+			} else if prevLex.Type == OPERATOR && op.Priority != uint16(CmdUnary) {
 				return errOper
 			}
 			byteOper := newByteCode(op.Cmd, lexeme, lexeme.Line, op.Priority)
@@ -444,13 +444,13 @@ main:
 			}
 			if !call {
 				if objInfo.Type != ObjectType_Var {
-					return fmt.Errorf(`unknown variable %s`, lexeme.Value.(string))
+					return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 				}
 				cmd = newByteCode(CmdVar, lexeme, lexeme.Line, &VarInfo{Obj: objInfo, Owner: tobj})
 			}
 		}
 		if lexeme.Type != NEWLINE {
-			prevLex = lexeme.Type
+			prevLex = lexeme
 		}
 		if lexeme.Type&0xff == KEYWORD {
 			if lexeme.Value.(Token) == TAIL {
@@ -462,7 +462,7 @@ main:
 		}
 	}
 	*ind = i
-	if prevLex == OPERATOR {
+	if prevLex.Type == OPERATOR && (prevLex.Value != Inc && prevLex.Value != Dec) {
 		return errEndExp
 	}
 	for i := len(buffer) - 1; i >= 0; i-- {

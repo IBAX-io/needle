@@ -29,3 +29,16 @@ func operand_add {
     b4 = 20.2
     Println("a + b gives", a4 + b4)
 }
+
+func operand_inc_dec {
+    var a,b int c int
+    a = 11
+    b--
+    a += 12
+    a /= 3
+    b += 22
+    c -= -9*(3/3)%2
+    a++
+    Println("a++ gives", a,c)
+    Println("b-- gives", b)
+}
