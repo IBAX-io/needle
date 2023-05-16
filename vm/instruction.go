@@ -17,11 +17,7 @@ type instructionCtx struct {
 	labels     []int
 	ci         int
 	assignVar  []*compile.VarInfo
-	tmpInt     int64
-	tmpDec     decimal.Decimal
 	top        []any
-	operands   []any
-	sp         int // stack position of operands
 	isContinue bool
 	isBreak    bool
 	isLoop     bool
@@ -34,17 +30,7 @@ func newInstructionCtx() *instructionCtx {
 		labels:    make([]int, 0),
 		assignVar: make([]*compile.VarInfo, 0),
 		//top:       make([]any, 8),
-		operands: make([]any, 8),
-		//sp:        -1,
-		//tmpDec:    decimal.Zero,
-		//tmpInt:    int64(0),
 	}
-}
-
-func (ctx *instructionCtx) pushOperands(i int, v any) {
-	ctx.sp = i
-	ctx.operands[ctx.sp] = v
-	//ctx.operands = append(ctx.operands, v)
 }
 
 func init() {

@@ -3,7 +3,6 @@ package vm
 import (
 	"fmt"
 	"github.com/IBAX-io/needle/compile"
-	"github.com/shopspring/decimal"
 	"reflect"
 	"strings"
 	"time"
@@ -297,15 +296,12 @@ main:
 		ctx.isBreak = false
 		ctx.isLoop = false
 		ctx.top = make([]any, 8)
-		ctx.tmpInt = 0
-		ctx.tmpDec = decimal.Zero
 
 		if ctx.size < int(cmd.Cmd>>8) {
 			err = fmt.Errorf(`stack is empty`)
 			break
 		}
 		for i := 1; i <= int(cmd.Cmd>>8); i++ {
-			ctx.pushOperands(i-1, rt.stack[ctx.size-i])
 			ctx.top[i-1] = rt.stack[ctx.size-i]
 		}
 		instruction, ok := instructionTable[cmd.Cmd]
