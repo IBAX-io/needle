@@ -191,26 +191,29 @@ func binaryArithmeticOperator(x, y interface{}, op string) (interface{}, error) 
 			}
 		}
 	case decimal.Decimal:
-		if y, ok := y.(decimal.Decimal); ok {
-			switch op {
-			case "+":
-				return x.Add(y), nil
-			case "-":
-				return x.Sub(y), nil
-			case "*":
-				return x.Mul(y), nil
-			case "/":
-				if y.IsZero() {
-					return nil, fmt.Errorf("division by zero for %s", op)
-				}
-				return x.Div(y), nil
-			case "%":
-				if y.IsZero() {
-					return nil, fmt.Errorf("division by zero for %s", op)
-				}
-				return x.Mod(y).InexactFloat64(), nil
-			}
+		y, err := ValueToDecimal(y)
+		if err != nil {
+			return nil, err
 		}
+		switch op {
+		case "+":
+			return x.Add(y), nil
+		case "-":
+			return x.Sub(y), nil
+		case "*":
+			return x.Mul(y), nil
+		case "/":
+			if y.IsZero() {
+				return nil, fmt.Errorf("division by zero for %s", op)
+			}
+			return x.Div(y), nil
+		case "%":
+			if y.IsZero() {
+				return nil, fmt.Errorf("division by zero for %s", op)
+			}
+			return x.Mod(y).InexactFloat64(), nil
+		}
+
 	}
 	return nil, fmt.Errorf("invalid types for %s operation: %T and %T", op, x, y)
 }

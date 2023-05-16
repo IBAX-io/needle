@@ -446,11 +446,7 @@ func init() {
 		}
 	}
 	for _, c := range []compile.CmdT{
-		compile.CmdAdd,
-		compile.CmdSub,
-		compile.CmdMul,
-		compile.CmdDiv,
-		compile.CmdMod,
+		compile.CmdAdd, compile.CmdSub, compile.CmdMul, compile.CmdDiv, compile.CmdMod,
 		compile.CmdOr, compile.CmdAnd,
 		compile.CmdEqual, compile.CmdNotEq,
 		compile.CmdLess, compile.CmdGrEq,
