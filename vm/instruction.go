@@ -135,6 +135,18 @@ func init() {
 
 	instructionTable[compile.CmdAssignVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		ctx.assignVar = code.Value.([]*compile.VarInfo)
+		for _, item := range ctx.assignVar {
+			if item.Owner == nil {
+				if item.Obj.Type == compile.ObjectType_ExtVar {
+					var n = item.Obj.GetExtendVariable().Name
+					if rt.limitName(n) {
+						err = fmt.Errorf(eSysVar, n)
+						ctx.isLoop = true
+						return
+					}
+				}
+			}
+		}
 		return
 	}
 
@@ -145,11 +157,6 @@ func init() {
 			if item.Owner == nil {
 				if item.Obj.Type == compile.ObjectType_ExtVar {
 					var n = item.Obj.GetExtendVariable().Name
-					if rt.limitName(n) {
-						err = fmt.Errorf(eSysVar, n)
-						ctx.isLoop = true
-						return
-					}
 					if v, ok := rt.extend[n]; ok && v != nil && reflect.TypeOf(v) != reflect.TypeOf(val) {
 						err = fmt.Errorf("$%s (type %s) cannot be represented by the type %s", n, reflect.TypeOf(val), reflect.TypeOf(v))
 						return
@@ -404,9 +411,14 @@ func init() {
 		}
 		return
 	}
-
-	for i := compile.CmdInc; i <= compile.CmdAssignRShift; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+	for _, c := range []compile.CmdT{
+		compile.CmdInc, compile.CmdDec,
+		compile.CmdAssignAdd, compile.CmdAssignSub,
+		compile.CmdAssignMul, compile.CmdAssignDiv, compile.CmdAssignMod,
+		compile.CmdAssignAnd, compile.CmdAssignOr, compile.CmdAssignXor,
+		compile.CmdAssignLShift, compile.CmdAssignRShift,
+	} {
+		instructionTable[c] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			if len(ctx.assignVar) != 1 {
 				ctx.isLoop = true
 				err = fmt.Errorf("assign op variable count must be 1")
@@ -420,13 +432,8 @@ func init() {
 					return
 				}
 				var n = item.Obj.GetExtendVariable().Name
-				if rt.limitName(n) {
-					err = fmt.Errorf(eSysVar, n)
-					ctx.isLoop = true
-					return
-				}
 				var ret any
-				ret, err = evaluateCmd(rt.extend[n], y, code.Cmd.String())
+				ret, err = evaluateCmd(rt.extend[n], y, code.Cmd)
 				if err != nil {
 					ctx.isLoop = true
 					return
@@ -439,7 +446,7 @@ func init() {
 				if item.Owner == rt.blocks[i].Block {
 					k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
 					var ret any
-					ret, err = evaluateCmd(rt.vars[k], y, code.Cmd.String())
+					ret, err = evaluateCmd(rt.vars[k], y, code.Cmd)
 					if err != nil {
 						ctx.isLoop = true
 						return
@@ -452,7 +459,7 @@ func init() {
 			return
 		}
 	}
-
+	/*
 	instructionTable[compile.CmdAdd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		switch ctx.top[1].(type) {
 		case string:
@@ -504,321 +511,6 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compile.CmdSub] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		switch ctx.top[1].(type) {
-		case string:
-			switch ctx.top[0].(type) {
-			case int64:
-				if ctx.tmpInt, err = ValueToInt(ctx.top[1]); err == nil {
-					ctx.bin = ctx.tmpInt - ctx.top[0].(int64)
-				}
-			case float64:
-				ctx.bin = ValueToFloat(ctx.top[1]) - ctx.top[0].(float64)
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		case float64:
-			switch ctx.top[0].(type) {
-			case string, int64, float64:
-				ctx.bin = ctx.top[1].(float64) - ValueToFloat(ctx.top[0])
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		case int64:
-			switch ctx.top[0].(type) {
-			case int64, string:
-				if ctx.tmpInt, err = ValueToInt(ctx.top[0]); err == nil {
-					ctx.bin = ctx.top[1].(int64) - ctx.tmpInt
-				}
-			case float64:
-				ctx.bin = ValueToFloat(ctx.top[1]) - ctx.top[0].(float64)
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		default:
-			if reflect.TypeOf(ctx.top[1]).String() == Decimal &&
-				reflect.TypeOf(ctx.top[0]).String() == Decimal {
-				ctx.bin = ctx.top[1].(decimal.Decimal).Sub(ctx.top[0].(decimal.Decimal))
-			} else {
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		}
-		return
-	}
-	instructionTable[compile.CmdMul] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		switch ctx.top[1].(type) {
-		case string:
-			switch ctx.top[0].(type) {
-			case int64:
-				if ctx.tmpInt, err = ValueToInt(ctx.top[1]); err == nil {
-					ctx.bin = ctx.tmpInt * ctx.top[0].(int64)
-				}
-			case float64:
-				ctx.bin = ValueToFloat(ctx.top[1]) * ctx.top[0].(float64)
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		case float64:
-			switch ctx.top[0].(type) {
-			case string, int64, float64:
-				ctx.bin = ctx.top[1].(float64) * ValueToFloat(ctx.top[0])
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		case int64:
-			switch ctx.top[0].(type) {
-			case int64, string:
-				if ctx.tmpInt, err = ValueToInt(ctx.top[0]); err == nil {
-					ctx.bin = ctx.top[1].(int64) * ctx.tmpInt
-				}
-			case float64:
-				ctx.bin = ValueToFloat(ctx.top[1]) * ctx.top[0].(float64)
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		default:
-			if reflect.TypeOf(ctx.top[1]).String() == Decimal &&
-				reflect.TypeOf(ctx.top[0]).String() == Decimal {
-				ctx.bin = ctx.top[1].(decimal.Decimal).Mul(ctx.top[0].(decimal.Decimal))
-			} else {
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		}
-		return
-	}
-	instructionTable[compile.CmdDiv] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		switch ctx.top[1].(type) {
-		case string:
-			switch v := ctx.top[0].(type) {
-			case int64:
-				if v == 0 {
-					err = errDivZero
-					ctx.isLoop = true
-					return
-				}
-				if ctx.tmpInt, err = ValueToInt(ctx.top[1]); err == nil {
-					ctx.bin = ctx.tmpInt / v
-				}
-			case float64:
-				if v == 0 {
-					err = errDivZero
-					ctx.isLoop = true
-					return
-				}
-				ctx.bin = ValueToFloat(ctx.top[1]) / v
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		case float64:
-			switch ctx.top[0].(type) {
-			case string, int64, float64:
-				vFloat := ValueToFloat(ctx.top[0])
-				if vFloat == 0 {
-					err = errDivZero
-					ctx.isLoop = true
-					return
-				}
-				ctx.bin = ctx.top[1].(float64) / vFloat
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		case int64:
-			switch ctx.top[0].(type) {
-			case int64, string:
-				if ctx.tmpInt, err = ValueToInt(ctx.top[0]); err == nil {
-					if ctx.tmpInt == 0 {
-						err = errDivZero
-						ctx.isLoop = true
-						return
-					}
-					ctx.bin = ctx.top[1].(int64) / ctx.tmpInt
-				}
-			case float64:
-				if ctx.top[0].(float64) == 0 {
-					err = errDivZero
-					ctx.isLoop = true
-					return
-				}
-				ctx.bin = ValueToFloat(ctx.top[1]) / ctx.top[0].(float64)
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		default:
-			if reflect.TypeOf(ctx.top[1]).String() == Decimal &&
-				reflect.TypeOf(ctx.top[0]).String() == Decimal {
-				if ctx.top[0].(decimal.Decimal).Cmp(decimal.Zero) == 0 {
-					err = errDivZero
-					ctx.isLoop = true
-					return
-				}
-				ctx.bin = ctx.top[1].(decimal.Decimal).Div(ctx.top[0].(decimal.Decimal)).Floor()
-			} else {
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		}
-		return
-	}
-	instructionTable[compile.CmdMod] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		switch ctx.top[1].(type) {
-		case string:
-			switch y := ctx.top[0].(type) {
-			case int64:
-				if y == 0 {
-					err = errDivZero
-					ctx.isLoop = true
-					return
-				}
-				if ctx.tmpInt, err = ValueToInt(ctx.top[1]); err == nil {
-					ctx.bin = ctx.tmpInt % y
-				}
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		case int64:
-			switch ctx.top[0].(type) {
-			case int64, string:
-				if ctx.tmpInt, err = ValueToInt(ctx.top[0]); err == nil {
-					if ctx.tmpInt == 0 {
-						err = errDivZero
-						ctx.isLoop = true
-						return
-					}
-					ctx.bin = ctx.top[1].(int64) % ctx.tmpInt
-				}
-			default:
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		default:
-			if reflect.TypeOf(ctx.top[1]).String() == Decimal &&
-				reflect.TypeOf(ctx.top[0]).String() == Decimal {
-				if ctx.top[0].(decimal.Decimal).IsZero() {
-					err = errDivZero
-					ctx.isLoop = true
-					return
-				}
-				ctx.bin = ctx.top[1].(decimal.Decimal).Mod(ctx.top[0].(decimal.Decimal)).Floor()
-			} else {
-				err = errUnsupportedType
-				ctx.isLoop = true
-				return
-			}
-		}
-		return
-	}
-
-	for i := compile.CmdBitAnd; i <= compile.CmdBitOr; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-			var ret any
-			x := ctx.top[1]
-			y := ctx.top[0]
-			ret, err = evaluateCmd(x, y, code.Cmd.String())
-			if err != nil {
-				ctx.isLoop = true
-				return
-			}
-			ctx.bin = ret
-			return
-		}
-	}
-
-	instructionTable[compile.CmdAnd] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ctx.bin = valueToBool(ctx.top[1]) && valueToBool(ctx.top[0])
-		return
-	}
-	instructionTable[compile.CmdOr] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ctx.bin = valueToBool(ctx.top[1]) || valueToBool(ctx.top[0])
-
-		return
-	}
-	for i := compile.CmdEqual; i <= compile.CmdNotEq; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-			if ctx.top[1] == nil || ctx.top[0] == nil {
-				ctx.bin = ctx.top[0] == ctx.top[1]
-			} else {
-				switch ctx.top[1].(type) {
-				case string:
-					switch ctx.top[0].(type) {
-					case int64:
-						if ctx.tmpInt, err = ValueToInt(ctx.top[1]); err == nil {
-							ctx.bin = ctx.tmpInt == ctx.top[0].(int64)
-						}
-					case float64:
-						ctx.bin = ValueToFloat(ctx.top[1]) == ctx.top[0].(float64)
-					default:
-						if reflect.TypeOf(ctx.top[0]).String() == Decimal {
-							if ctx.tmpDec, err = ValueToDecimal(ctx.top[1]); err != nil {
-								ctx.isLoop = true
-								return
-							}
-							ctx.bin = ctx.tmpDec.Cmp(ctx.top[0].(decimal.Decimal)) == 0
-						} else {
-							ctx.bin = ctx.top[1].(string) == ctx.top[0].(string)
-						}
-					}
-				case float64:
-					ctx.bin = ctx.top[1].(float64) == ValueToFloat(ctx.top[0])
-				case int64:
-					switch ctx.top[0].(type) {
-					case int64:
-						ctx.bin = ctx.top[1].(int64) == ctx.top[0].(int64)
-					case float64:
-						ctx.bin = ValueToFloat(ctx.top[1]) == ctx.top[0].(float64)
-					default:
-						err = errUnsupportedType
-						ctx.isLoop = true
-						return
-					}
-				case bool:
-					switch ctx.top[0].(type) {
-					case bool:
-						ctx.bin = ctx.top[1].(bool) == ctx.top[0].(bool)
-					default:
-						err = errUnsupportedType
-						ctx.isLoop = true
-						return
-					}
-				default:
-					if ctx.tmpDec, err = ValueToDecimal(ctx.top[0]); err != nil {
-						ctx.isLoop = true
-						return
-					}
-					ctx.bin = ctx.top[1].(decimal.Decimal).Cmp(ctx.tmpDec) == 0
-				}
-			}
-			if code.Cmd == compile.CmdNotEq {
-				ctx.bin = !ctx.bin.(bool)
-			}
-			return
-		}
-	}
 	for i := compile.CmdLess; i <= compile.CmdGrEq; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			switch ctx.top[1].(type) {
@@ -867,60 +559,25 @@ func init() {
 			return
 		}
 	}
-	for i := compile.CmdGreat; i <= compile.CmdLessEq; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-			switch ctx.top[1].(type) {
-			case string:
-				switch ctx.top[0].(type) {
-				case int64:
-					if ctx.tmpInt, err = ValueToInt(ctx.top[1]); err == nil {
-						ctx.bin = ctx.tmpInt > ctx.top[0].(int64)
-					}
-				case float64:
-					ctx.bin = ValueToFloat(ctx.top[1]) > ctx.top[0].(float64)
-				default:
-					if reflect.TypeOf(ctx.top[0]).String() == Decimal {
-						if ctx.tmpDec, err = ValueToDecimal(ctx.top[1]); err != nil {
-							ctx.isLoop = true
-							return
-						}
-						ctx.bin = ctx.tmpDec.Cmp(ctx.top[0].(decimal.Decimal)) > 0
-					} else {
-						ctx.bin = ctx.top[1].(string) > ctx.top[0].(string)
-					}
-				}
-			case float64:
-				ctx.bin = ctx.top[1].(float64) > ValueToFloat(ctx.top[0])
-			case int64:
-				switch ctx.top[0].(type) {
-				case int64:
-					ctx.bin = ctx.top[1].(int64) > ctx.top[0].(int64)
-				case float64:
-					ctx.bin = ValueToFloat(ctx.top[1]) > ctx.top[0].(float64)
-				default:
-					err = errUnsupportedType
-					ctx.isLoop = true
-					return
-				}
-			default:
-				if ctx.tmpDec, err = ValueToDecimal(ctx.top[0]); err != nil {
-					ctx.isLoop = true
-					return
-				}
-				ctx.bin = ctx.top[1].(decimal.Decimal).Cmp(ctx.tmpDec) > 0
-			}
-			if code.Cmd == compile.CmdLessEq {
-				ctx.bin = !ctx.bin.(bool)
-			}
-			return
-		}
-	}
-	for i := compile.CmdShiftL; i <= compile.CmdShiftR; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+	*/
+	for _, c := range []compile.CmdT{
+		compile.CmdAdd,
+		compile.CmdSub,
+		compile.CmdMul,
+		compile.CmdDiv,
+		compile.CmdMod,
+		compile.CmdOr, compile.CmdAnd,
+		compile.CmdEqual, compile.CmdNotEq,
+		compile.CmdLess, compile.CmdGrEq,
+		compile.CmdGreat, compile.CmdLessEq,
+		compile.CmdShiftL, compile.CmdShiftR,
+		compile.CmdBitAnd, compile.CmdBitOr, compile.CmdBitXor,
+	} {
+		instructionTable[c] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			var ret any
 			x := ctx.top[1]
 			y := ctx.top[0]
-			ret, err = evaluateCmd(x, y, code.Cmd.String())
+			ret, err = evaluateCmd(x, y, code.Cmd)
 			if err != nil {
 				ctx.isLoop = true
 				return

@@ -309,7 +309,7 @@ var tokenToString = map[Token]string{
 	TRUE:       `TRUE`,
 	FALSE:      `FALSE`,
 	VAR:        `VAR`,
-	TX:         `TX`,
+	TX:         `DATA`,
 	SETTINGS:   `SETTINGS`,
 	BREAK:      `BREAK`,
 	CONTINUE:   `CONTINUE`,

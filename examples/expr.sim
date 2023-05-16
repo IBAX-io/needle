@@ -42,3 +42,31 @@ func operand_inc_dec {
     Println("a++ gives", a,c)
     Println("b-- gives", b)
 }
+
+func operand_logic {
+    var a,b int c string d float e money
+    a = 10
+    b = 20
+    Println("a || b gives", a || e)
+    Println("a && b gives", a && d)
+}
+
+func operand_bit {
+    var a,b int
+    a = 10
+    b = 20
+    Println("a | b gives", a | b)
+    Println("a & b gives", a & b)
+    Println("a ^ b gives", a ^ b)
+    Println("a << b gives", a << b)
+    Println("a >> b gives", a >> b)
+}
+
+func operand_comparison {
+   var a string b int c float d money
+    a = "hello"
+    b = 20
+    c = 20.2
+    d = 20.3
+    Println("a == gives", a == b, a == c , a == d)
+}

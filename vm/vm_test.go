@@ -24,6 +24,9 @@ func TestVM_Compile(t *testing.T) {
 		{"case_expr", "operand", []rune(string(expr)), assert.NoError},
 		{"case_expr_add", "operand_add", []rune(string(expr)), assert.NoError},
 		{"case_expr_inc_dec", "operand_inc_dec", []rune(string(expr)), assert.NoError},
+		{"case_expr_logic", "operand_logic", []rune(string(expr)), assert.NoError},
+		{"case_expr_bit", "operand_bit", []rune(string(expr)), assert.NoError},
+		{"case_expr_comparison", "operand_comparison", []rune(string(expr)), assert.NoError},
 	}
 	limit := int64(100000)
 	extend := map[string]any{
