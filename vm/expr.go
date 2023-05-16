@@ -159,7 +159,7 @@ func binaryArithmeticOperator(x, y interface{}, op string) (interface{}, error) 
 				if yv == 0 {
 					return nil, fmt.Errorf("division by zero for %s", op)
 				}
-				return x / yv, nil
+				return x % yv, nil
 			}
 		}
 	case float64:
