@@ -61,7 +61,7 @@ func ConvertMap(in any) any {
 	return in
 }
 
-// LoadMap instantiates a linked hash map and initializing it from map[string]interface{}.
+// LoadMap instantiates a linked hash map and initializing it from map[string]any.
 func LoadMap(init map[string]any) (ret *Map) {
 	ret = NewMap()
 	keys := make([]string, 0, len(init))

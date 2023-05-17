@@ -437,7 +437,7 @@ main:
 				if (*lexemes)[i+1].Type == LBRACK {
 					if objInfo == nil || objInfo.Type != ObjectType_Var {
 						logger.WithFields(log.Fields{"lex_value": lexeme.Value, "type": ParseError}).Error("unknown variable")
-						return fmt.Errorf(`unknown variable %s`, lexeme.Value.(string))
+						return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 					}
 					buffer.push(newByteCode(CmdIndex, lexeme, lexeme.Line, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))
 				}
