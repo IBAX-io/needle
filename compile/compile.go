@@ -2,12 +2,12 @@ package compile
 
 import "fmt"
 
-func CompileBlock(input []rune, owner *OwnerInfo) (*CodeBlock, error) {
+func CompileBlock(input []rune, ext *ExtendData) (*CodeBlock, error) {
 	lexer, err := NewLexer(input)
 	if err != nil {
 		return nil, fmt.Errorf("lexer: %w", err)
 	}
-	return NewParser(lexer, owner)
+	return NewParser(lexer, ext)
 }
 
 // ContractsList returns list of contracts names from source of code

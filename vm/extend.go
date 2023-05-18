@@ -41,7 +41,7 @@ const (
 	Extend_loop  = `loop_`
 )
 const (
-	// system variable cannot be changed
+	//system variable cannot be changed
 	sysVars_block               = `block`
 	sysVars_block_key_id        = `block_key_id`
 	sysVars_block_time          = `block_time`
@@ -99,7 +99,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 
 	prevExtend := make(map[string]any)
 	for key, item := range rt.extend {
-		if rt.limitName(key) {
+		if rt.vm.AssertVar(key) {
 			continue
 		}
 		prevExtend[key] = item
@@ -181,7 +181,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	rt.extend[Extend_this_contract] = prevthis
 	result := rt.extend[Extend_result]
 	for key := range rt.extend {
-		if rt.limitName(key) {
+		if rt.vm.AssertVar(key) {
 			continue
 		}
 		delete(rt.extend, key)

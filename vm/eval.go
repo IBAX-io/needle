@@ -27,7 +27,7 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 		}`
 	}
 
-	block, err := compile.CompileBlock([]rune(source), &compile.OwnerInfo{StateID: state})
+	block, err := compile.CompileBlock([]rune(source), compile.NewExtendData(&compile.OwnerInfo{StateID: state}, nil, nil))
 	if err != nil {
 		return err
 	}

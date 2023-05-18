@@ -8,13 +8,9 @@ import (
 
 var extern bool // extern is mode of compilation
 
-func NewParser(lexemes Lexemes, owner *OwnerInfo) (*CodeBlock, error) {
-	if owner == nil {
-		owner = &OwnerInfo{StateID: 1}
-	}
-	root := NewCodeBlock(owner)
-	//root := &CodeBlock{Objects: make(map[string]*ObjInfo), Info: owner}
-	if len(lexemes) == 0 {
+func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
+	root := NewCodeBlock(ext)
+ 	if len(lexemes) == 0 {
 		return root, nil
 	}
 

@@ -102,7 +102,6 @@ type Runtime struct {
 	cost      int64 //cost remaining
 	err       error
 	unwrap    bool
-	limitName func(string) bool
 	timeLimit bool
 	callDepth uint16
 	mem       int64
@@ -113,11 +112,10 @@ type Runtime struct {
 // NewRuntime creates a new Runtime for the virtual machine
 func NewRuntime(vm *VM, cost int64) *Runtime {
 	return &Runtime{
-		stack:     make([]any, 0, 1024),
-		vm:        vm,
-		cost:      cost,
-		memVars:   make(map[any]int64),
-		limitName: isSysVar,
+		stack:   make([]any, 0, 1024),
+		vm:      vm,
+		cost:    cost,
+		memVars: make(map[any]int64),
 	}
 }
 

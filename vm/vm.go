@@ -50,12 +50,25 @@ type Stacker interface {
 
 // NewVM creates a new virtual machine
 func NewVM() *VM {
+	auto := map[string]string{"*vm.Runtime": "rt"}
+	var fn = []compile.ExtendFunc{
+		{Name: "ExecContract", Func: ExecContract, AutoPars: auto},
+		{Name: "Settings", Func: GetSettings, AutoPars: auto},
+		{Name: "MemoryUsage", Func: MemoryUsage, AutoPars: auto},
+		{"CallContract", CallContract, true, auto},
+		{Name: "Println", Func: fmt.Println},
+		{Name: "Sprintf", Func: fmt.Sprintf},
+	}
+	var v []string
+	for p := range sysVars {
+		v = append(v, p)
+	}
 	vm := &VM{
-		CodeBlock:   compile.NewCodeBlock(nil),
+		CodeBlock:   compile.NewCodeBlock(compile.NewExtendData(nil, fn, v)),
 		Extern:      true,
 		FuncCallsDB: make(map[string]struct{}),
+		logger:      log.WithFields(log.Fields{"type": VMErr, "extern": true}),
 	}
-	vm.logger = log.WithFields(log.Fields{"type": VMErr, "extern": vm.Extern, "vm_block_type": vm.CodeBlock.Type})
 	return vm
 }
 
@@ -259,8 +272,8 @@ func (vm *VM) FlushExtern() {
 }
 
 // Compile compiles a source code and loads the byte-code into the virtual machine,
-func (vm *VM) Compile(input []rune, owner *compile.OwnerInfo) error {
-	root, err := compile.CompileBlock(input, owner)
+func (vm *VM) Compile(input []rune, ext *compile.ExtendData) error {
+	root, err := compile.CompileBlock(input, ext)
 	if err != nil {
 		return err
 	}
@@ -400,5 +413,5 @@ func CurrentKeyFromAccount(account string) int {
         return 0
 }
 `
-	return vm.Compile([]rune(code), &compile.OwnerInfo{StateID: uint32(state)})
+	return vm.Compile([]rune(code), compile.NewExtendData(&compile.OwnerInfo{StateID: uint32(state)}, nil, nil))
 }

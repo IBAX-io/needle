@@ -31,11 +31,12 @@ type CodeBlock struct {
 	//*FuncInfo
 	//*ContractInfo
 	//*OwnerInfo
-	Info     isCodeBlockInfo
-	Parent   *CodeBlock
-	Vars     []reflect.Type
-	Code     ByteCodes
-	Children CodeBlocks
+	Info           isCodeBlockInfo
+	Parent         *CodeBlock
+	Vars           []reflect.Type
+	Code           ByteCodes
+	PredeclaredVar []string
+	Children       CodeBlocks
 }
 
 func (bc *CodeBlock) resolve(name string) (*CodeBlock, bool) {
@@ -47,6 +48,15 @@ func (bc *CodeBlock) resolve(name string) (*CodeBlock, bool) {
 		return bc.Parent.resolve(name)
 	}
 	return nil, false
+}
+
+func (bc *CodeBlock) AssertVar(name string) bool {
+	for _, s := range bc.PredeclaredVar {
+		if s == name {
+			return true
+		}
+	}
+	return false
 }
 
 // ByteCode stores a command and an additional parameter.
@@ -140,21 +150,20 @@ type ObjInfo struct {
 	Value isObjInfoValue
 }
 
-func NewCodeBlock(info isCodeBlockInfo) *CodeBlock {
-	b := &CodeBlock{
-		Objects: NewExtendData(
-			map[string]any{
-				"Println": fmt.Println,
-			}, map[string]string{}, map[string]struct{}{},
-		).MakeObj(),
+func NewCodeBlock(ext *ExtendData) *CodeBlock {
+	return &CodeBlock{
+		Objects: ext.MakeExtFunc(),
 		// Reserved 256 indexes for system purposes
-		Children: make(CodeBlocks, 256, 1024),
-		Info:     info,
+		Children:       make(CodeBlocks, 256, 1024),
+		Info:           ext.Info,
+		PredeclaredVar: ext.MakePreVar(),
 	}
-	return b
 }
 
 func (bc *CodeBlock) GetObjByName(name string) (ret *ObjInfo) {
+	if bc == nil {
+		return nil
+	}
 	var ok bool
 	names := strings.Split(name, `.`)
 	for i, name := range names {

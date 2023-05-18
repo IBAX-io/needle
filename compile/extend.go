@@ -1,47 +1,59 @@
 package compile
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // ExtendData is used for the definition of the extended functions and variables
 type ExtendData struct {
-	Objects    map[string]any
-	AutoPars   map[string]string
-	WriteFuncs map[string]struct{}
+	Info   isCodeBlockInfo
+	Func   []ExtendFunc
+	PreVar []string
 }
 
-func NewExtendData(objects map[string]any, autoPars map[string]string, writeFuncs map[string]struct{}) *ExtendData {
-	return &ExtendData{Objects: objects, AutoPars: autoPars, WriteFuncs: writeFuncs}
+type ExtendFunc struct {
+	Name     string
+	Func     any
+	CanWrite bool
+	AutoPars map[string]string
 }
 
-func (ext *ExtendData) MakeObj() map[string]*ObjInfo {
+func NewExtendData(info isCodeBlockInfo, fns []ExtendFunc, vars []string) *ExtendData {
+	return &ExtendData{Info: info, Func: fns, PreVar: vars}
+}
+
+func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
 	objects := make(map[string]*ObjInfo)
-	for key, item := range ext.Objects {
-		fobj := reflect.ValueOf(item).Type()
+	for _, item := range ext.Func {
+		fobj := reflect.ValueOf(item.Func).Type()
 		switch fobj.Kind() {
 		case reflect.Func:
-			_, canWrite := ext.WriteFuncs[key]
 			data := &ExtFuncInfo{
-				Name:     key,
+				Name:     item.Name,
 				Params:   make([]reflect.Type, fobj.NumIn()),
 				Results:  make([]reflect.Type, fobj.NumOut()),
 				Auto:     make([]string, fobj.NumIn()),
 				Variadic: fobj.IsVariadic(),
-				Func:     item,
-				CanWrite: canWrite,
+				Func:     item.Func,
+				CanWrite: item.CanWrite,
 			}
 
 			// populate Params, Auto, and Results
 			for i := 0; i < fobj.NumIn(); i++ {
-				if isAuto, ok := ext.AutoPars[fobj.In(i).String()]; ok {
-					data.Auto[i] = isAuto
+				if isauto, ok := item.AutoPars[fobj.In(i).String()]; ok {
+					data.Auto[i] = isauto
 				}
 				data.Params[i] = fobj.In(i)
 			}
 			for i := 0; i < fobj.NumOut(); i++ {
 				data.Results[i] = fobj.Out(i)
 			}
-			objects[key] = &ObjInfo{Type: ObjectType_ExtFunc, Value: data}
+			objects[item.Name] = &ObjInfo{Type: ObjectType_ExtFunc, Value: data}
 		}
 	}
 	return objects
+}
+
+func (ext *ExtendData) MakePreVar() []string {
+	return ext.PreVar
 }

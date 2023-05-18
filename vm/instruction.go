@@ -125,7 +125,7 @@ func init() {
 			if item.Owner == nil {
 				if item.Obj.Type == compile.ObjectType_ExtVar {
 					var n = item.Obj.GetExtendVariable().Name
-					if rt.limitName(n) {
+					if rt.vm.AssertVar(n) {
 						err = fmt.Errorf(eSysVar, n)
 						ctx.isLoop = true
 						return

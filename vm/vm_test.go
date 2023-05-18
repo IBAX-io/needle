@@ -3,7 +3,6 @@ package vm
 import (
 	"fmt"
 	"github.com/IBAX-io/needle/compile"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
@@ -38,10 +37,7 @@ func TestVM_Compile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			vm := GetVM()
 			vm.SetExtendCost(getcost)
-			vm.Objects = compile.NewExtendData(
-				obj, map[string]string{}, writeFuncs,
-			).MakeObj()
-			tt.wantErr(t, vm.Compile(tt.args, &compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}))
+			tt.wantErr(t, vm.Compile(tt.args, compile.NewExtendData(&compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}, obj, []string{"key_id"})))
 			//func|contract|golang func
 			t.Error(vm.Call(tt.method, nil, extend))
 		})
@@ -50,22 +46,20 @@ func TestVM_Compile(t *testing.T) {
 }
 
 func getcost(name string) int64 {
-	_, ok := obj[name]
-	if ok {
-		return 10
+	for _, f := range obj {
+		if f.Name == name {
+			return 10
+		}
 	}
 	return -1
 }
 
-var obj = map[string]any{
-	"Println":  fmt.Println,
-	"Sprintf":  fmt.Sprintf,
-	"lenArray": lenArray,
-	"str":      str,
-	"Money":    Money,
-	"Replace":  strings.Replace}
-
-var writeFuncs = map[string]struct{}{"Sprintf": {}}
+var obj = []compile.ExtendFunc{
+	{Name: "lenArray", Func: lenArray},
+	{Name: "str", Func: str},
+	{Name: "Money", Func: ValueToDecimal},
+	{Name: "Replace", Func: strings.Replace},
+}
 
 // Str converts the value to a string
 func str(v any) (ret string) {
@@ -74,9 +68,4 @@ func str(v any) (ret string) {
 
 func lenArray(par []any) int64 {
 	return int64(len(par))
-}
-
-func Money(v any) (ret decimal.Decimal) {
-	ret, _ = ValueToDecimal(v)
-	return ret
 }

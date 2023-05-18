@@ -239,11 +239,10 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		ivar VarInfo
 	)
 	if lexeme.Type == EXTEND {
-		//todo
-		//if isSysVar(lexeme.Value.(string)) {
-		//	lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "lex_value": lexeme.Value}).Error("modifying system variable")
-		//	return fmt.Errorf(eSysVar, lexeme.Value.(string))
-		//}
+		if buf.get(0).AssertVar(lexeme.Value.(string)) {
+			lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "lex_value": lexeme.Value}).Error("modifying system variable")
+			return fmt.Errorf(eSysVar, lexeme.Value.(string))
+		}
 		ivar = VarInfo{Obj: &ObjInfo{Type: ObjectType_ExtVar, Value: &ObjInfo_ExtendVariable{Name: lexeme.Value.(string)}}, Owner: nil}
 	} else {
 		objInfo, tobj := findVar(lexeme.Value.(string), buf)
@@ -321,11 +320,10 @@ func fnField(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		}
 		return fmt.Errorf("identifier expected, got '%s'", val)
 	}
-	//todo
-	//if isSysVar(lexeme.Value.(string)) {
-	//	lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "contract": info.Name, "lex_value": lexeme.Value.(string)}).Error("param variable in the data section of the contract collides with the 'builtin' variable")
-	//	return fmt.Errorf(eDataParamVarCollides, lexeme.Value.(string), info.Name)
-	//}
+	if buf.get(0).AssertVar(lexeme.Value.(string)) {
+		lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "contract": info.Name, "lex_value": lexeme.Value.(string)}).Error("param variable in the data section of the contract collides with the 'builtin' variable")
+		return fmt.Errorf(eDataParamVarCollides, lexeme.Value.(string), info.Name)
+	}
 	*tx = append(*tx, &FieldInfo{Name: lexeme.Value.(string), Type: reflect.TypeOf(nil)})
 	return nil
 }
