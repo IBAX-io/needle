@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"github.com/IBAX-io/needle/compile"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -273,6 +274,27 @@ func (vm *VM) FlushExtern() {
 
 // Compile compiles a source code and loads the byte-code into the virtual machine,
 func (vm *VM) Compile(input []rune, ext *compile.ExtendData) error {
+	var d compile.ExtendData
+	for s, info := range vm.Objects {
+		if info.Type != compile.ObjectType_ExtFunc {
+			continue
+		}
+		var fn = compile.ExtendFunc{
+			Name:     s,
+			Func:     info.GetExtFuncInfo().Func,
+			CanWrite: info.GetExtFuncInfo().CanWrite,
+			AutoPars: make(map[string]string),
+		}
+		fobj := reflect.ValueOf(fn.Func).Type()
+		for i := 0; i < fobj.NumIn(); i++ {
+			if info.GetExtFuncInfo().Auto[i] != "" {
+				fn.AutoPars[fobj.In(i).String()] = info.GetExtFuncInfo().Auto[i]
+			}
+		}
+		d.Func = append(d.Func, fn)
+	}
+	ext.Func = append(d.Func, ext.Func...)
+	ext.PreVar = append(vm.PredeclaredVar, ext.PreVar...)
 	root, err := compile.CompileBlock(input, ext)
 	if err != nil {
 		return err

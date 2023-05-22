@@ -6,7 +6,7 @@ import (
 
 // ExtendData is used for the definition of the extended functions and variables
 type ExtendData struct {
-	Info   isCodeBlockInfo
+	Info   *OwnerInfo
 	Func   []ExtendFunc
 	PreVar []string
 }
@@ -18,7 +18,10 @@ type ExtendFunc struct {
 	AutoPars map[string]string
 }
 
-func NewExtendData(info isCodeBlockInfo, fns []ExtendFunc, vars []string) *ExtendData {
+func NewExtendData(info *OwnerInfo, fns []ExtendFunc, vars []string) *ExtendData {
+	if info == nil {
+		info = &OwnerInfo{StateID: 1}
+	}
 	return &ExtendData{Info: info, Func: fns, PreVar: vars}
 }
 
