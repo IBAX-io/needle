@@ -247,7 +247,7 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	} else {
 		objInfo, tobj := findVar(lexeme.Value.(string), buf)
 		if objInfo == nil || objInfo.Type != ObjectType_Var {
-			return fmt.Errorf(`unknown variable '%s'`, lexeme.Value.(string))
+			return fmt.Errorf(`unknown variable %s`, lexeme.Value.(string))
 		}
 		ivar = VarInfo{Obj: objInfo, Owner: tobj}
 	}

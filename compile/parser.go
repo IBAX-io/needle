@@ -10,7 +10,7 @@ var extern bool // extern is mode of compilation
 
 func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 	root := NewCodeBlock(ext)
- 	if len(lexemes) == 0 {
+	if len(lexemes) == 0 {
 		return root, nil
 	}
 
@@ -432,7 +432,6 @@ main:
 				}
 				if (*lexemes)[i+1].Type == LBRACK {
 					if objInfo == nil || objInfo.Type != ObjectType_Var {
-						logger.WithFields(log.Fields{"lex_value": lexeme.Value, "type": ParseError}).Error("unknown variable")
 						return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 					}
 					buffer.push(newByteCode(CmdIndex, lexeme, lexeme.Line, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))

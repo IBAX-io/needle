@@ -21,7 +21,6 @@ const (
 	Decimal = `decimal.Decimal`
 	// Interface is the constant string for interface type
 	Interface = `interface`
-	File      = `*script.Map`
 
 	brackets = `[]`
 

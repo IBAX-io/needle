@@ -221,11 +221,11 @@ var TypeNameReflect = map[Token]reflect.Type{
 	INT:     reflect.TypeOf(int64(0)),
 	ADDRESS: reflect.TypeOf(int64(0)),
 	ARRAY:   reflect.TypeOf([]any{}),
-	MAP:     reflect.TypeOf(map[string]any{}),
+	MAP:     reflect.TypeOf(&Map{}),
 	MONEY:   reflect.TypeOf(decimal.Zero),
 	FLOAT:   reflect.TypeOf(0.0),
 	STRING:  reflect.TypeOf(``),
-	FILE:    reflect.TypeOf(map[string]any{}),
+	FILE:    reflect.TypeOf(&Map{}),
 }
 
 // GetFieldDefaultValue returns default value for field type

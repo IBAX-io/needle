@@ -213,7 +213,7 @@ func init() {
 		rvalue := reflect.ValueOf(rt.stack[ctx.size-2])
 		rtype := reflect.TypeOf(rt.stack[ctx.size-2]).String()
 		switch {
-		case rtype == `*script.Map`:
+		case rtype == `*compile.Map`:
 			key := rt.getStack(ctx.size - 1)
 			if reflect.TypeOf(key).String() != `string` {
 				err = fmt.Errorf(eMapIndex, reflect.TypeOf(key).String())
@@ -268,7 +268,7 @@ func init() {
 		}
 
 		switch {
-		case itype == `*script.Map`:
+		case itype == `*compile.Map`:
 			if rt.stack[ctx.size-3].(*compile.Map).Size() > maxMapCount {
 				err = errMaxMapCount
 				break
