@@ -202,7 +202,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 
 			line = "]"
 			if cmd != nil {
-				line = fmt.Sprintf(":%d]", cmd.Line)
+				line = fmt.Sprintf(":%d]", cmd.Lexeme.Line)
 			}
 
 			if len(rt.errInfo.Name) > 0 && rt.errInfo.Name != `ExecContract` {

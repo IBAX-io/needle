@@ -46,7 +46,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		}
 		if nextState == stateEval {
 			if newState.hasState(stateLabel) {
-				blocksStack.peek().Code.push(newByteCode(CmdLabel, lexeme, lexeme.Line, 0))
+				blocksStack.peek().Code.push(newByteCode(CmdLabel, lexeme, 0))
 			}
 
 			curlen := len(blocksStack.peek().Code)
@@ -78,7 +78,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 				if len(prev.Code) > 0 && (*prev).Code[len((*prev).Code)-1].Cmd == CmdContinue {
 					(*prev).Code = (*prev).Code[:len((*prev).Code)-1]
 					prev = blocksStack.peek()
-					(*prev).Code.push(newByteCode(CmdContinue, lexeme, lexeme.Line, 0))
+					(*prev).Code.push(newByteCode(CmdContinue, lexeme, 0))
 				}
 			}
 			blocksStack = blocksStack[:len(blocksStack)-1]
@@ -133,7 +133,7 @@ main:
 				if err != nil {
 					return err
 				}
-				bytecode.push(newByteCode(CmdMapInit, lexeme, lexeme.Line, pMap))
+				bytecode.push(newByteCode(CmdMapInit, lexeme, pMap))
 				continue
 			}
 			if lexeme.Type == LBRACK {
@@ -141,7 +141,7 @@ main:
 				if err != nil {
 					return err
 				}
-				bytecode.push(newByteCode(CmdArrayInit, lexeme, lexeme.Line, pArray))
+				bytecode.push(newByteCode(CmdArrayInit, lexeme, pArray))
 				continue
 			}
 		}
@@ -164,7 +164,7 @@ main:
 			}
 			break main
 		case LPAREN, LBRACK:
-			buffer.push(newByteCode(CmdSys, lexeme, lexeme.Line, uint16(0xff)))
+			buffer.push(newByteCode(CmdSys, lexeme, uint16(0xff)))
 		case COMMA:
 			if len(parcount) > 0 {
 				parcount[len(parcount)-1]++
@@ -207,7 +207,7 @@ main:
 					}
 					if objInfo.Type == ObjectType_Func && objInfo.GetCodeBlock().GetFuncInfo().Names != nil {
 						if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncName {
-							bytecode.push(newByteCode(CmdPush, lexeme, lexeme.Line, nil))
+							bytecode.push(newByteCode(CmdPush, lexeme, nil))
 						}
 						if i < len(*lexemes)-4 && (*lexemes)[i+1].Type == DOT {
 							if (*lexemes)[i+2].Type != IDENTIFIER {
@@ -219,7 +219,7 @@ main:
 								if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
 									objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
 									if objInfo != nil && (objInfo.Type == ObjectType_Func || objInfo.Type == ObjectType_ExtFunc) {
-										tail = newByteCode(CmdCall, lexeme, lexeme.Line, objInfo)
+										tail = newByteCode(CmdCall, lexeme, objInfo)
 									}
 								}
 								if tail == nil {
@@ -228,7 +228,7 @@ main:
 								}
 							}
 							if tail == nil {
-								buffer.push(newByteCode(CmdFuncName, lexeme, lexeme.Line, FuncNameCmd{Name: (*lexemes)[i+2].Value.(string)}))
+								buffer.push(newByteCode(CmdFuncName, lexeme, FuncNameCmd{Name: (*lexemes)[i+2].Value.(string)}))
 								count := 0
 								if (*lexemes)[i+3].Type != RPAREN {
 									count++
@@ -257,7 +257,7 @@ main:
 						}
 					}
 					if prev.Cmd == CmdCallVariadic {
-						bytecode.push(newByteCode(CmdPush, lexeme, lexeme.Line, count))
+						bytecode.push(newByteCode(CmdPush, lexeme, count))
 					}
 					buffer = buffer[:len(buffer)-1]
 					bytecode.push(prev)
@@ -274,7 +274,7 @@ main:
 				if len(buffer) == 0 {
 					return fmt.Errorf("%s: there is not pair", lexeme.Type)
 				}
-				prev := buffer[len(buffer)-1]
+				prev := buffer.peek()
 				buffer = buffer[:len(buffer)-1]
 				if prev.Value.(uint16) == 0xff {
 					break
@@ -282,7 +282,7 @@ main:
 				bytecode.push(prev)
 			}
 			if len(buffer) > 0 {
-				if prev := buffer[len(buffer)-1]; prev.Cmd == CmdIndex {
+				if prev := buffer.peek(); prev.Cmd == CmdIndex {
 					buffer = buffer[:len(buffer)-1]
 					if i < len(*lexemes)-1 && (*lexemes)[i+1].Type == EQ {
 						i++
@@ -314,7 +314,7 @@ main:
 			} else if prevLex.Type == OPERATOR && op.Priority != uint16(CmdUnary) {
 				return errOper
 			}
-			byteOper := newByteCode(op.Cmd, lexeme, lexeme.Line, op.Priority)
+			byteOper := newByteCode(op.Cmd, lexeme, op.Priority)
 			for {
 				if len(buffer) == 0 {
 					buffer.push(byteOper)
@@ -339,7 +339,7 @@ main:
 			}
 		case NUMBER, LITERAL:
 			noMap = true
-			cmd = newByteCode(CmdPush, lexeme, lexeme.Line, lexeme.Value)
+			cmd = newByteCode(CmdPush, lexeme, lexeme.Value)
 		case EXTEND:
 			noMap = true
 			if i < len(*lexemes)-2 {
@@ -349,14 +349,14 @@ main:
 						count++
 					}
 					parcount = append(parcount, count)
-					buffer.push(newByteCode(CmdCallExtend, lexeme, lexeme.Line, lexeme.Value.(string)))
+					buffer.push(newByteCode(CmdCallExtend, lexeme, lexeme.Value.(string)))
 					call = true
 				}
 			}
 			if !call {
-				cmd = newByteCode(CmdExtend, lexeme, lexeme.Line, lexeme.Value.(string))
+				cmd = newByteCode(CmdExtend, lexeme, lexeme.Value.(string))
 				if i < len(*lexemes)-1 && (*lexemes)[i+1].Type == LBRACK {
-					buffer.push(newByteCode(CmdIndex, lexeme, lexeme.Line, &IndexInfo{Extend: lexeme.Value.(string)}))
+					buffer.push(newByteCode(CmdIndex, lexeme, &IndexInfo{Extend: lexeme.Value.(string)}))
 				}
 			}
 		case IDENTIFIER:
@@ -400,7 +400,7 @@ main:
 					if (*lexemes)[i+2].Type != RPAREN {
 						count++
 					}
-					buffer.push(newByteCode(cmd, lexeme, lexeme.Line, objInfo))
+					buffer.push(newByteCode(cmd, lexeme, objInfo))
 					if isContract {
 						name := StateName(block.ParentOwner().StateID, lexeme.Value.(string))
 						for j := len(*block) - 1; j >= 0; j-- {
@@ -415,17 +415,17 @@ main:
 						if objContract != nil && objContract.GetContractInfo().CanWrite {
 							setWritable(block)
 						}
-						bytecode.push(newByteCode(CmdPush, lexeme, lexeme.Line, name))
+						bytecode.push(newByteCode(CmdPush, lexeme, name))
 						if count == 0 {
 							count = 2
-							bytecode.push(newByteCode(CmdPush, lexeme, lexeme.Line, ""))
-							bytecode.push(newByteCode(CmdPush, lexeme, lexeme.Line, ""))
+							bytecode.push(newByteCode(CmdPush, lexeme, ""))
+							bytecode.push(newByteCode(CmdPush, lexeme, ""))
 						}
 						count++
 					}
 					if lexeme.Value.(string) == `CallContract` {
 						count++
-						bytecode.push(newByteCode(CmdPush, lexeme, lexeme.Line, block.ParentOwner().StateID))
+						bytecode.push(newByteCode(CmdPush, lexeme, block.ParentOwner().StateID))
 					}
 					parcount = append(parcount, count)
 					call = true
@@ -434,14 +434,14 @@ main:
 					if objInfo == nil || objInfo.Type != ObjectType_Var {
 						return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 					}
-					buffer.push(newByteCode(CmdIndex, lexeme, lexeme.Line, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))
+					buffer.push(newByteCode(CmdIndex, lexeme, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))
 				}
 			}
 			if !call {
 				if objInfo.Type != ObjectType_Var {
 					return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 				}
-				cmd = newByteCode(CmdVar, lexeme, lexeme.Line, &VarInfo{Obj: objInfo, Owner: tobj})
+				cmd = newByteCode(CmdVar, lexeme, &VarInfo{Obj: objInfo, Owner: tobj})
 			}
 		}
 		if lexeme.Type != NEWLINE {
@@ -449,7 +449,7 @@ main:
 		}
 		if lexeme.Type&0xff == KEYWORD {
 			if lexeme.Value.(Token) == TAIL {
-				cmd = newByteCode(CmdUnwrapArr, lexeme, lexeme.Line, 0)
+				cmd = newByteCode(CmdUnwrapArr, lexeme, 0)
 			}
 		}
 		if cmd != nil {
@@ -467,7 +467,7 @@ main:
 		bytecode.push(buffer[i])
 	}
 	if setIndex {
-		bytecode.push(newByteCode(CmdSetIndex, nil, 0, indexInfo))
+		bytecode.push(newByteCode(CmdSetIndex, nil, indexInfo))
 	}
 	curBlock.Code = append(curBlock.Code, bytecode...)
 	return nil

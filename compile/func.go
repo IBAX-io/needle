@@ -70,12 +70,12 @@ func fnFuncResult(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 }
 
 func fnReturn(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdReturn, lexeme, lexeme.Line, 0))
+	buf.peek().Code.push(newByteCode(CmdReturn, lexeme, 0))
 	return nil
 }
 
 func fnCmdError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdError, lexeme, lexeme.Line, lexeme.Value))
+	buf.peek().Code.push(newByteCode(CmdError, lexeme, lexeme.Value))
 	return nil
 }
 
@@ -212,23 +212,23 @@ func fnFNameParam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 }
 
 func fnIf(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdIf, lexeme, lexeme.Line, buf.peek()))
+	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdIf, lexeme, buf.peek()))
 	return nil
 }
 
 func fnWhile(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdWhile, lexeme, lexeme.Line, buf.peek()))
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdContinue, lexeme, lexeme.Line, 0))
+	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdWhile, lexeme, buf.peek()))
+	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdContinue, lexeme, 0))
 	return nil
 }
 
 func fnContinue(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdContinue, lexeme, lexeme.Line, 0))
+	buf.peek().Code.push(newByteCode(CmdContinue, lexeme, 0))
 	return nil
 }
 
 func fnBreak(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdBreak, lexeme, lexeme.Line, 0))
+	buf.peek().Code.push(newByteCode(CmdBreak, lexeme, 0))
 	return nil
 }
 
@@ -258,15 +258,15 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	}
 	prev = append(prev, &ivar)
 	if len(prev) == 1 {
-		block.Code.push(newByteCode(CmdAssignVar, lexeme, lexeme.Line, prev))
+		block.Code.push(newByteCode(CmdAssignVar, lexeme, prev))
 	} else {
-		block.Code[len(block.Code)-1] = newByteCode(CmdAssignVar, lexeme, lexeme.Line, prev)
+		block.Code[len(block.Code)-1] = newByteCode(CmdAssignVar, lexeme, prev)
 	}
 	return nil
 }
 
 func fnAssign(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdAssign, lexeme, lexeme.Line, 0))
+	buf.peek().Code.push(newByteCode(CmdAssign, lexeme, 0))
 	return nil
 }
 
@@ -391,6 +391,6 @@ func fnElse(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if buf.get(len(*buf)-2).Code.peek().Cmd != CmdIf {
 		return fmt.Errorf(`there is not if before %v [%d:%d]`, lexeme.Type, lexeme.Line, lexeme.Column)
 	}
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdElse, lexeme, lexeme.Line, buf.peek()))
+	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdElse, lexeme, buf.peek()))
 	return nil
 }

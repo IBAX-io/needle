@@ -63,7 +63,6 @@ func (bc *CodeBlock) AssertVar(name string) bool {
 type ByteCode struct {
 	Cmd    CmdT
 	Lexeme *Lexeme
-	Line   int
 	//FuncNameCmd
 	//*ObjInfo
 	//uint16
@@ -81,8 +80,8 @@ type ByteCode struct {
 	Value any
 }
 
-func newByteCode(cmd CmdT, Lexeme *Lexeme, line int, value any) *ByteCode {
-	return &ByteCode{Cmd: cmd, Lexeme: Lexeme, Line: line, Value: value}
+func newByteCode(cmd CmdT, Lexeme *Lexeme, value any) *ByteCode {
+	return &ByteCode{Cmd: cmd, Lexeme: Lexeme, Value: value}
 }
 
 // CodeBlocks is a slice of blocks
@@ -127,16 +126,16 @@ func (b ByteCodes) String() string {
 	return ret
 }
 
-func (bs *ByteCodes) push(x any) {
-	*bs = append(*bs, x.(*ByteCode))
+func (b *ByteCodes) push(x *ByteCode) {
+	*b = append(*b, x)
 }
 
-func (bs *ByteCodes) peek() *ByteCode {
-	bsLen := len(*bs)
+func (b *ByteCodes) peek() *ByteCode {
+	bsLen := len(*b)
 	if bsLen == 0 {
 		return nil
 	}
-	return (*bs)[bsLen-1]
+	return (*b)[bsLen-1]
 }
 
 // ObjInfo is the common object type
