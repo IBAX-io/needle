@@ -51,7 +51,7 @@ func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
 			for i := 0; i < fobj.NumOut(); i++ {
 				data.Results[i] = fobj.Out(i)
 			}
-			objects[item.Name] = &ObjInfo{Type: ObjectType_ExtFunc, Value: data}
+			objects[item.Name] = NewObjInfo(ObjectType_ExtFunc, data)
 		}
 	}
 	return objects

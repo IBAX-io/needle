@@ -310,9 +310,9 @@ func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 		if cur, ok := vm.Objects[key]; ok {
 			switch item.Type {
 			case compile.ObjectType_Contract:
-				root.Objects[key].GetCodeBlock().GetContractInfo().ID = cur.GetCodeBlock().GetContractInfo().ID + compile.FlushMark
+				root.Objects[key].GetContractInfo().ID = cur.GetContractInfo().ID + compile.FlushMark
 			case compile.ObjectType_Func:
-				root.Objects[key].GetCodeBlock().GetFuncInfo().ID = cur.GetCodeBlock().GetFuncInfo().ID + compile.FlushMark
+				root.Objects[key].GetFuncInfo().ID = cur.GetFuncInfo().ID + compile.FlushMark
 				vm.Objects[key].Value = root.Objects[key].Value
 			}
 		}

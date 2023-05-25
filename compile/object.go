@@ -116,6 +116,7 @@ func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 	}
 	return m
 }
+
 // FieldInfo describes the field of the data structure
 type FieldInfo struct {
 	Name     string
@@ -128,6 +129,7 @@ type FieldInfo struct {
 func (fi *FieldInfo) ContainsTag(tag string) bool {
 	return strings.Contains(fi.Tags, tag)
 }
+
 // FuncInfo contains the function information
 type FuncInfo struct {
 	Name    string
@@ -152,6 +154,22 @@ type FuncNameCmd struct {
 	Name  string
 	Count int
 }
+
+// ObjInfo is the common object type
+type ObjInfo struct {
+	Type ObjectType
+	// Types that are valid to be assigned to Value:
+	// 	*CodeBlock,included: *ContractInfo, *FuncInfo
+	//	*ExtFuncInfo
+	//	*ObjInfo_Variable
+	//	*ObjInfo_ExtendVariable
+	Value isObjInfoValue
+}
+
+func NewObjInfo(t ObjectType, v isObjInfoValue) *ObjInfo {
+	return &ObjInfo{Type: t, Value: v}
+}
+
 type isObjInfoValue interface {
 	isObjInfoValue()
 }
@@ -178,6 +196,20 @@ func (m *ObjInfo) GetValue() isObjInfoValue {
 
 func (m *ObjInfo) GetCodeBlock() *CodeBlock {
 	if x, ok := m.GetValue().(*CodeBlock); ok {
+		return x
+	}
+	return nil
+}
+
+func (m *ObjInfo) GetContractInfo() *ContractInfo {
+	if x, ok := m.GetCodeBlock().Info.(*ContractInfo); ok {
+		return x
+	}
+	return nil
+}
+
+func (m *ObjInfo) GetFuncInfo() *FuncInfo {
+	if x, ok := m.GetCodeBlock().Info.(*FuncInfo); ok {
 		return x
 	}
 	return nil

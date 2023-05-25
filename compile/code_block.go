@@ -138,17 +138,6 @@ func (b *ByteCodes) peek() *ByteCode {
 	return (*b)[bsLen-1]
 }
 
-// ObjInfo is the common object type
-type ObjInfo struct {
-	Type ObjectType
-	// Types that are valid to be assigned to Value:
-	//	*CodeBlock
-	//	*ExtFuncInfo
-	//	*ObjInfo_Variable
-	//	*ObjInfo_ExtendVariable
-	Value isObjInfoValue
-}
-
 func NewCodeBlock(ext *ExtendData) *CodeBlock {
 	return &CodeBlock{
 		Objects: ext.MakeExtFunc(),
@@ -203,7 +192,7 @@ func (ret *ObjInfo) GetParamsLen() int {
 	if ret.Type == ObjectType_ExtFunc {
 		return len(ret.GetExtFuncInfo().Params)
 	}
-	return len(ret.GetCodeBlock().GetFuncInfo().Params)
+	return len(ret.GetFuncInfo().Params)
 }
 
 func findVar(name string, block *CodeBlocks) (*ObjInfo, *CodeBlock) {

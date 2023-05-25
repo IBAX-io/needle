@@ -59,7 +59,7 @@ func fnNameBlock(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		}
 		return fmt.Errorf("%s '%s' redeclared in this contract '%s'", itype, name, prev.GetContractInfo().Name)
 	}
-	prev.Objects[name] = &ObjInfo{Type: itype, Value: fblock}
+	prev.Objects[name] = NewObjInfo(itype, fblock)
 	return nil
 }
 
@@ -114,7 +114,7 @@ func fnFparam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			return fmt.Errorf("'%s' redeclared in this code block", lexeme.Value.(string))
 		}
 	}
-	block.Objects[lexeme.Value.(string)] = &ObjInfo{Type: ObjectType_Var, Value: &ObjInfo_Variable{Name: lexeme.Value.(string), Index: len(block.Vars)}}
+	block.Objects[lexeme.Value.(string)] = NewObjInfo(ObjectType_Var, &ObjInfo_Variable{Name: lexeme.Value.(string), Index: len(block.Vars)})
 	block.Vars = append(block.Vars, reflect.TypeOf(nil))
 	return nil
 }
@@ -243,7 +243,8 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "lex_value": lexeme.Value}).Error("modifying system variable")
 			return fmt.Errorf(eSysVar, lexeme.Value.(string))
 		}
-		ivar = VarInfo{Obj: &ObjInfo{Type: ObjectType_ExtVar, Value: &ObjInfo_ExtendVariable{Name: lexeme.Value.(string)}}, Owner: nil}
+		obj := NewObjInfo(ObjectType_ExtVar, &ObjInfo_ExtendVariable{Name: lexeme.Value.(string)})
+		ivar = VarInfo{Obj: obj, Owner: nil}
 	} else {
 		objInfo, tobj := findVar(lexeme.Value.(string), buf)
 		if objInfo == nil || objInfo.Type != ObjectType_Var {

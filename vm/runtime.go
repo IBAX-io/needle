@@ -401,7 +401,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 	}
 	if obj.Type == compile.ObjectType_Func {
 		var imap map[string][]any
-		finfo := obj.GetCodeBlock().GetFuncInfo()
+		finfo := obj.GetFuncInfo()
 		if finfo.Names != nil {
 			if rt.getStack(size-1) != nil {
 				imap = rt.getStack(size - 1).(map[string][]any)

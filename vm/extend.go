@@ -80,7 +80,6 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
 	logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
-	cblock := contract.GetCodeBlock()
 	parnames := make(map[string]bool)
 	pars := strings.Split(txs, `,`)
 	if len(pars) != len(params) {
@@ -105,7 +104,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 		prevExtend[key] = item
 		delete(rt.extend, key)
 	}
-
+	cblock := contract.GetCodeBlock()
 	if cblock.GetContractInfo().Tx != nil {
 		for _, tx := range *cblock.GetContractInfo().Tx {
 			if !parnames[tx.Name] {
@@ -207,9 +206,8 @@ func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (
 	logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
 	names := make([]string, 0)
 	vals := make([]any, 0)
-	cblock := contract.GetCodeBlock()
-	if cblock.GetContractInfo().Tx != nil {
-		for _, tx := range *cblock.GetContractInfo().Tx {
+	if contract.GetContractInfo().Tx != nil {
+		for _, tx := range *contract.GetContractInfo().Tx {
 			val, ok := params.Get(tx.Name)
 			if !ok {
 				if !strings.Contains(tx.Tags, TagOptional) {
@@ -235,8 +233,7 @@ func GetSettings(rt *Runtime, cntname, name string) (any, error) {
 		log.WithFields(log.Fields{"contract_name": cntname, "type": ContractError}).Error("unknown contract")
 		return nil, fmt.Errorf("unknown contract %s", cntname)
 	}
-	cblock := contract.GetCodeBlock()
-	info := cblock.GetContractInfo()
+	info := contract.GetContractInfo()
 	if info != nil {
 		if val, ok := info.Settings[name]; ok {
 			return val, nil
