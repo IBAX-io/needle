@@ -2,7 +2,6 @@ package compile
 
 import (
 	"fmt"
-
 	log "github.com/sirupsen/logrus"
 )
 

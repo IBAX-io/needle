@@ -2,11 +2,15 @@ package compile
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
+
+// varRegexp letter { letter | unicode_digit }
+var varRegexp = `^[a-zA-Z][a-zA-Z0-9_]*$`
 
 type Lexeme struct {
 	Type   Token
@@ -185,6 +189,16 @@ func NewLexer(input []rune) (Lexemes, error) {
 					tk, value = TYPENAME, tInfo
 				} else {
 					value = name
+					if !regexp.MustCompile(varRegexp).MatchString(name) {
+						var val = name
+						if len(val) > 20 {
+							val = val[:20] + "..."
+						}
+						var m = map[string]string{
+							"2if": "if",
+						}
+						return nil, fmt.Errorf("identifier expected, got '%s' '%s'", val, m)
+					}
 				}
 			default:
 				//fmt.Println("error---", off, tk, start, off, string(input[start:off]))

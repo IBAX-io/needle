@@ -3,16 +3,12 @@ package compile
 import (
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type compileFunc func(*CodeBlocks, stateType, *Lexeme) error
-
-// varRegexp letter { letter | unicode_digit }
-var varRegexp = `^[a-zA-Z][a-zA-Z0-9_]*$`
 
 func fnNothing(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	return nil
@@ -99,13 +95,6 @@ func fnFparam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	}
 	if block.Objects == nil {
 		block.Objects = make(map[string]*ObjInfo)
-	}
-	if !regexp.MustCompile(varRegexp).MatchString(lexeme.Value.(string)) {
-		var val = lexeme.Value.(string)
-		if len(val) > 20 {
-			val = val[:20] + "..."
-		}
-		return fmt.Errorf("identifier expected, got '%s'", val)
 	}
 	if _, ok := block.Objects[lexeme.Value.(string)]; ok {
 		if state == stateFParamTYPE {
@@ -312,14 +301,6 @@ func fnField(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if len(*tx) > 0 && (*tx)[len(*tx)-1].Type == reflect.TypeOf(nil) &&
 		(*tx)[len(*tx)-1].Tags != `_` {
 		return fmt.Errorf(eDataType, lexeme.Line, lexeme.Column)
-	}
-
-	if !regexp.MustCompile(varRegexp).MatchString(lexeme.Value.(string)) {
-		var val = lexeme.Value.(string)
-		if len(val) > 20 {
-			val = val[:20] + "..."
-		}
-		return fmt.Errorf("identifier expected, got '%s'", val)
 	}
 	if buf.get(0).AssertVar(lexeme.Value.(string)) {
 		lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "contract": info.Name, "lex_value": lexeme.Value.(string)}).Error("param variable in the data section of the contract collides with the 'builtin' variable")
