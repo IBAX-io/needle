@@ -74,21 +74,14 @@ const (
 // ExecContract runs the name contract where txs contains the list of parameters and
 // params are the values of parameters
 func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
-	contract, ok := rt.vm.Objects[name]
-	if !ok {
+	obj, ok := rt.vm.Objects[name]
+	if !ok || obj.Type != compile.ObjectType_Contract {
 		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
 	logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
-	parnames := make(map[string]bool)
-	pars := strings.Split(txs, `,`)
-	if len(pars) != len(params) {
-		logger.WithFields(log.Fields{"contract_params_len": len(pars), "contract_params_len_needed": len(params), "type": ContractError}).Error("wrong contract parameters pars")
-		return ``, errContractPars
-	}
-	for _, ipar := range pars {
-		parnames[ipar] = true
-	}
+
+	//check if there is loop in contract
 	if _, ok := rt.extend[Extend_loop+name]; ok {
 		logger.WithFields(log.Fields{"type": ContractError, "contract_name": name}).Error("there is loop in contract")
 		return nil, fmt.Errorf(eContractLoop, name)
@@ -96,6 +89,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	rt.extend[Extend_loop+name] = true
 	defer delete(rt.extend, Extend_loop+name)
 
+	//save previous extend variables of current contract
 	prevExtend := make(map[string]any)
 	for key, item := range rt.extend {
 		if rt.vm.AssertVar(key) {
@@ -104,23 +98,16 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 		prevExtend[key] = item
 		delete(rt.extend, key)
 	}
-	cblock := contract.GetCodeBlock()
-	if cblock.GetContractInfo().Tx != nil {
-		for _, tx := range *cblock.GetContractInfo().Tx {
-			if !parnames[tx.Name] {
-				if !strings.Contains(tx.Tags, TagOptional) {
-					logger.WithFields(log.Fields{"transaction_name": tx.Name, "type": ContractError}).Error("transaction not defined")
-					return ``, fmt.Errorf(eUndefinedParam, tx.Name)
-				}
-				rt.extend[tx.Name] = reflect.New(tx.Type).Elem().Interface()
-			}
-		}
+	extVars, err := genExtVars(obj.GetContractInfo(), txs, params...)
+	if err != nil {
+		return nil, err
 	}
-	for i, ipar := range pars {
-		if len(ipar) > 0 {
-			rt.extend[ipar] = params[i]
-		}
+
+	// define extend variables to next contract from parameters
+	for key, item := range extVars {
+		rt.extend[key] = item
 	}
+
 	prevthis := rt.extend[Extend_this_contract]
 	_, nameContract := ParseName(name)
 	rt.extend[Extend_this_contract] = nameContract
@@ -150,7 +137,6 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 
 	var (
 		stack Stacker
-		err   error
 	)
 	if stack, ok = rt.extend[Extend_sc].(Stacker); ok {
 		if err := stack.AppendStack(name); err != nil {
@@ -159,7 +145,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	}
 
 	for _, method := range []string{`conditions`, `action`} {
-		if block, ok := (*cblock).Objects[method]; ok && block.Type == compile.ObjectType_Func {
+		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compile.ObjectType_Func {
 			rtemp := NewRuntime(rt.vm, rt.cost)
 			rt.extend[Extend_parent] = parent
 			_, err = rtemp.Run(block.GetCodeBlock(), rt.extend)
@@ -195,7 +181,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 // CallContract executes the name contract in the state with specified parameters
 func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (any, error) {
 	name = StateName(state, name)
-	contract, ok := rt.vm.Objects[name]
+	_, ok := rt.vm.Objects[name]
 	if !ok {
 		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")
 		return nil, fmt.Errorf(eUnknownContract, name)
@@ -203,7 +189,9 @@ func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (
 	if params == nil {
 		params = compile.NewMap()
 	}
-	logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
+	return ExecContract(rt, name, strings.Join(params.Keys(), `,`), params.Values())
+
+	/*logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
 	names := make([]string, 0)
 	vals := make([]any, 0)
 	if contract.GetContractInfo().Tx != nil {
@@ -211,7 +199,7 @@ func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (
 			val, ok := params.Get(tx.Name)
 			if !ok {
 				if !strings.Contains(tx.Tags, TagOptional) {
-					logger.WithFields(log.Fields{"transaction_name": tx.Name}).Error("transaction not defined")
+					logger.WithFields(log.Fields{"param_name": tx.Name, "type": ContractError}).Error("parameter not defined")
 					return nil, fmt.Errorf(eUndefinedParam, tx.Name)
 				}
 				val = reflect.New(tx.Type).Elem().Interface()
@@ -224,6 +212,7 @@ func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (
 		vals = append(vals, ``)
 	}
 	return ExecContract(rt, name, strings.Join(names, `,`), vals...)
+	*/
 }
 
 // GetSettings returns the value of the parameter of contract
@@ -244,4 +233,40 @@ func GetSettings(rt *Runtime, cntname, name string) (any, error) {
 
 func MemoryUsage(rt *Runtime) int64 {
 	return rt.mem
+}
+
+func genExtVars(contract *compile.ContractInfo, txs string, params ...any) (map[string]any, error) {
+	pars := strings.Split(txs, `,`)
+	param := make(map[string]struct{})
+	for _, par := range pars {
+		if _, ok := param[par]; ok {
+			return nil, fmt.Errorf("duplicate parameter '%s'", par)
+		}
+		param[par] = struct{}{}
+	}
+	if len(pars) != len(params) {
+		return nil, fmt.Errorf("wrong number of parameters, expected %d, got %d", len(pars), len(params))
+	}
+	extVars := make(map[string]any)
+	txMap := contract.TxMap()
+
+	for i, par := range pars {
+		_, ok := txMap[par]
+		if !ok {
+			return nil, fmt.Errorf("'%s' parameter is not required", par)
+		}
+		if len(par) > 0 {
+			extVars[par] = params[i]
+		}
+	}
+	for _, tx := range txMap {
+		if _, ok := param[tx.Name]; !ok {
+			if !strings.Contains(tx.Tags, TagOptional) {
+				return nil, fmt.Errorf(eUndefinedParam, tx.Name)
+			}
+			extVars[tx.Name] = reflect.Zero(tx.Type).Interface()
+		}
+	}
+
+	return extVars, nil
 }

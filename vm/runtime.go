@@ -379,23 +379,17 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 		rt.callDepth--
 	}()
 
-	size := rt.len()
 	in = obj.GetParamsLen()
-	if rt.unwrap && cmd == compile.CmdCallVariadic && size > 1 &&
-		reflect.TypeOf(rt.stack[size-2]).String() == `[]interface {}` {
-		count = rt.getStack(size - 1).(int)
-		arr := rt.getStack(size - 2).([]any)
-		rt.resetByIdx(size - 2)
-		for _, item := range arr {
-			rt.push(item)
-		}
+	if rt.unwrap && cmd == compile.CmdCallVariadic && rt.len() > 1 &&
+		reflect.TypeOf(rt.stack[rt.len()-2]).String() == `[]interface {}` {
+		count = rt.pop().(int)
+		arr := rt.pop().([]any)
+		rt.pushN(arr)
 		rt.push(count - 1 + len(arr))
-		size = rt.len()
 	}
 	rt.unwrap = false
 	if cmd == compile.CmdCallVariadic {
-		count = rt.getStack(size - 1).(int)
-		size--
+		count = rt.pop().(int)
 	} else {
 		count = in
 	}
@@ -403,28 +397,22 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 		var imap map[string][]any
 		finfo := obj.GetFuncInfo()
 		if finfo.Names != nil {
-			if rt.getStack(size-1) != nil {
-				imap = rt.getStack(size - 1).(map[string][]any)
-			}
-			rt.resetByIdx(size - 1)
-			size = rt.len()
+			imap = rt.pop().(map[string][]any)
 		}
 		if cmd == compile.CmdCallVariadic {
 			parcount := count + 1 - in
 			if parcount < 0 {
-				log.WithFields(log.Fields{"type": VMErr}).Error(errWrongCountPars)
 				return errWrongCountPars
 			}
 			pars := make([]any, parcount)
-			shift := size - parcount
+			shift := rt.len() - parcount
 			for i := parcount; i > 0; i-- {
-				pars[i-1] = rt.stack[size+i-parcount-1]
+				pars[i-1] = rt.stack[shift+i-1]
 			}
 			rt.resetByIdx(shift)
 			rt.push(pars)
 		}
 		if rt.len() < len(finfo.Params) {
-			log.WithFields(log.Fields{"type": VMErr}).Error(errWrongCountPars)
 			return errWrongCountPars
 		}
 		for i, v := range finfo.Params {
@@ -473,6 +461,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 			auto++
 		}
 	}
+	size := rt.len()
 	shift := size - count + auto
 	if finfo.Variadic {
 		shift = size - count
@@ -497,9 +486,6 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 		if !pars[in-1].IsValid() {
 			pars[in-1] = reflect.Zero(finfo.Params[in-1])
 		}
-	}
-	if finfo.Name == `ExecContract` && (pars[2].Kind() != reflect.String || !pars[3].IsValid()) {
-		return fmt.Errorf(`unknown function %v`, pars[1])
 	}
 	if finfo.Variadic {
 		result = foo.CallSlice(pars)

@@ -8,6 +8,11 @@ func (rt *Runtime) push(d any) {
 	rt.stack = append(rt.stack, d)
 }
 
+func (rt *Runtime) pushN(d []any) {
+	rt.stack = append(rt.stack, d...)
+	return
+}
+
 func (rt *Runtime) pop() (ret any) {
 	ret = rt.peek()
 	rt.stack = rt.stack[:rt.len()-1]

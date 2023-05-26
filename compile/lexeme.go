@@ -188,17 +188,14 @@ func NewLexer(input []rune) (Lexemes, error) {
 				} else if tInfo, ok := TypeNameReflect[TypeNameValue[name]]; ok {
 					tk, value = TYPENAME, tInfo
 				} else {
-					value = name
 					if !regexp.MustCompile(varRegexp).MatchString(name) {
 						var val = name
 						if len(val) > 20 {
 							val = val[:20] + "..."
 						}
-						var m = map[string]string{
-							"2if": "if",
-						}
-						return nil, fmt.Errorf("identifier expected, got '%s' '%s'", val, m)
+						return nil, fmt.Errorf("identifier '%s' is not valid [%d:%d]", val, line, lexOffset-offline+1)
 					}
+					value = name
 				}
 			default:
 				//fmt.Println("error---", off, tk, start, off, string(input[start:off]))
