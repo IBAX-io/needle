@@ -2,7 +2,6 @@ package compile
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -188,13 +187,6 @@ func NewLexer(input []rune) (Lexemes, error) {
 				} else if tInfo, ok := TypeNameReflect[TypeNameValue[name]]; ok {
 					tk, value = TYPENAME, tInfo
 				} else {
-					if !regexp.MustCompile(varRegexp).MatchString(name) {
-						var val = name
-						if len(val) > 20 {
-							val = val[:20] + "..."
-						}
-						return nil, fmt.Errorf("identifier '%s' is not valid [%d:%d]", val, line, lexOffset-offline+1)
-					}
 					value = name
 				}
 			default:

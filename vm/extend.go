@@ -115,9 +115,11 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	prevparent := rt.extend[Extend_parent]
 	parent := ``
 	for i := len(rt.blocks) - 1; i >= 0; i-- {
-		if rt.blocks[i].Block.Type == compile.ObjectType_Func && rt.blocks[i].Block.Parent != nil &&
-			rt.blocks[i].Block.Parent.Type == compile.ObjectType_Contract {
-			parent = rt.blocks[i].Block.Parent.GetContractInfo().Name
+		var b = rt.blocks[i].Block
+		if b.Type == compile.ObjectType_Func &&
+			b.Parent != nil &&
+			b.Parent.Type == compile.ObjectType_Contract {
+			parent = b.Parent.GetContractInfo().Name
 			fid, fname := ParseName(parent)
 			cid, _ := ParseName(name)
 			if len(fname) > 0 {
@@ -179,8 +181,8 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 }
 
 // CallContract executes the name contract in the state with specified parameters
-func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (any, error) {
-	name = StateName(state, name)
+func CallContract(rt *Runtime, name string, params *compile.Map) (any, error) {
+	name = StateName(rt.vm.GetOwnerInfo().StateID, name)
 	_, ok := rt.vm.Objects[name]
 	if !ok {
 		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")
@@ -190,29 +192,6 @@ func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (
 		params = compile.NewMap()
 	}
 	return ExecContract(rt, name, strings.Join(params.Keys(), `,`), params.Values())
-
-	/*logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
-	names := make([]string, 0)
-	vals := make([]any, 0)
-	if contract.GetContractInfo().Tx != nil {
-		for _, tx := range *contract.GetContractInfo().Tx {
-			val, ok := params.Get(tx.Name)
-			if !ok {
-				if !strings.Contains(tx.Tags, TagOptional) {
-					logger.WithFields(log.Fields{"param_name": tx.Name, "type": ContractError}).Error("parameter not defined")
-					return nil, fmt.Errorf(eUndefinedParam, tx.Name)
-				}
-				val = reflect.New(tx.Type).Elem().Interface()
-			}
-			names = append(names, tx.Name)
-			vals = append(vals, val)
-		}
-	}
-	if len(vals) == 0 {
-		vals = append(vals, ``)
-	}
-	return ExecContract(rt, name, strings.Join(names, `,`), vals...)
-	*/
 }
 
 // GetSettings returns the value of the parameter of contract

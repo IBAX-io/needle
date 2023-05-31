@@ -333,33 +333,33 @@ main:
 	}
 	last := rt.popBlock()
 	if status == statusReturn {
-		if last.Block.Type == compile.ObjectType_Func {
-			lastResults := last.Block.GetFuncInfo().Results
-			if len(lastResults) > rt.len() {
-				var keyNames []string
-				for i := 0; i < len(lastResults); i++ {
-					keyNames = append(keyNames, lastResults[i].String())
-				}
-				err = fmt.Errorf("func '%s' not enough arguments to return, need [%s]", last.Block.GetFuncInfo().Name, strings.Join(keyNames, "|"))
-				return
-			}
-			stackCpy := make([]any, rt.len())
-			copy(stackCpy, rt.stack)
-			var index int
-			for count := len(lastResults); count > 0; count-- {
-				val := stackCpy[len(stackCpy)-1-index]
-				if val != nil && lastResults[count-1] != reflect.TypeOf(val) {
-					err = fmt.Errorf("function '%s' return index[%d] (type %s) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, count-1, reflect.TypeOf(val), lastResults[count-1])
-					return
-				}
-				rt.stack[start] = rt.stack[rt.len()-count]
-				start++
-				index++
-			}
-			status = statusNormal
-		} else {
+		if last.Block.Type != compile.ObjectType_Func {
 			return
 		}
+
+		lastResults := last.Block.GetFuncInfo().Results
+		if len(lastResults) > rt.len() {
+			var keyNames []string
+			for i := 0; i < len(lastResults); i++ {
+				keyNames = append(keyNames, lastResults[i].String())
+			}
+			err = fmt.Errorf("func '%s' not enough arguments to return, need [%s]", last.Block.GetFuncInfo().Name, strings.Join(keyNames, "|"))
+			return
+		}
+		stackCpy := make([]any, rt.len())
+		copy(stackCpy, rt.stack)
+		var index int
+		for count := len(lastResults); count > 0; count-- {
+			val := stackCpy[len(stackCpy)-1-index]
+			if val != nil && lastResults[count-1] != reflect.TypeOf(val) {
+				err = fmt.Errorf("function '%s' return index[%d] (type %s) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, count-1, reflect.TypeOf(val), lastResults[count-1])
+				return
+			}
+			rt.stack[start] = rt.stack[rt.len()-count]
+			start++
+			index++
+		}
+		status = statusNormal
 	}
 
 	rt.resetByIdx(start)

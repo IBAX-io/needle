@@ -248,18 +248,15 @@ main:
 					count := parcount[len(parcount)-1]
 					parcount = parcount[:len(parcount)-1]
 					if prev.Value.(*ObjInfo).Type == ObjectType_ExtFunc {
-						var errtext string
-						extinfo := prev.Value.(*ObjInfo).GetExtFuncInfo()
-						wantlen := len(extinfo.Params)
-						for _, v := range extinfo.Auto {
+						extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
+						wantlen := len(extFn.Params)
+						for _, v := range extFn.Auto {
 							if len(v) > 0 {
 								wantlen--
 							}
 						}
-						if count != wantlen && (!extinfo.Variadic || count < wantlen) {
-							errtext = fmt.Sprintf(eWrongParams, extinfo.Name, wantlen)
-							logger.WithFields(log.Fields{"error": errtext, "type": ParseError}).Error(errtext)
-							return fmt.Errorf(errtext)
+						if count != wantlen && (!extFn.Variadic || count < wantlen) {
+							return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
 						}
 					}
 					if prev.Cmd == CmdCallVariadic {
@@ -428,10 +425,6 @@ main:
 							bytecode.push(newByteCode(CmdPush, lexeme, ""))
 						}
 						count++
-					}
-					if lexeme.Value.(string) == `CallContract` {
-						count++
-						bytecode.push(newByteCode(CmdPush, lexeme, block.ParentOwner().StateID))
 					}
 					parcount = append(parcount, count)
 					call = true
