@@ -8,9 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// varRegexp letter { letter | unicode_digit }
-var varRegexp = `^[a-zA-Z][a-zA-Z0-9_]*$`
-
 type Lexeme struct {
 	Type   Token
 	Value  any

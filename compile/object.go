@@ -136,7 +136,7 @@ type FuncInfo struct {
 	Params  []reflect.Type
 	Results []reflect.Type
 	//tail function
-	Names    *map[string]FuncName
+	Names    map[string]FuncName
 	Variadic bool
 	ID       uint32
 	CanWrite bool // If the function can update DB
@@ -265,6 +265,17 @@ func (e *ExtFuncInfo) Call(params []any) (ret []any) {
 		ret = append(ret, value.Interface())
 	}
 	return ret
+}
+
+// AutoCount returns the number of auto params
+func (e *ExtFuncInfo) AutoCount() int {
+	count := 0
+	for i := 0; i < len(e.Params); i++ {
+		if len(e.Auto[i]) > 0 {
+			count++
+		}
+	}
+	return count
 }
 
 // VarInfo contains the variable information

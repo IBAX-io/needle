@@ -9,12 +9,12 @@ const (
 	stateBlock
 	stateContract
 	stateFunc
-	stateFParams
-	stateFParam
-	stateFParamTYPE
-	stateFTail
-	stateFResult
-	stateFDot
+	stateFnParams
+	stateFnParam
+	stateFnParamType
+	stateFnTail
+	stateFnResult
+	stateFnDot
 	stateVar
 	stateVarType
 	stateAssignEval
@@ -45,38 +45,40 @@ const FlushMark = 1 << 20
 
 const (
 	// Errors of compilation
-	errUnknownCmd = iota + 1 // unknown command
-	errMustName              // must be the name
-	errMustLCurly            // must be '{'
-	errMustRCurly            // must be '}'
-	errParams                // wrong parameters
-	errVars                  // wrong variables
-	errVarType               // must be type
-	errAssign                // must be '='
-	errStrNum                // must be number or string
+	errUnknownCmd         = iota + 1 // unknown command
+	errMustName                      // must be the name
+	errMustLCurly                    // must be '{'
+	errMustRCurly                    // must be '}'
+	errParams                        // wrong parameters
+	errVars                          // wrong variables
+	errVarType                       // must be type
+	errAssign                        // must be '='
+	errStrNum                        // must be number or string
+	errMisplacedDotDotDot            // can only use ... with final parameter in list
 )
 
 var errTable = map[int]string{
-	errUnknownCmd: "unknown command",
-	errMustName:   "must be the name",
-	errMustLCurly: "must be '{'",
-	errMustRCurly: "must be '}'",
-	errParams:     "wrong parameters",
-	errVars:       "wrong variables",
-	errVarType:    "must be type",
-	errAssign:     "must be '='",
-	errStrNum:     "must be number or string",
+	errUnknownCmd:         "unknown command",
+	errMustName:           "must be the name",
+	errMustLCurly:         "must be '{'",
+	errMustRCurly:         "must be '}'",
+	errParams:             "wrong parameters",
+	errVars:               "wrong variables",
+	errVarType:            "must be type",
+	errAssign:             "must be '='",
+	errStrNum:             "must be number or string",
+	errMisplacedDotDotDot: "can only use ... with final parameter in list",
 }
 
-// contains a new state and a handle function
+// contains a next state and a handle function
 type compileState struct {
-	newState   stateType   // a new state
-	funcHandle compileFunc // a handle function
+	nextState stateType   // a next state
+	fnHandle  compileFunc // a handle function
 }
 
 // hasState returns true if the state is set
 func (c compileState) hasState(state int) bool {
-	return int(c.newState)&state > 0
+	return int(c.nextState)&state > 0
 }
 
 var stateTable = make(map[stateType]map[Token]compileState)
@@ -120,57 +122,57 @@ func init() {
 	}
 	stateTable[stateFunc] = map[Token]compileState{
 		NEWLINE:    {stateFunc, fnNothing},
-		IDENTIFIER: {stateFParams, fnNameBlock},
+		IDENTIFIER: {stateFnParams, fnNameBlock},
 		UNKNOWN:    {errMustName, fnError},
 	}
-	stateTable[stateFParams] = map[Token]compileState{
-		NEWLINE: {stateFParams, fnNothing},
-		LPAREN:  {stateFParam, fnNothing},
-		UNKNOWN: {stateFResult | stateStay, fnNothing},
+	stateTable[stateFnParams] = map[Token]compileState{
+		NEWLINE: {stateFnParams, fnNothing},
+		LPAREN:  {stateFnParam, fnNothing},
+		UNKNOWN: {stateFnResult | stateStay, fnNothing},
 	}
-	stateTable[stateFParam] = map[Token]compileState{
-		NEWLINE:    {stateFParam, fnNothing},
-		IDENTIFIER: {stateFParamTYPE, fnFparam},
-		//TYPENAME:  {stateFParam,fFType},
-		COMMA:   {stateFParam, fnNothing},
-		RPAREN:  {stateFResult, fnNothing},
-		UNKNOWN: {errParams, fnError},
+	stateTable[stateFnParam] = map[Token]compileState{
+		NEWLINE:    {stateFnParam, fnNothing},
+		IDENTIFIER: {stateFnParamType, fnParamName},
+		//TYPENAME:  {stateFnParam,fFType},
+		COMMA:   {stateFnParam, fnNothing},
+		RPAREN:  {stateFnResult, fnNothing},
+		UNKNOWN: {errMisplacedDotDotDot, fnError},
 	}
-	stateTable[stateFParamTYPE] = map[Token]compileState{
-		IDENTIFIER: {stateFParamTYPE, fnFparam},
-		TYPENAME:   {stateFParam, fnFtype},
-		TAIL:       {stateFTail, fnFtail},
-		COMMA:      {stateFParamTYPE, fnNothing},
-		//			isRPar:  {stateFResult,fnunc: cnil},
+	stateTable[stateFnParamType] = map[Token]compileState{
+		IDENTIFIER: {stateFnParamType, fnParamName},
+		TYPENAME:   {stateFnParam, fnParamTYPE},
+		TAIL:       {stateFnTail, fnTailParam},
+		COMMA:      {stateFnParamType, fnNothing},
+		//			isRPar:  {stateFnResult,fnunc: cnil},
 		UNKNOWN: {errVarType, fnError},
 	}
-	stateTable[stateFTail] = map[Token]compileState{
-		NEWLINE: {stateFTail, fnNothing},
-		RPAREN:  {stateFResult, fnNothing},
-		UNKNOWN: {errParams, fnError},
+	stateTable[stateFnTail] = map[Token]compileState{
+		NEWLINE: {stateFnTail, fnNothing},
+		RPAREN:  {stateFnResult, fnNothing},
+		UNKNOWN: {errMisplacedDotDotDot, fnError},
 	}
-	stateTable[stateFResult] = map[Token]compileState{
-		NEWLINE:  {stateFResult, fnNothing},
-		DOT:      {stateFDot, fnNothing},
-		TYPENAME: {stateFResult, fnFuncResult},
-		COMMA:    {stateFResult, fnNothing},
+	stateTable[stateFnResult] = map[Token]compileState{
+		NEWLINE:  {stateFnResult, fnNothing},
+		DOT:      {stateFnDot, fnNothing},
+		TYPENAME: {stateFnResult, fnFuncResult},
+		COMMA:    {stateFnResult, fnNothing},
 		UNKNOWN:  {stateBlock | stateStay, fnNothing},
 	}
-	stateTable[stateFDot] = map[Token]compileState{
-		NEWLINE:    {stateFDot, fnNothing},
-		IDENTIFIER: {stateFParams, fnFNameParam},
+	stateTable[stateFnDot] = map[Token]compileState{
+		NEWLINE:    {stateFnDot, fnNothing},
+		IDENTIFIER: {stateFnParams, fnNameTail},
 		UNKNOWN:    {errMustName, fnError},
 	}
 	stateTable[stateVar] = map[Token]compileState{
 		NEWLINE:    {stateBody, fnNothing},
-		IDENTIFIER: {stateVarType, fnFparam},
+		IDENTIFIER: {stateVarType, fnParamName},
 		RBRACE:     {stateBody | stateStay, fnNothing},
 		COMMA:      {stateVar, fnNothing},
 		UNKNOWN:    {errVars, fnError},
 	}
 	stateTable[stateVarType] = map[Token]compileState{
-		IDENTIFIER: {stateVarType, fnFparam},
-		TYPENAME:   {stateVar, fnFtype},
+		IDENTIFIER: {stateVarType, fnParamName},
+		TYPENAME:   {stateVar, fnParamTYPE},
 		COMMA:      {stateVarType, fnNothing},
 		UNKNOWN:    {errVarType, fnError},
 	}

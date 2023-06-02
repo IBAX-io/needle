@@ -1,12 +1,61 @@
+contract ABC3 {
+    data{
+        a int
+        d map "optional"
+    }
+    action{
+        Println("a",$a,"d",$d,$parent)
+    }
+}
+func aaa()string,int {
+    return "aaa func",3
+}
+
+func bbb(s,s1 string,b int){
+    var a array
+    a[0] = 1
+    a[1] = 2
+    a[2] = 3
+    Println(s,b,a...)
+}
+
+contract ABC2 {
+    func ab(a ...)._d6(b1,b2 bool b3 string).ef(c string).gh(d string,e ...) int {
+        Println(a,b1,b2,c,d,e)
+    }
+
+    conditions{
+        ab(234567,32,2,3,333)._d6(2).ef(1234).gh(1,2,3,4,5,6,7,"ture2",9,0)
+        aaa().bbb()
+        return
+
+        var m map
+        m["a"] = 6
+        CallContract("ABC3",m)
+        @1ABC3("a",5)
+        ExecContract("@1ABC3","a",4)
+
+        Println("ABC2-conditions")
+        var a b string
+        b,a = "bold","alice"
+        Println(b, a)
+        m["232"],a = "bold2","alice2"
+        Println(a,m["232"])
+    }
+    action{
+        var m map
+        m["a"] = 2
+
+        ExecContract("@1ABC3","a,d",3,m)
+        ExecContract("@1ABC3","a",4)
+    }
+}
+
 contract ABC {
     action{
-             $PP = 11
-            $PP %= 234 & 23 % 33
-            Println($PP)
-
-            //$shift = 13<<4
-           // Println($shift)
-            //$shift = 13>>2
-            //Println($shift)
+        var m map
+        aaa().bbb()
+        CallContract("ABC2",m)
+        aaa().bbb("bbb func",4)
     }
 }

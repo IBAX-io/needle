@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,7 +37,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			newState = stateTable[curState][0]
 		}
 
-		nextState := newState.newState & 0xff
+		nextState := newState.nextState & 0xff
 		if newState.hasState(stateFork) {
 			fork = i
 		}
@@ -59,7 +60,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			if err := parserEval(&lexemes, &i, &blocksStack); err != nil {
 				return nil, fmt.Errorf("parser eval: %s", err)
 			}
-			if (newState.newState&stateMustEval) > 0 && curlen == len(blocksStack.peek().Code) {
+			if (newState.nextState&stateMustEval) > 0 && curlen == len(blocksStack.peek().Code) {
 				return nil, fmt.Errorf("there is not eval expression")
 			}
 
@@ -95,7 +96,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		if newState.hasState(stateToBody) {
 			nextState = stateBody
 		}
-		if err := newState.funcHandle(&blocksStack, nextState, lexeme); err != nil {
+		if err := newState.fnHandle(&blocksStack, nextState, lexeme); err != nil {
 			lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "nextState": nextState, "err": err, "lex_value": lexeme.Value}).Errorf("func handles")
 			return nil, fmt.Errorf("func handles: %s", err)
 		}
@@ -221,7 +222,7 @@ main:
 								return fmt.Errorf(`must be the name of the tail`)
 							}
 							names := prev.Value.(*ObjInfo).GetFuncInfo().Names
-							if _, ok := (*names)[(*lexemes)[i+2].Value.(string)]; !ok {
+							if _, ok := names[(*lexemes)[i+2].Value.(string)]; !ok {
 								if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
 									objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
 									if objInfo != nil && (objInfo.Type == ObjectType_Func || objInfo.Type == ObjectType_ExtFunc) {
@@ -250,11 +251,7 @@ main:
 					if prev.Value.(*ObjInfo).Type == ObjectType_ExtFunc {
 						extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
 						wantlen := len(extFn.Params)
-						for _, v := range extFn.Auto {
-							if len(v) > 0 {
-								wantlen--
-							}
-						}
+						wantlen -= extFn.AutoCount()
 						if count != wantlen && (!extFn.Variadic || count < wantlen) {
 							return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
 						}

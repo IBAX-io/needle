@@ -9,6 +9,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// identifierRegexp = letter { letter | unicode_digit }
+// letter        = unicode_letter | "_" .
+// unicode_letter = /* a Unicode code point classified as "Letter" */
+// unicode_digit  = /* a Unicode code point categorized as "Number, decimal digit" */
+var identifierRegexp = `^[\p{L}_][\p{L}\p{Nd}_]*$`
+
+func canIdent(ident string) error {
+	if !regexp.MustCompile(identifierRegexp).MatchString(ident) {
+		var val = ident
+		if len(val) > 20 {
+			val = val[:20] + "..."
+		}
+		return fmt.Errorf("identifier expected, got '%s'", val)
+	}
+	return nil
+}
+
 type compileFunc func(*CodeBlocks, stateType, *Lexeme) error
 
 func fnNothing(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
@@ -17,12 +34,12 @@ func fnNothing(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 
 func fnError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	err := errTable[int(state)]
-	logger := lexeme.GetLogger()
+	logger := lexeme.GetLogger().WithFields(log.Fields{"error": err, "lex_value": lexeme.Value, "type": ParseError})
 	if lexeme.Type == NEWLINE {
-		logger.WithFields(log.Fields{"error": err, "lex_value": lexeme.Value, "type": ParseError}).Error("unexpected new line")
+		logger.Error("unexpected new line")
 		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, err, lexeme.Line-1)
 	}
-	logger.WithFields(log.Fields{"error": err, "lex_value": lexeme.Value, "type": ParseError}).Error("parsing error")
+	logger.Error("parsing error")
 	return fmt.Errorf(`%s %s %v [%d:%d]`, err, lexeme.Type, lexeme.Value, lexeme.Line, lexeme.Column)
 }
 
@@ -76,82 +93,106 @@ func fnCmdError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	return nil
 }
 
-func fnFparam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+// fnParamName adds a new parameter name to the function or variable.
+func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+	name := lexeme.Value.(string)
+	if err := canIdent(name); err != nil {
+		return err
+	}
 	block := buf.peek()
-	if block.Type == ObjectType_Func && (state == stateFParam || state == stateFParamTYPE) {
+	if _, ok := block.Objects[name]; ok {
+		if state == stateFnParamType {
+			return fmt.Errorf("duplicate argument '%s'", name)
+		} else if state == stateVarType {
+			return fmt.Errorf("'%s' redeclared in this code block", name)
+		}
+	}
+
+	if block.Type == ObjectType_Func && (state == stateFnParam || state == stateFnParamType) {
 		fblock := block.GetFuncInfo()
 		if fblock.Names == nil {
 			fblock.Params = append(fblock.Params, reflect.TypeOf(nil))
 		} else {
-			for key := range *fblock.Names {
+			for key := range fblock.Names {
 				if key[0] == '_' {
 					name := key[1:]
-					params := append((*fblock.Names)[name].Params, reflect.TypeOf(nil))
-					offset := append((*fblock.Names)[name].Offset, len(block.Vars))
-					(*fblock.Names)[name] = FuncName{Params: params, Offset: offset}
+					params := append(fblock.Names[name].Params, reflect.TypeOf(nil))
+					offset := append(fblock.Names[name].Offset, len(block.Vars))
+					fblock.Names[name] = FuncName{Params: params, Offset: offset}
 					break
 				}
 			}
 		}
 	}
-	if block.Objects == nil {
-		block.Objects = make(map[string]*ObjInfo)
-	}
-	if !regexp.MustCompile(varRegexp).MatchString(lexeme.Value.(string)) {
-		var val = lexeme.Value.(string)
-		if len(val) > 20 {
-			val = val[:20] + "..."
-		}
-		return fmt.Errorf("identifier expected, got '%s'", val)
-	}
-	if _, ok := block.Objects[lexeme.Value.(string)]; ok {
-		if state == stateFParamTYPE {
-			return fmt.Errorf("duplicate argument '%s'", lexeme.Value.(string))
-		} else if state == stateVarType {
-			return fmt.Errorf("'%s' redeclared in this code block", lexeme.Value.(string))
-		}
-	}
-	block.Objects[lexeme.Value.(string)] = NewObjInfo(ObjectType_Var, &ObjInfo_Variable{Name: lexeme.Value.(string), Index: len(block.Vars)})
+
+	block.Objects[name] = NewObjInfo(ObjectType_Var, &ObjInfo_Variable{Name: name, Index: len(block.Vars)})
 	block.Vars = append(block.Vars, reflect.TypeOf(nil))
 	return nil
 }
 
-func fnFtype(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+// fnParamTYPE sets the type of the function parameter or variable.
+func fnParamTYPE(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	block := buf.peek()
-	if block.Type == ObjectType_Func && state == stateFParam {
+	rtp := lexeme.Value.(reflect.Type)
+	for i, v := range block.Vars {
+		if v == reflect.TypeOf(nil) {
+			block.Vars[i] = rtp
+		}
+	}
+	if block.Type == ObjectType_Func && state == stateFnParam {
 		fblock := block.GetFuncInfo()
 		if fblock.Names == nil {
 			for pkey, param := range fblock.Params {
 				if param == reflect.TypeOf(nil) {
-					fblock.Params[pkey] = lexeme.Value.(reflect.Type)
+					fblock.Params[pkey] = rtp
 				}
 			}
-		} else {
-			for key := range *fblock.Names {
-				if key[0] == '_' {
-					for pkey, param := range (*fblock.Names)[key[1:]].Params {
-						if param == reflect.TypeOf(nil) {
-							(*fblock.Names)[key[1:]].Params[pkey] = lexeme.Value.(reflect.Type)
-						}
-					}
-					break
-				}
-			}
+			return nil
 		}
-	}
-	for vkey, ivar := range block.Vars {
-		if ivar == reflect.TypeOf(nil) {
-			block.Vars[vkey] = lexeme.Value.(reflect.Type)
+		for key := range fblock.Names {
+			if key[0] == '_' {
+				for pkey, param := range fblock.Names[key[1:]].Params {
+					if param == reflect.TypeOf(nil) {
+						fblock.Names[key[1:]].Params[pkey] = rtp
+					}
+				}
+				break
+			}
 		}
 	}
 	return nil
 }
 
-func fnFtail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	var used bool
+// fnNameTail the name of the tail function.
+func fnNameTail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+	if err := canIdent(lexeme.Value.(string)); err != nil {
+		return err
+	}
 	block := buf.peek()
 
 	fblock := block.GetFuncInfo()
+	if fblock.Names == nil {
+		fblock.Names = make(map[string]FuncName)
+	}
+	for key := range fblock.Names {
+		if key[0] == '_' {
+			delete(fblock.Names, key)
+		}
+	}
+	fblock.Names[`_`+lexeme.Value.(string)] = FuncName{}
+	return nil
+}
+
+// fnTailParam sets the type of the function final parameter.
+func fnTailParam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+	block := buf.peek()
+	fblock := block.GetFuncInfo()
+	for vkey, ivar := range block.Vars {
+		if ivar == reflect.TypeOf(nil) {
+			block.Vars[vkey] = reflect.TypeOf([]any{})
+		}
+	}
+	var used bool
 	if fblock.Names == nil {
 		for pkey, param := range fblock.Params {
 			if param == reflect.TypeOf(nil) {
@@ -162,49 +203,27 @@ func fnFtail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 				used = true
 			}
 		}
-		block.GetFuncInfo().Variadic = true
-	} else {
-		for key := range *fblock.Names {
-			if key[0] == '_' {
-				name := key[1:]
-				for pkey, param := range (*fblock.Names)[name].Params {
-					if param == reflect.TypeOf(nil) {
-						if used {
-							return fmt.Errorf(`... parameter must be one`)
-						}
-						(*fblock.Names)[name].Params[pkey] = reflect.TypeOf([]any{})
-						used = true
-					}
-				}
-				offset := append((*fblock.Names)[name].Offset, len(block.Vars))
-				(*fblock.Names)[name] = FuncName{Params: (*fblock.Names)[name].Params,
-					Offset: offset, Variadic: true}
-				break
-			}
-		}
+		fblock.Variadic = true
+		return nil
 	}
-	for vkey, ivar := range block.Vars {
-		if ivar == reflect.TypeOf(nil) {
-			block.Vars[vkey] = reflect.TypeOf([]any{})
-		}
-	}
-	return nil
-}
-
-func fnFNameParam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	block := buf.peek()
-
-	fblock := block.GetFuncInfo()
-	if fblock.Names == nil {
-		names := make(map[string]FuncName)
-		fblock.Names = &names
-	}
-	for key := range *fblock.Names {
+	for key := range fblock.Names {
 		if key[0] == '_' {
-			delete(*fblock.Names, key)
+			name := key[1:]
+			for pkey, param := range fblock.Names[name].Params {
+				if param == reflect.TypeOf(nil) {
+					if used {
+						return fmt.Errorf(`... parameter must be one`)
+					}
+					fblock.Names[name].Params[pkey] = reflect.TypeOf([]any{})
+					used = true
+				}
+			}
+			offset := append(fblock.Names[name].Offset, len(block.Vars))
+			fblock.Names[name] = FuncName{Params: fblock.Names[name].Params,
+				Offset: offset, Variadic: true}
+			break
 		}
 	}
-	(*fblock.Names)[`_`+lexeme.Value.(string)] = FuncName{}
 	return nil
 }
 
@@ -311,12 +330,8 @@ func fnField(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return fmt.Errorf(eDataType, lexeme.Line, lexeme.Column)
 	}
 
-	if !regexp.MustCompile(varRegexp).MatchString(lexeme.Value.(string)) {
-		var val = lexeme.Value.(string)
-		if len(val) > 20 {
-			val = val[:20] + "..."
-		}
-		return fmt.Errorf("identifier expected, got '%s'", val)
+	if err := canIdent(lexeme.Value.(string)); err != nil {
+		return err
 	}
 	if buf.get(0).AssertVar(lexeme.Value.(string)) {
 		lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "contract": info.Name, "lex_value": lexeme.Value.(string)}).Error("param variable in the data section of the contract collides with the 'builtin' variable")

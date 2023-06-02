@@ -2,13 +2,14 @@ package vm
 
 import (
 	"fmt"
-	"github.com/IBAX-io/needle/compile"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/IBAX-io/needle/compile"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -256,7 +257,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}
 	if namemap != nil {
 		for key, item := range namemap {
-			params := (*block.GetFuncInfo().Names)[key]
+			params := block.GetFuncInfo().Names[key]
 			for i, value := range item {
 				if params.Variadic && i >= len(params.Params)-1 {
 					off := varoff + params.Offset[len(params.Params)-1]
@@ -388,16 +389,15 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 		rt.push(count - 1 + len(arr))
 	}
 	rt.unwrap = false
+	count = in
 	if cmd == compile.CmdCallVariadic {
 		count = rt.pop().(int)
-	} else {
-		count = in
 	}
 	if obj.Type == compile.ObjectType_Func {
 		var imap map[string][]any
 		finfo := obj.GetFuncInfo()
 		if finfo.Names != nil {
-			imap = rt.pop().(map[string][]any)
+			imap, _ = rt.pop().(map[string][]any)
 		}
 		if cmd == compile.CmdCallVariadic {
 			parcount := count + 1 - in
@@ -455,12 +455,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 		}
 	}
 	rt.extend[Extend_rt] = rt
-	auto := 0
-	for k := 0; k < in; k++ {
-		if len(finfo.Auto[k]) > 0 {
-			auto++
-		}
-	}
+	auto := finfo.AutoCount()
 	size := rt.len()
 	shift := size - count + auto
 	if finfo.Variadic {
