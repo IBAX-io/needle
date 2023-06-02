@@ -142,6 +142,8 @@ type FuncInfo struct {
 	CanWrite bool // If the function can update DB
 }
 
+var tailPrefix = "#"
+
 // FuncName is storing param of FuncName
 type FuncName struct {
 	Params   []reflect.Type

@@ -114,7 +114,7 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			fblock.Params = append(fblock.Params, reflect.TypeOf(nil))
 		} else {
 			for key := range fblock.Names {
-				if key[0] == '_' {
+				if strings.HasPrefix(key, tailPrefix) {
 					name := key[1:]
 					params := append(fblock.Names[name].Params, reflect.TypeOf(nil))
 					offset := append(fblock.Names[name].Offset, len(block.Vars))
@@ -150,7 +150,7 @@ func fnParamTYPE(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			return nil
 		}
 		for key := range fblock.Names {
-			if key[0] == '_' {
+			if strings.HasPrefix(key, tailPrefix) {
 				for pkey, param := range fblock.Names[key[1:]].Params {
 					if param == reflect.TypeOf(nil) {
 						fblock.Names[key[1:]].Params[pkey] = rtp
@@ -175,11 +175,11 @@ func fnNameTail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		fblock.Names = make(map[string]FuncName)
 	}
 	for key := range fblock.Names {
-		if key[0] == '_' {
+		if strings.HasPrefix(key, tailPrefix) {
 			delete(fblock.Names, key)
 		}
 	}
-	fblock.Names[`_`+lexeme.Value.(string)] = FuncName{}
+	fblock.Names[tailPrefix+lexeme.Value.(string)] = FuncName{}
 	return nil
 }
 
@@ -207,7 +207,7 @@ func fnTailParam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return nil
 	}
 	for key := range fblock.Names {
-		if key[0] == '_' {
+		if strings.HasPrefix(key, tailPrefix) {
 			name := key[1:]
 			for pkey, param := range fblock.Names[name].Params {
 				if param == reflect.TypeOf(nil) {
