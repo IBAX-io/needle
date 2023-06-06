@@ -33,7 +33,7 @@ const (
 	CmdContinue                     // continue from label
 	CmdWhile                        // while
 	CmdBreak                        // break
-	CmdIndex                        // get index []
+	CmdGetIndex                     // get index []
 	CmdSetIndex                     // set index []
 	CmdFuncName                     // set func name Func(...).Name(...)
 	CmdUnwrapArr                    // unwrap array to stack
@@ -61,24 +61,24 @@ const (
 )
 
 const (
-	CmdAdd      CmdT = iota | 0x0200 // +
-	CmdSub                           // -
-	CmdMul                           // *
-	CmdDiv                           // /
-	CmdMod                           // %
-	CmdAnd                           // &&
-	CmdBitAnd                        // &
-	CmdBitXor                        // ^
-	CmdBitOr                         // |
-	CmdOr                            // ||
-	CmdEqual                         // ==
-	CmdNotEq                         // !=
-	CmdLess                          // <
-	CmdGrEq                          // >=
-	CmdGreat                         // >
-	CmdLessEq                        // <=
-	CmdShiftL                        // <<
-	CmdShiftR                        // >>
+	CmdAdd    CmdT = iota | 0x0200 // +
+	CmdSub                         // -
+	CmdMul                         // *
+	CmdDiv                         // /
+	CmdMod                         // %
+	CmdAnd                         // &&
+	CmdBitAnd                      // &
+	CmdBitXor                      // ^
+	CmdBitOr                       // |
+	CmdOr                          // ||
+	CmdEqual                       // ==
+	CmdNotEq                       // !=
+	CmdLess                        // <
+	CmdGrEq                        // >=
+	CmdGreat                       // >
+	CmdLessEq                      // <=
+	CmdShiftL                      // <<
+	CmdShiftR                      // >>
 
 	CmdSys   CmdT = 0xff
 	CmdUnary      = 50
@@ -101,7 +101,7 @@ var cmdName = map[CmdT]string{
 	CmdContinue:     `CONTINUE`,
 	CmdWhile:        `WHILE`,
 	CmdBreak:        `BREAK`,
-	CmdIndex:        `INDEX`,
+	CmdGetIndex:     `INDEX`,
 	CmdSetIndex:     `SETINDEX`,
 	CmdFuncName:     `FUNCNAME`,
 	CmdUnwrapArr:    `UNWRAPARR`,

@@ -282,7 +282,7 @@ main:
 				bytecode.push(prev)
 			}
 			if len(buffer) > 0 {
-				if prev := buffer.peek(); prev.Cmd == CmdIndex {
+				if prev := buffer.peek(); prev.Cmd == CmdGetIndex {
 					buffer = buffer[:len(buffer)-1]
 					if i < len(*lexemes)-1 && (*lexemes)[i+1].Type == EQ {
 						i++
@@ -356,7 +356,7 @@ main:
 			if !call {
 				cmd = newByteCode(CmdExtend, lexeme, lexeme.Value.(string))
 				if i < len(*lexemes)-1 && (*lexemes)[i+1].Type == LBRACK {
-					buffer.push(newByteCode(CmdIndex, lexeme, &IndexInfo{Extend: lexeme.Value.(string)}))
+					buffer.push(newByteCode(CmdGetIndex, lexeme, &IndexInfo{Extend: lexeme.Value.(string)}))
 				}
 			}
 		case IDENTIFIER:
@@ -430,7 +430,7 @@ main:
 					if objInfo == nil || objInfo.Type != ObjectType_Var {
 						return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 					}
-					buffer.push(newByteCode(CmdIndex, lexeme, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))
+					buffer.push(newByteCode(CmdGetIndex, lexeme, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))
 				}
 			}
 			if !call {
@@ -463,7 +463,7 @@ main:
 		bytecode.push(buffer[i])
 	}
 	if setIndex {
-		bytecode.push(newByteCode(CmdSetIndex, nil, indexInfo))
+		bytecode.push(newByteCode(CmdSetIndex, &Lexeme{Line: bytecode.peek().Lexeme.Line}, indexInfo))
 	}
 	curBlock.Code = append(curBlock.Code, bytecode...)
 	return nil

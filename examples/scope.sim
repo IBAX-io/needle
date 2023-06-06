@@ -7,26 +7,36 @@ contract ABC3 {
         Println("a",$a,"d",$d,$parent)
     }
 }
-func aaa()string,int {
-    return "aaa func",3
-}
 
-func bbb(s,s1 string,b int){
+func bbb(s string,b int,s1 bool){
     var a array
     a[0] = 1
     a[1] = 2
     a[2] = 3
-    Println(s,b,a...)
+    Println(s,b,s1,a...)
+}
+
+func aaa()string,int {
+    return "aaa func",3
 }
 
 contract ABC2 {
-    func ab(a ...)._d6(b1,b2 bool b3 string).ef(c string).gh(d string,e ...) int {
-        Println(a,b1,b2,c,d,e)
+    func ab(a1 a2 int, a3  ...).d6(b1,b2 int b3 string).ef(c string).gh(d string,e ...) int {
+        var o1 int o2 bool o3 map o4 array o5 string
+        o1 += 2
+
+        o3["o3-1"] = 2
+
+        o2 = true
+        o4[0] = "ind1"
+        o4[0] = "ind2"
+        o5 = o4[0]
+        Println(a1,"666",b1,b2,c,d,e,o3)
     }
 
     conditions{
-        ab(234567,32,2,3,333)._d6(2).ef(1234).gh(1,2,3,4,5,6,7,"ture2",9,0)
-        aaa().bbb()
+        ab(234567,32,2,3,333).d6(2,32).ef("1234").gh("1",2,3,4,5,6,7,"ture2",true,{"a":2})
+        aaa().bbb(true)
         return
 
         var m map

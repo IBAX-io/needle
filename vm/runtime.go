@@ -200,7 +200,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 			}
 
 			line = "]"
-			if cmd != nil {
+			if cmd != nil && cmd.Lexeme != nil {
 				line = fmt.Sprintf(":%d]", cmd.Lexeme.Line)
 			}
 
@@ -306,6 +306,9 @@ main:
 		instruction, ok := instructionTable[cmd.Cmd]
 		if ok {
 			status, err = instruction(rt, cmd, ctx)
+			if err != nil {
+				break
+			}
 			if ctx.isContinue {
 				continue
 			}

@@ -175,6 +175,7 @@ func init() {
 				}
 			}
 		}
+		ctx.assignVar = ctx.assignVar[:0]
 		return
 	}
 	instructionTable[compile.CmdLabel] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -209,50 +210,57 @@ func init() {
 		status = statusBreak
 		return
 	}
-	instructionTable[compile.CmdIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		rvalue := reflect.ValueOf(rt.stack[ctx.size-2])
-		rtype := reflect.TypeOf(rt.stack[ctx.size-2]).String()
+	instructionTable[compile.CmdGetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		ind := rt.pop()
+		value := rt.pop()
+		rv := reflect.ValueOf(value)
+		rkt := reflect.TypeOf(ind).String()
+		rvt := reflect.TypeOf(value).String()
 		switch {
-		case rtype == `*compile.Map`:
-			key := rt.getStack(ctx.size - 1)
-			if reflect.TypeOf(key).String() != `string` {
-				err = fmt.Errorf(eMapIndex, reflect.TypeOf(key).String())
+		case rvt == `*compile.Map`:
+			if rkt != `string` {
+				err = fmt.Errorf(eMapIndex, rkt)
 				break
 			}
-			v, found := rt.stack[ctx.size-2].(*compile.Map).Get(key.(string))
+			v, found := value.(*compile.Map).Get(ind.(string))
 			if found {
-				rt.stack[ctx.size-2] = v
+				rt.push(v)
 			} else {
-				rt.stack[ctx.size-2] = nil
+				rt.push(nil)
 			}
-			rt.resetByIdx(ctx.size - 1)
-		case rtype[:2] == brackets:
-			index := rt.getStack(ctx.size - 1)
-			indexT := reflect.TypeOf(index).String()
-			if indexT != `int64` {
-				err = fmt.Errorf(eArrIndex, indexT)
+		case rvt[:2] == brackets:
+			if rkt != `int64` {
+				err = fmt.Errorf(eArrIndex, rkt)
 				break
 			}
-			if int(index.(int64)) >= rvalue.Len() {
-				err = fmt.Errorf("index out of range [%d] with length %d", index, rvalue.Len())
+			if rv.Len() <= int(ind.(int64)) {
+				err = fmt.Errorf("index out of range [%d] with length %d", ind, rv.Len())
 				break
 			}
-			v := rvalue.Index(int(index.(int64)))
+			v := rv.Index(int(ind.(int64)))
 			if v.IsValid() {
-				rt.stack[ctx.size-2] = v.Interface()
+				rt.push(v.Interface())
 			} else {
-				rt.stack[ctx.size-2] = nil
+				rt.push(nil)
 			}
-			rt.resetByIdx(ctx.size - 1)
 		default:
-			err = fmt.Errorf(`type %s doesn't support indexing`, rtype)
+			err = fmt.Errorf(`type %s doesn't support indexing`, rvt)
 		}
 		return
 	}
 	instructionTable[compile.CmdSetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		itype := reflect.TypeOf(rt.stack[ctx.size-3]).String()
-		indexInfo := code.Value.(*compile.IndexInfo)
+		value := rt.pop()
+		key := rt.pop()
+		indextype := rt.pop()
+		rkt := reflect.TypeOf(key).String()
+		itype := reflect.TypeOf(indextype).String()
+		if isSelfAssignment(indextype, value) {
+			err = errSelfAssignment
+			ctx.isLoop = true
+			return
+		}
 		var indexKey int
+		indexInfo := code.Value.(*compile.IndexInfo)
 		if indexInfo.Owner != nil {
 			for i := len(rt.blocks) - 1; i >= 0; i-- {
 				if indexInfo.Owner == rt.blocks[i].Block {
@@ -261,57 +269,48 @@ func init() {
 				}
 			}
 		}
-		if isSelfAssignment(rt.stack[ctx.size-3], rt.getStack(ctx.size-1)) {
-			err = errSelfAssignment
-			ctx.isLoop = true
-			return
-		}
-
 		switch {
 		case itype == `*compile.Map`:
-			if rt.stack[ctx.size-3].(*compile.Map).Size() > maxMapCount {
+			if indextype.(*compile.Map).Size() > maxMapCount {
 				err = errMaxMapCount
 				break
 			}
-			if reflect.TypeOf(rt.stack[ctx.size-2]).String() != `string` {
-				err = fmt.Errorf(eMapIndex, reflect.TypeOf(rt.stack[ctx.size-2]).String())
+			if rkt != `string` {
+				err = fmt.Errorf(eMapIndex, rkt)
 				break
 			}
-			rt.stack[ctx.size-3].(*compile.Map).Set(rt.stack[ctx.size-2].(string),
-				reflect.ValueOf(rt.getStack(ctx.size-1)).Interface())
-			rt.resetByIdx(ctx.size - 2)
+			indextype.(*compile.Map).Set(key.(string), value)
+			rt.push(indextype)
 		case itype[:2] == brackets:
-			if reflect.TypeOf(rt.stack[ctx.size-2]).String() != `int64` {
-				err = fmt.Errorf(eArrIndex, reflect.TypeOf(rt.stack[ctx.size-2]).String())
+			if rkt != `int64` {
+				err = fmt.Errorf(eArrIndex, rkt)
 				break
 			}
-			ind := rt.stack[ctx.size-2].(int64)
+			ind := key.(int64)
 			if strings.Contains(itype, Interface) {
-				slice := rt.stack[ctx.size-3].([]any)
+				slice := indextype.([]any)
 				if int(ind) >= len(slice) {
 					if ind > maxArrayIndex {
 						err = errMaxArrayIndex
 						break
 					}
 					slice = append(slice, make([]any, int(ind)-len(slice)+1)...)
-					indexInfo := code.Value.(*compile.IndexInfo)
 					if indexInfo.Owner == nil { // Extend variable $varname
 						rt.extend[indexInfo.Extend] = slice
 					} else {
 						rt.vars[indexKey] = slice
 					}
-					rt.stack[ctx.size-3] = slice
 				}
-				slice[ind] = rt.getStack(ctx.size - 1)
+				slice[ind] = value
+				rt.push(slice)
 			} else {
-				slice := rt.getStack(ctx.size - 3).([]map[string]string)
-				slice[ind] = rt.getStack(ctx.size - 1).(map[string]string)
+				slice := indextype.([]map[string]string)
+				slice[ind] = value.(map[string]string)
+				rt.push(slice)
 			}
-			rt.resetByIdx(ctx.size - 2)
 		default:
 			err = fmt.Errorf(`type %s doesn't support indexing`, itype)
 		}
-
 		if indexInfo.Owner == nil {
 			rt.recalcMemExtendVar(indexInfo.Extend)
 		} else {
@@ -342,9 +341,11 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdUnwrapArr] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if reflect.TypeOf(rt.getStack(ctx.size-1)).String() == `[]interface {}` {
-			rt.unwrap = true
+		if reflect.TypeOf(rt.peek()).String() != `[]interface {}` {
+			err = fmt.Errorf(`invalid use of '...'`)
+			return
 		}
+		rt.unwrap = true
 		return
 	}
 	instructionTable[compile.CmdMapInit] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -407,7 +408,7 @@ func init() {
 		instructionTable[c] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			if len(ctx.assignVar) != 1 {
 				ctx.isLoop = true
-				err = fmt.Errorf("assign op variable count must be 1")
+				err = fmt.Errorf("assign op %s variable count must be 1", code.Cmd)
 				return
 			}
 			y := ctx.top[0]
@@ -442,6 +443,7 @@ func init() {
 					break
 				}
 			}
+			ctx.assignVar = ctx.assignVar[:0]
 			return
 		}
 	}
