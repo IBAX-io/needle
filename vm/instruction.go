@@ -2,9 +2,10 @@ package vm
 
 import (
 	"fmt"
-	"github.com/IBAX-io/needle/compile"
 	"reflect"
 	"strings"
+
+	"github.com/IBAX-io/needle/compile"
 
 	"github.com/shopspring/decimal"
 )
@@ -185,8 +186,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdWhile] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		val := rt.peek()
-		rt.resetByIdx(rt.len() - 1)
+		val := rt.pop()
 		if valueToBool(val) {
 			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
 			newci := ctx.labels[len(ctx.labels)-1]

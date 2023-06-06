@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/IBAX-io/needle/compile"
-	log "github.com/sirupsen/logrus"
-
 	"github.com/pkg/errors"
 )
 
@@ -229,16 +227,16 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	var namemap map[string][]any
 	if block.Type == compile.ObjectType_Func && block.GetFuncInfo().Names != nil {
 		if rt.peek() != nil {
-			namemap = rt.peek().(map[string][]any)
+			namemap, _ = rt.peek().(map[string][]any)
 		}
 		rt.resetByIdx(rt.len() - 1)
 	}
 	start := rt.len()
 	varoff := len(rt.vars)
+	if err = rt.SubCost(int64(len(block.Vars))); err != nil {
+		return
+	}
 	for vkey, vpar := range block.Vars {
-		if err = rt.SubCost(1); err != nil {
-			break
-		}
 		var value any
 		if block.Type == compile.ObjectType_Func && vkey < len(block.GetFuncInfo().Params) {
 			value = rt.stack[start-len(block.GetFuncInfo().Params)+vkey]
@@ -252,20 +250,23 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		}
 		rt.addVar(value)
 	}
-	if err != nil {
-		return
-	}
-	if namemap != nil {
-		for key, item := range namemap {
-			params := block.GetFuncInfo().Names[key]
-			for i, value := range item {
-				if params.Variadic && i >= len(params.Params)-1 {
-					off := varoff + params.Offset[len(params.Params)-1]
-					rt.setVar(off, append(rt.vars[off].([]any), value))
-				} else {
-					rt.setVar(varoff+params.Offset[i], value)
+	for key, item := range namemap {
+		params := block.GetFuncInfo().Names[key]
+		for i, value := range item {
+			var ind int
+			if params.Variadic && i >= len(params.Params)-1 {
+				ind = varoff + params.Offset[len(params.Params)-1]
+				value = append(rt.vars[ind].([]any), value)
+			} else {
+				ind = varoff + params.Offset[i]
+				refx := reflect.TypeOf(value)
+				refy := reflect.TypeOf(rt.vars[ind])
+				if refx != refy {
+					err = fmt.Errorf("func %s cannot use  (type %s) as the type %s", key, refx, refy)
+					return
 				}
 			}
+			rt.setVar(ind, value)
 		}
 	}
 	if block.Type == compile.ObjectType_Func {
@@ -413,24 +414,16 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 			rt.push(pars)
 		}
 		if rt.len() < len(finfo.Params) {
-			return errWrongCountPars
+			return fmt.Errorf("func '%s' wrong number of parameters, expected %d, got %d", finfo.Name, len(finfo.Params), rt.len())
 		}
 		for i, v := range finfo.Params {
-			switch v.Kind() {
-			case reflect.String, reflect.Int64:
-				offset := rt.len() - in + i
-				if v.Kind() == reflect.Int64 {
-					rv := reflect.ValueOf(rt.stack[offset])
-					switch rv.Kind() {
-					case reflect.Float64:
-						val, _ := ValueToInt(rt.stack[offset])
-						rt.stack[offset] = val
-					}
-				}
-				if reflect.TypeOf(rt.stack[offset]) != v {
-					log.WithFields(log.Fields{"type": VMErr}).Error(fmt.Sprintf(eTypeParam, i+1))
-					return fmt.Errorf(eTypeParam, i+1)
-				}
+			offset := rt.len() - in + i
+			if v.Kind() == reflect.Int64 && reflect.TypeOf(rt.stack[offset]).Kind() == reflect.Float64 {
+				val, _ := ValueToInt(rt.stack[offset])
+				rt.stack[offset] = val
+			}
+			if reflect.TypeOf(rt.stack[offset]) != v {
+				return fmt.Errorf("func '%s' param '%v' (type %T) cannot be represented by the type %s", finfo.Name, rt.stack[offset], rt.stack[offset], v)
 			}
 		}
 		if finfo.Names != nil {

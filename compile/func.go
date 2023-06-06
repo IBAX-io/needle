@@ -21,7 +21,7 @@ func canIdent(ident string) error {
 		if len(val) > 20 {
 			val = val[:20] + "..."
 		}
-		return fmt.Errorf("identifier expected, got '%s'", val)
+		return fmt.Errorf("invalid identifier: %s", val)
 	}
 	return nil
 }
