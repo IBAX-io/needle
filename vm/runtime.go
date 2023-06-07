@@ -122,6 +122,7 @@ func (rt *Runtime) SetCost(cost int64) {
 	rt.cost = cost
 }
 
+// SubCost subtracts the cost of the execution.
 func (rt *Runtime) SubCost(cost int64) error {
 	if cost > 0 {
 		rt.cost -= cost
@@ -223,55 +224,27 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 			}
 		}
 	}()
-	rt.blocks = append(rt.blocks, &blockStack{Block: block, Offset: len(rt.vars)})
-	var namemap map[string][]any
+	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
+	var names map[string][]any
 	if block.Type == compile.ObjectType_Func && block.GetFuncInfo().Names != nil {
 		if rt.peek() != nil {
-			namemap, _ = rt.peek().(map[string][]any)
+			names, _ = rt.peek().(map[string][]any)
 		}
 		rt.resetByIdx(rt.len() - 1)
 	}
 	start := rt.len()
-	varoff := len(rt.vars)
-	if err = rt.SubCost(int64(len(block.Vars))); err != nil {
-		return
-	}
-	for vkey, vpar := range block.Vars {
-		var value any
-		if block.Type == compile.ObjectType_Func && vkey < len(block.GetFuncInfo().Params) {
-			value = rt.stack[start-len(block.GetFuncInfo().Params)+vkey]
-		} else {
-			value = reflect.New(vpar).Elem().Interface()
-			if vpar == reflect.TypeOf(&compile.Map{}) {
-				value = compile.NewMap()
-			} else if vpar == reflect.TypeOf([]any{}) {
-				value = make([]any, 0, len(rt.vars)+1)
-			}
-		}
-		rt.addVar(value)
-	}
-	for key, item := range namemap {
-		params := block.GetFuncInfo().Names[key]
-		for i, value := range item {
-			var ind int
-			if params.Variadic && i >= len(params.Params)-1 {
-				ind = varoff + params.Offset[len(params.Params)-1]
-				value = append(rt.vars[ind].([]any), value)
-			} else {
-				ind = varoff + params.Offset[i]
-				refx := reflect.TypeOf(value)
-				refy := reflect.TypeOf(rt.vars[ind])
-				if refx != refy {
-					err = fmt.Errorf("func %s cannot use  (type %s) as the type %s", key, refx, refy)
-					return
-				}
-			}
-			rt.setVar(ind, value)
-		}
-	}
 	if block.Type == compile.ObjectType_Func {
 		start -= len(block.GetFuncInfo().Params)
 	}
+	if err = rt.SubCost(int64(len(block.Vars))); err != nil {
+		return
+	}
+	rt.addVarBy(block)
+	err = rt.setVarBy(block, names)
+	if err != nil {
+		return
+	}
+
 	ctx := newInstructionCtx()
 	//fmt.Println(block.Code.String())
 main:
@@ -304,26 +277,24 @@ main:
 			ctx.top[i-1] = rt.stack[ctx.size-i]
 		}
 		instruction, ok := instructionTable[cmd.Cmd]
-		if ok {
-			status, err = instruction(rt, cmd, ctx)
-			if err != nil {
-				break
-			}
-			if ctx.isContinue {
-				continue
-			}
-			if ctx.isBreak {
-				break
-			}
-			if ctx.isLoop {
-				break main
-			}
-		} else {
+		if !ok {
 			err = fmt.Errorf(`unknown command '%s'`, cmd.Cmd)
+			break
 		}
+		status, err = instruction(rt, cmd, ctx)
 		if err != nil {
 			break
 		}
+		if ctx.isContinue {
+			continue
+		}
+		if ctx.isBreak {
+			break
+		}
+		if ctx.isLoop {
+			break main
+		}
+
 		if status == statusReturn || status == statusContinue || status == statusBreak {
 			break
 		}
@@ -624,4 +595,44 @@ func (rt *Runtime) getResultMap(cmd *compile.Map) (*compile.Map, error) {
 		initMap.Set(key, value)
 	}
 	return initMap, nil
+}
+
+func (rt *Runtime) addVarBy(block *compile.CodeBlock) {
+	for key, par := range block.Vars {
+		var value any
+		if block.Type == compile.ObjectType_Func && key < len(block.GetFuncInfo().Params) {
+			value = rt.stack[rt.len()-len(block.GetFuncInfo().Params)+key]
+		} else {
+			value = reflect.New(par).Elem().Interface()
+			if par == reflect.TypeOf(&compile.Map{}) {
+				value = compile.NewMap()
+			} else if par == reflect.TypeOf([]any{}) {
+				value = make([]any, 0, len(rt.vars)+1)
+			}
+		}
+		rt.addVar(value)
+	}
+}
+
+func (rt *Runtime) setVarBy(block *compile.CodeBlock, names map[string][]any) error {
+	varoff := len(rt.vars) - len(block.Vars)
+	for key, item := range names {
+		params := block.GetFuncInfo().Names[key]
+		for i, value := range item {
+			var ind int
+			if params.Variadic && i >= len(params.Params)-1 {
+				ind = varoff + params.Offset[len(params.Params)-1]
+				value = append(rt.vars[ind].([]any), value)
+			} else {
+				ind = varoff + params.Offset[i]
+				refx := reflect.TypeOf(value)
+				refy := reflect.TypeOf(rt.vars[ind])
+				if refx != refy {
+					return fmt.Errorf("func %s cannot use  (type %s) as the type %s", key, refx, refy)
+				}
+			}
+			rt.setVar(ind, value)
+		}
+	}
+	return nil
 }

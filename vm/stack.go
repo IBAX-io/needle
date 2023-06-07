@@ -4,6 +4,10 @@ func (rt *Runtime) Stack() []any {
 	return rt.stack
 }
 
+func (rt *Runtime) set(ind int, d any) {
+	rt.stack[ind] = d
+}
+
 func (rt *Runtime) push(d any) {
 	rt.stack = append(rt.stack, d)
 }
@@ -53,4 +57,8 @@ func (rt *Runtime) popBlock() (ret *blockStack) {
 	ret = rt.blocks[len(rt.blocks)-1]
 	rt.blocks = rt.blocks[:len(rt.blocks)-1]
 	return
+}
+
+func (rt *Runtime) pushBlock(bs *blockStack) {
+	rt.blocks = append(rt.blocks, bs)
 }
