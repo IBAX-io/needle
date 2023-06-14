@@ -92,7 +92,7 @@ type ErrInfo struct {
 
 // Runtime is needed for the execution of the byte-code
 type Runtime struct {
-	stack     []any
+	stack     *Stack
 	blocks    []*blockStack
 	vars      []any
 	extend    map[string]any
@@ -110,7 +110,7 @@ type Runtime struct {
 // NewRuntime creates a new Runtime for the virtual machine
 func NewRuntime(vm *VM, cost int64) *Runtime {
 	return &Runtime{
-		stack:   make([]any, 0, 1024),
+		stack:   NewStack(),
 		vm:      vm,
 		cost:    cost,
 		memVars: make(map[any]int64),
@@ -165,16 +165,16 @@ func (rt *Runtime) Run(block *compile.CodeBlock, extend map[string]any) (ret []a
 		timer = time.AfterFunc(time.Millisecond*time.Duration(extend[Extend_time_limit].(int64)), timeOver)
 	}
 	if _, err = rt.RunCode(block); err == nil {
-		if rt.len() < len(info.Results) {
+		if rt.stack.size() < len(info.Results) {
 			var keyNames []string
 			for i := 0; i < len(info.Results); i++ {
 				keyNames = append(keyNames, info.Results[i].String())
 			}
 			err = fmt.Errorf("not enough arguments to return, need [%s]", strings.Join(keyNames, "|"))
 		}
-		off := rt.len() - len(info.Results)
+		off := rt.stack.size() - len(info.Results)
 		for i := 0; i < len(info.Results) && off >= 0; i++ {
-			ret = append(ret, rt.stack[off+i])
+			ret = append(ret, rt.stack.get(off+i))
 		}
 	}
 	if genBlock {
@@ -191,13 +191,17 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 			err = errors.Errorf(`runtime run code crashed: %v`, r)
 		}
 		if err != nil && !strings.HasPrefix(err.Error(), `{`) {
-			var curContract, line string
+			var name, line string
+			if block.Type == compile.ObjectType_Func {
+				name = block.GetFuncInfo().Name
+			}
 			if block.IsParentContract() {
 				stack := block.Parent.GetContractInfo()
-				curContract = stack.Name
+				name = stack.Name
 			}
+
 			if stack, ok := rt.extend[Extend_stack].([]any); ok {
-				curContract = stack[len(stack)-1].(string)
+				name = stack[len(stack)-1].(string)
 			}
 
 			line = "]"
@@ -206,13 +210,13 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 			}
 
 			if len(rt.errInfo.Name) > 0 && rt.errInfo.Name != `ExecContract` {
-				err = fmt.Errorf("%s [%s %s%s", err, rt.errInfo.Name, curContract, line)
+				err = fmt.Errorf("%s [%s %s%s", err, rt.errInfo.Name, name, line)
 				rt.errInfo.Name = ``
 			} else {
 				out := err.Error()
 				if strings.HasSuffix(out, `]`) {
 					prev := strings.LastIndexByte(out, ' ')
-					if strings.HasPrefix(out[prev+1:], curContract+`:`) {
+					if strings.HasPrefix(out[prev+1:], name+`:`) {
 						out = out[:prev+1]
 					} else {
 						out = out[:len(out)-1] + ` `
@@ -220,19 +224,19 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 				} else {
 					out += ` [`
 				}
-				err = fmt.Errorf(`%s%s%s`, out, curContract, line)
+				err = fmt.Errorf(`%s%s%s`, out, name, line)
 			}
 		}
 	}()
 	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
 	var names map[string][]any
 	if block.Type == compile.ObjectType_Func && block.GetFuncInfo().Names != nil {
-		if rt.peek() != nil {
-			names, _ = rt.peek().(map[string][]any)
+		if rt.stack.peek() != nil {
+			names, _ = rt.stack.peek().(map[string][]any)
 		}
-		rt.resetByIdx(rt.len() - 1)
+		rt.stack.resetByIdx(rt.stack.size() - 1)
 	}
-	start := rt.len()
+	start := rt.stack.size()
 	if block.Type == compile.ObjectType_Func {
 		start -= len(block.GetFuncInfo().Params)
 	}
@@ -246,7 +250,6 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}
 
 	ctx := newInstructionCtx()
-	//fmt.Println(block.Code.String())
 main:
 	for ctx.ci = 0; ctx.ci < len(block.Code); ctx.ci++ {
 		if err = rt.SubCost(1); err != nil {
@@ -263,7 +266,7 @@ main:
 		}
 
 		cmd = block.Code[ctx.ci]
-		ctx.size = rt.len()
+		ctx.size = rt.stack.size()
 		ctx.isContinue = false
 		ctx.isBreak = false
 		ctx.isLoop = false
@@ -274,7 +277,7 @@ main:
 			break
 		}
 		for i := 1; i <= int(cmd.Cmd>>8); i++ {
-			ctx.top[i-1] = rt.stack[ctx.size-i]
+			ctx.top[i-1] = rt.stack.get(ctx.size - i)
 		}
 		instruction, ok := instructionTable[cmd.Cmd]
 		if !ok {
@@ -300,8 +303,8 @@ main:
 		}
 
 		if (cmd.Cmd >> 8) == 2 {
-			rt.stack[ctx.size-2] = ctx.bin
-			rt.resetByIdx(ctx.size - 1)
+			rt.stack.set(ctx.size-2, ctx.bin)
+			rt.stack.resetByIdx(ctx.size - 1)
 		}
 	}
 	if err != nil {
@@ -314,7 +317,7 @@ main:
 		}
 
 		lastResults := last.Block.GetFuncInfo().Results
-		if len(lastResults) > rt.len() {
+		if len(lastResults) > rt.stack.size() {
 			var keyNames []string
 			for i := 0; i < len(lastResults); i++ {
 				keyNames = append(keyNames, lastResults[i].String())
@@ -322,8 +325,8 @@ main:
 			err = fmt.Errorf("func '%s' not enough arguments to return, need [%s]", last.Block.GetFuncInfo().Name, strings.Join(keyNames, "|"))
 			return
 		}
-		stackCpy := make([]any, rt.len())
-		copy(stackCpy, rt.stack)
+		stackCpy := make([]any, rt.stack.size())
+		copy(stackCpy, rt.stack.Stack())
 		var index int
 		for count := len(lastResults); count > 0; count-- {
 			val := stackCpy[len(stackCpy)-1-index]
@@ -331,14 +334,14 @@ main:
 				err = fmt.Errorf("function '%s' return index[%d] (type %s) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, count-1, reflect.TypeOf(val), lastResults[count-1])
 				return
 			}
-			rt.stack[start] = rt.stack[rt.len()-count]
+			rt.stack.set(start, rt.stack.get(rt.stack.size()-count))
 			start++
 			index++
 		}
 		status = statusNormal
 	}
 
-	rt.resetByIdx(start)
+	rt.stack.resetByIdx(start)
 	return
 }
 
@@ -356,23 +359,23 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 	}()
 
 	in = obj.GetParamsLen()
-	if rt.unwrap && cmd == compile.CmdCallVariadic && rt.len() > 1 &&
-		reflect.TypeOf(rt.stack[rt.len()-2]).String() == `[]interface {}` {
-		count = rt.pop().(int)
-		arr := rt.pop().([]any)
-		rt.pushN(arr)
-		rt.push(count - 1 + len(arr))
+	if rt.unwrap && cmd == compile.CmdCallVariadic && rt.stack.size() > 1 &&
+		reflect.TypeOf(rt.stack.get(rt.stack.size()-2)).String() == `[]interface {}` {
+		count = rt.stack.pop().(int)
+		arr := rt.stack.pop().([]any)
+		rt.stack.pushN(arr)
+		rt.stack.push(count - 1 + len(arr))
 	}
 	rt.unwrap = false
 	count = in
 	if cmd == compile.CmdCallVariadic {
-		count = rt.pop().(int)
+		count = rt.stack.pop().(int)
 	}
 	if obj.Type == compile.ObjectType_Func {
 		var imap map[string][]any
 		finfo := obj.GetFuncInfo()
 		if finfo.Names != nil {
-			imap, _ = rt.pop().(map[string][]any)
+			imap, _ = rt.stack.pop().(map[string][]any)
 		}
 		if cmd == compile.CmdCallVariadic {
 			parcount := count + 1 - in
@@ -380,28 +383,29 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 				return errWrongCountPars
 			}
 			pars := make([]any, parcount)
-			shift := rt.len() - parcount
+			shift := rt.stack.size() - parcount
 			for i := parcount; i > 0; i-- {
-				pars[i-1] = rt.stack[shift+i-1]
+				pars[i-1] = rt.stack.get(shift + i - 1)
 			}
-			rt.resetByIdx(shift)
-			rt.push(pars)
+			rt.stack.resetByIdx(shift)
+			rt.stack.push(pars)
 		}
-		if rt.len() < len(finfo.Params) {
-			return fmt.Errorf("func '%s' wrong number of parameters, expected %d, got %d", finfo.Name, len(finfo.Params), rt.len())
+		if rt.stack.size() < len(finfo.Params) {
+			return fmt.Errorf("func '%s' wrong number of parameters, expected %d, got %d", finfo.Name, len(finfo.Params), rt.stack.size())
 		}
 		for i, v := range finfo.Params {
-			offset := rt.len() - in + i
-			if v.Kind() == reflect.Int64 && reflect.TypeOf(rt.stack[offset]).Kind() == reflect.Float64 {
-				val, _ := ValueToInt(rt.stack[offset])
-				rt.stack[offset] = val
+			offset := rt.stack.size() - in + i
+			stack := rt.stack.get(offset)
+			if v.Kind() == reflect.Int64 && reflect.TypeOf(stack).Kind() == reflect.Float64 {
+				val, _ := ValueToInt(stack)
+				rt.stack.set(offset, val)
 			}
-			if reflect.TypeOf(rt.stack[offset]) != v {
-				return fmt.Errorf("func '%s' param '%v' (type %T) cannot be represented by the type %s", finfo.Name, rt.stack[offset], rt.stack[offset], v)
+			if reflect.TypeOf(stack) != v {
+				return fmt.Errorf("func '%s' param '%v' (type %T) cannot be represented by the type %s", finfo.Name, stack, stack, v)
 			}
 		}
 		if finfo.Names != nil {
-			rt.push(imap)
+			rt.stack.push(imap)
 		}
 		_, err = rt.RunCode(obj.GetCodeBlock())
 		return
@@ -423,7 +427,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 	}
 	rt.extend[Extend_rt] = rt
 	auto := finfo.AutoCount()
-	size := rt.len()
+	size := rt.stack.size()
 	shift := size - count + auto
 	if finfo.Variadic {
 		shift = size - count
@@ -436,14 +440,14 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 			pars[count-i] = reflect.ValueOf(rt.extend[finfo.Auto[count-i]])
 			auto--
 		} else {
-			pars[count-i] = reflect.ValueOf(rt.stack[size-i+auto])
+			pars[count-i] = reflect.ValueOf(rt.stack.get(size - i + auto))
 		}
 		if !pars[count-i].IsValid() {
 			pars[count-i] = reflect.Zero(reflect.TypeOf(``))
 		}
 	}
 	if i > 0 && size-i >= 0 {
-		pars[in-1] = reflect.ValueOf(rt.stack[size-i : size])
+		pars[in-1] = reflect.ValueOf(rt.stack.PeekFromTo(size-i, size))
 	} else {
 		if !pars[in-1].IsValid() {
 			pars[in-1] = reflect.Zero(finfo.Params[in-1])
@@ -457,7 +461,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 	if shift < 0 {
 		shift = 0
 	}
-	rt.resetByIdx(shift)
+	rt.stack.resetByIdx(shift)
 	if stack != nil {
 		stack.PopStack(finfo.Name)
 	}
@@ -476,7 +480,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 				return ret.Interface().(error)
 			}
 		} else {
-			rt.push(ret.Interface())
+			rt.stack.push(ret.Interface())
 		}
 	}
 	return
@@ -490,24 +494,24 @@ func (rt *Runtime) extendFunc(name string) error {
 	if f, ok = rt.extend[name]; !ok || reflect.ValueOf(f).Kind() != reflect.Func {
 		return fmt.Errorf(`unknown function %s`, name)
 	}
-	size := rt.len()
+	size := rt.stack.size()
 	foo := reflect.ValueOf(f)
 
 	count := foo.Type().NumIn()
 	pars := make([]reflect.Value, count)
 	for i := count; i > 0; i-- {
-		pars[count-i] = reflect.ValueOf(rt.stack[size-i])
+		pars[count-i] = reflect.ValueOf(rt.stack.get(size - i))
 	}
 	result := foo.Call(pars)
 
-	rt.resetByIdx(size - count)
+	rt.stack.resetByIdx(size - count)
 	for i, iret := range result {
 		if foo.Type().Out(i).String() == `error` {
 			if iret.Interface() != nil {
 				return iret.Interface().(error)
 			}
 		} else {
-			rt.push(iret.Interface())
+			rt.stack.push(iret.Interface())
 		}
 	}
 	return nil
@@ -601,7 +605,7 @@ func (rt *Runtime) addVarBy(block *compile.CodeBlock) {
 	for key, par := range block.Vars {
 		var value any
 		if block.Type == compile.ObjectType_Func && key < len(block.GetFuncInfo().Params) {
-			value = rt.stack[rt.len()-len(block.GetFuncInfo().Params)+key]
+			value = rt.stack.get(rt.stack.size() - len(block.GetFuncInfo().Params) + key)
 		} else {
 			value = reflect.New(par).Elem().Interface()
 			if par == reflect.TypeOf(&compile.Map{}) {

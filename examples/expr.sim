@@ -1,5 +1,6 @@
 func operand {
     var a int a2 string
+    a = 2
     a = +1; Println("+=",a)
     a2 + = "hello"; Println("+=",a2)
     //a,a2 += 23,"ds"; Println("+=",a,a2)
@@ -31,7 +32,9 @@ func operand_add {
 }
 
 func operand_inc_dec {
-    var a,b int c int
+    var a,b int c d money e array
+    e[0] = 1
+    a = e[0]
     a = 11
     b--
     a += 12

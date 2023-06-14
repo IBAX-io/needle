@@ -19,3 +19,7 @@
 .vscode/
 .env
 go.work
+docs/
+needle
+grammar/
+gen/

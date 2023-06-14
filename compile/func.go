@@ -13,7 +13,7 @@ import (
 // letter        = unicode_letter | "_" .
 // unicode_letter = /* a Unicode code point classified as "Letter" */
 // unicode_digit  = /* a Unicode code point categorized as "Number, decimal digit" */
-var identifierRegexp = `^[\p{L}_][\p{L}\p{Nd}_]*$`
+var identifierRegexp = `^[\p{L}][\p{L}\p{Nd}_]*$`
 
 func canIdent(ident string) error {
 	if !regexp.MustCompile(identifierRegexp).MatchString(ident) {
@@ -283,7 +283,9 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 }
 
 func fnAssign(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdAssign, lexeme, 0))
+	if lexeme.Type != OPERATOR {
+		buf.peek().Code.push(newByteCode(CmdAssign, lexeme, 0))
+	}
 	return nil
 }
 

@@ -2,11 +2,12 @@ package vm
 
 import (
 	"fmt"
-	"github.com/IBAX-io/needle/compile"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/IBAX-io/needle/compile"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -36,7 +37,7 @@ const (
 // VM is the main type of the virtual machine
 type VM struct {
 	*compile.CodeBlock
-	ExtCost       func(string) int64
+	ExtCost       func(string) int64 // the cost of executing an extend function
 	FuncCallsDB   map[string]struct{}
 	Extern        bool  // extern mode of compilation
 	ShiftContract int64 // id of the first contract
@@ -53,9 +54,9 @@ type Stacker interface {
 func NewVM() *VM {
 	auto := map[string]string{"*vm.Runtime": "rt"}
 	var fn = []compile.ExtendFunc{
-		{Name: "ExecContract", Func: ExecContract, AutoPars: auto},
 		{Name: "Settings", Func: GetSettings, AutoPars: auto},
 		{Name: "MemoryUsage", Func: MemoryUsage, AutoPars: auto},
+		{"ExecContract", ExecContract, true, auto},
 		{"CallContract", CallContract, true, auto},
 		{Name: "Println", Func: fmt.Println},
 		{Name: "Sprintf", Func: fmt.Sprintf},
@@ -93,14 +94,15 @@ func SavepointSmartVMObjects() {
 
 // Call executes the name object with the specified params and extended variables and functions
 func (vm *VM) Call(name string, params []any, extend map[string]any) (ret []any, err error) {
-	obj := vm.GetObjByName(name)
+	split := strings.Split(name, ".")
+	obj := vm.GetObjByName(split[0])
 	if obj == nil {
 		return nil, fmt.Errorf(`object %s is empty`, name)
 	}
 	switch obj.Type {
 	case compile.ObjectType_Contract:
 		rt := NewRuntime(vm, extend[Extend_txcost].(int64))
-		ret, err = rt.Run(obj.GetCodeBlock().GetObjByName("action").GetCodeBlock(), extend)
+		ret, err = rt.Run(obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock(), extend)
 		extend[Extend_txcost] = rt.Cost()
 	case compile.ObjectType_Func:
 		rt := NewRuntime(vm, extend[Extend_txcost].(int64))

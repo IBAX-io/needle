@@ -2,24 +2,27 @@ package vm
 
 import (
 	"fmt"
-	"github.com/IBAX-io/needle/compile"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/IBAX-io/needle/compile"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVM_Compile(t *testing.T) {
 	file, _ := os.ReadFile("../examples/scope.sim")
 	expr, _ := os.ReadFile("../examples/expr.sim")
+	stack, _ := os.ReadFile("../examples/stack.sim")
 	tests := []struct {
 		name    string
 		method  string
 		args    []rune
 		wantErr assert.ErrorAssertionFunc
 	}{
-		{"case_contract", "@1ABC", []rune(string(file)), assert.NoError},
+		{"case_contract", "@1ABC.action", []rune(string(file)), assert.NoError},
+		{"case_stack", "@1ABC2.conditions", []rune(string(stack)), assert.NoError},
 		{"case_expr", "operand", []rune(string(expr)), assert.NoError},
 		{"case_expr_add", "operand_add", []rune(string(expr)), assert.NoError},
 		{"case_expr_inc_dec", "operand_inc_dec", []rune(string(expr)), assert.NoError},

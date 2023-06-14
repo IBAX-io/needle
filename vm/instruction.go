@@ -15,28 +15,28 @@ type instruction func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) 
 var instructionTable = make(map[compile.CmdT]instruction)
 
 type instructionCtx struct {
-	labels     []int
 	ci         int
-	assignVar  []*compile.VarInfo
-	top        []any
+	size       int
+	bin        any
 	isContinue bool
 	isBreak    bool
 	isLoop     bool
-	size       int
-	bin        any
+	labels     []int
+	top        []any
+	assignVar  []*compile.VarInfo
+	costRemain decimal.Decimal
 }
 
 func newInstructionCtx() *instructionCtx {
 	return &instructionCtx{
 		labels:    make([]int, 0),
 		assignVar: make([]*compile.VarInfo, 0),
-		//top:       make([]any, 8),
 	}
 }
 
 func init() {
 	instructionTable[compile.CmdPush] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		rt.push(code.Value)
+		rt.stack.push(code.Value)
 		return
 	}
 	instructionTable[compile.CmdVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -44,7 +44,7 @@ func init() {
 		var i int
 		for i = len(rt.blocks) - 1; i >= 0; i-- {
 			if ivar.Owner == rt.blocks[i].Block {
-				rt.push(rt.vars[rt.blocks[i].Offset+ivar.Obj.GetVariable().Index])
+				rt.stack.push(rt.vars[rt.blocks[i].Offset+ivar.Obj.GetVariable().Index])
 				break
 			}
 		}
@@ -72,7 +72,7 @@ func init() {
 					case int:
 						val = int64(varVal)
 					}
-					rt.push(val)
+					rt.stack.push(val)
 				}
 			} else {
 				err = fmt.Errorf(`unknown extend identifier %v`, code.Value)
@@ -81,7 +81,7 @@ func init() {
 		}
 	}
 	instructionTable[compile.CmdPushStr] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		rt.push(code.Value.(string))
+		rt.stack.push(code.Value.(string))
 		return
 	}
 	for i := compile.CmdCall; i <= compile.CmdCallVariadic; i++ {
@@ -91,7 +91,7 @@ func init() {
 				finfo := code.Value.(*compile.ObjInfo).GetExtFuncInfo()
 				if rt.vm.ExtCost != nil {
 					cost = rt.vm.ExtCost(finfo.Name)
-					if cost == -1 {
+					if cost < 1 {
 						cost = CostCall
 					}
 				}
@@ -108,13 +108,13 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdIf] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if valueToBool(rt.peek()) {
+		if valueToBool(rt.stack.peek()) {
 			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
 	}
 	instructionTable[compile.CmdElse] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if !valueToBool(rt.peek()) {
+		if !valueToBool(rt.stack.peek()) {
 			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
@@ -140,7 +140,7 @@ func init() {
 	instructionTable[compile.CmdAssign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		count := len(ctx.assignVar)
 		for ivar, item := range ctx.assignVar {
-			val := rt.stack[rt.len()-count+ivar]
+			val := rt.stack.get(rt.stack.size() - count + ivar)
 			if item.Owner == nil {
 				if item.Obj.Type == compile.ObjectType_ExtVar {
 					var n = item.Obj.GetExtendVariable().Name
@@ -187,7 +187,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdWhile] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		val := rt.pop()
+		val := rt.stack.pop()
 		if valueToBool(val) {
 			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
 			newci := ctx.labels[len(ctx.labels)-1]
@@ -211,8 +211,8 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdGetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ind := rt.pop()
-		value := rt.pop()
+		ind := rt.stack.pop()
+		value := rt.stack.pop()
 		rv := reflect.ValueOf(value)
 		rkt := reflect.TypeOf(ind).String()
 		rvt := reflect.TypeOf(value).String()
@@ -224,9 +224,9 @@ func init() {
 			}
 			v, found := value.(*compile.Map).Get(ind.(string))
 			if found {
-				rt.push(v)
+				rt.stack.push(v)
 			} else {
-				rt.push(nil)
+				rt.stack.push(nil)
 			}
 		case rvt[:2] == brackets:
 			if rkt != `int64` {
@@ -239,9 +239,9 @@ func init() {
 			}
 			v := rv.Index(int(ind.(int64)))
 			if v.IsValid() {
-				rt.push(v.Interface())
+				rt.stack.push(v.Interface())
 			} else {
-				rt.push(nil)
+				rt.stack.push(nil)
 			}
 		default:
 			err = fmt.Errorf(`type %s doesn't support indexing`, rvt)
@@ -249,9 +249,9 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdSetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		value := rt.pop()
-		key := rt.pop()
-		indextype := rt.pop()
+		value := rt.stack.pop()
+		key := rt.stack.pop()
+		indextype := rt.stack.pop()
 		rkt := reflect.TypeOf(key).String()
 		itype := reflect.TypeOf(indextype).String()
 		if isSelfAssignment(indextype, value) {
@@ -280,7 +280,7 @@ func init() {
 				break
 			}
 			indextype.(*compile.Map).Set(key.(string), value)
-			rt.push(indextype)
+			rt.stack.push(indextype)
 		case itype[:2] == brackets:
 			if rkt != `int64` {
 				err = fmt.Errorf(eArrIndex, rkt)
@@ -302,11 +302,11 @@ func init() {
 					}
 				}
 				slice[ind] = value
-				rt.push(slice)
+				rt.stack.push(slice)
 			} else {
 				slice := indextype.([]map[string]string)
 				slice[ind] = value.(map[string]string)
-				rt.push(slice)
+				rt.stack.push(slice)
 			}
 		default:
 			err = fmt.Errorf(`type %s doesn't support indexing`, itype)
@@ -320,13 +320,13 @@ func init() {
 	}
 	instructionTable[compile.CmdFuncName] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		ifunc := code.Value.(compile.FuncNameCmd)
-		mapoff := rt.len() - 1 - ifunc.Count
-		if rt.stack[mapoff] == nil {
-			rt.stack[mapoff] = make(map[string][]any)
+		mapoff := rt.stack.size() - 1 - ifunc.Count
+		if rt.stack.get(mapoff) == nil {
+			rt.stack.set(mapoff, make(map[string][]any))
 		}
 		params := make([]any, 0, ifunc.Count)
 		for i := 0; i < ifunc.Count; i++ {
-			cur := rt.stack[mapoff+1+i]
+			cur := rt.stack.get(mapoff + 1 + i)
 			if i == ifunc.Count-1 && rt.unwrap &&
 				reflect.TypeOf(cur).String() == `[]interface {}` {
 				params = append(params, cur.([]any)...)
@@ -335,13 +335,13 @@ func init() {
 				params = append(params, cur)
 			}
 		}
-		rt.stack[mapoff].(map[string][]any)[ifunc.Name] = params
-		rt.resetByIdx(mapoff + 1)
+		rt.stack.get(mapoff).(map[string][]any)[ifunc.Name] = params
+		rt.stack.resetByIdx(mapoff + 1)
 		ctx.isContinue = true
 		return
 	}
 	instructionTable[compile.CmdUnwrapArr] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if reflect.TypeOf(rt.peek()).String() != `[]interface {}` {
+		if reflect.TypeOf(rt.stack.peek()).String() != `[]interface {}` {
 			err = fmt.Errorf(`invalid use of '...'`)
 			return
 		}
@@ -355,7 +355,7 @@ func init() {
 			ctx.isLoop = true
 			return
 		}
-		rt.push(initMap)
+		rt.stack.push(initMap)
 		return
 	}
 	instructionTable[compile.CmdArrayInit] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -365,7 +365,7 @@ func init() {
 			ctx.isLoop = true
 			return
 		}
-		rt.push(initArray)
+		rt.stack.push(initArray)
 		return
 	}
 	instructionTable[compile.CmdError] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -375,11 +375,11 @@ func init() {
 		} else if code.Value.(compile.Token) == compile.ERRINFO {
 			eType = "info"
 		}
-		err = SetVMError(eType, rt.peek())
+		err = SetVMError(eType, rt.stack.peek())
 		return
 	}
 	instructionTable[compile.CmdNot] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		rt.stack[ctx.size-1] = !valueToBool(ctx.top[0])
+		rt.stack.set(ctx.size-1, !valueToBool(ctx.top[0]))
 		return
 	}
 	instructionTable[compile.CmdSign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -388,9 +388,9 @@ func init() {
 		}
 		switch ctx.top[0].(type) {
 		case float64:
-			rt.stack[ctx.size-1] = -ctx.top[0].(float64)
+			rt.stack.set(ctx.size-1, -ctx.top[0].(float64))
 		case int64:
-			rt.stack[ctx.size-1] = -ctx.top[0].(int64)
+			rt.stack.set(ctx.size-1, -ctx.top[0].(int64))
 		default:
 			err = errUnsupportedType
 			ctx.isLoop = true
@@ -426,7 +426,7 @@ func init() {
 					return
 				}
 				rt.setExtendVar(n, ret)
-				rt.stack[ctx.size-1] = ret
+				rt.stack.set(ctx.size-1, ret)
 				return
 			}
 			for i := len(rt.blocks) - 1; i >= 0; i-- {
@@ -439,7 +439,7 @@ func init() {
 						return
 					}
 					rt.setVar(k, ret)
-					rt.stack[ctx.size-1] = ret
+					rt.stack.set(ctx.size-1, ret)
 					break
 				}
 			}
