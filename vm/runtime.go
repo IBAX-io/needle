@@ -110,7 +110,7 @@ type Runtime struct {
 // NewRuntime creates a new Runtime for the virtual machine
 func NewRuntime(vm *VM, cost int64) *Runtime {
 	return &Runtime{
-		stack:   NewStack(),
+		stack:   newStack(),
 		vm:      vm,
 		cost:    cost,
 		memVars: make(map[any]int64),
@@ -188,7 +188,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	var cmd *compile.ByteCode
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Errorf(`runtime run code crashed: %v`, r)
+			err = errors.Errorf(`runtime panic: %v`, r)
 		}
 		if err != nil && !strings.HasPrefix(err.Error(), `{`) {
 			var name, line string
@@ -266,19 +266,15 @@ main:
 		}
 
 		cmd = block.Code[ctx.ci]
-		ctx.size = rt.stack.size()
 		ctx.isContinue = false
 		ctx.isBreak = false
 		ctx.isLoop = false
-		ctx.top = make([]any, 8)
 
-		if ctx.size < int(cmd.Cmd>>8) {
+		if rt.stack.size() < int(cmd.Cmd>>8) {
 			err = fmt.Errorf(`stack is empty`)
 			break
 		}
-		for i := 1; i <= int(cmd.Cmd>>8); i++ {
-			ctx.top[i-1] = rt.stack.get(ctx.size - i)
-		}
+
 		instruction, ok := instructionTable[cmd.Cmd]
 		if !ok {
 			err = fmt.Errorf(`unknown command '%s'`, cmd.Cmd)
@@ -300,11 +296,6 @@ main:
 
 		if status == statusReturn || status == statusContinue || status == statusBreak {
 			break
-		}
-
-		if (cmd.Cmd >> 8) == 2 {
-			rt.stack.set(ctx.size-2, ctx.bin)
-			rt.stack.resetByIdx(ctx.size - 1)
 		}
 	}
 	if err != nil {
@@ -447,7 +438,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 		}
 	}
 	if i > 0 && size-i >= 0 {
-		pars[in-1] = reflect.ValueOf(rt.stack.PeekFromTo(size-i, size))
+		pars[in-1] = reflect.ValueOf(rt.stack.peekFromTo(size-i, size))
 	} else {
 		if !pars[in-1].IsValid() {
 			pars[in-1] = reflect.Zero(finfo.Params[in-1])

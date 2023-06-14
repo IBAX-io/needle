@@ -16,13 +16,10 @@ var instructionTable = make(map[compile.CmdT]instruction)
 
 type instructionCtx struct {
 	ci         int
-	size       int
-	bin        any
 	isContinue bool
 	isBreak    bool
 	isLoop     bool
 	labels     []int
-	top        []any
 	assignVar  []*compile.VarInfo
 	costRemain decimal.Decimal
 }
@@ -379,18 +376,19 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdNot] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		rt.stack.set(ctx.size-1, !valueToBool(ctx.top[0]))
+		rt.stack.push(!valueToBool(rt.stack.pop()))
 		return
 	}
 	instructionTable[compile.CmdSign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if code.Lexeme.Value.(compile.Token) == compile.Add {
 			return
 		}
-		switch ctx.top[0].(type) {
+		z := rt.stack.pop()
+		switch z.(type) {
 		case float64:
-			rt.stack.set(ctx.size-1, -ctx.top[0].(float64))
+			rt.stack.push(-z.(float64))
 		case int64:
-			rt.stack.set(ctx.size-1, -ctx.top[0].(int64))
+			rt.stack.push(-z.(int64))
 		default:
 			err = errUnsupportedType
 			ctx.isLoop = true
@@ -411,7 +409,7 @@ func init() {
 				err = fmt.Errorf("assign op %s variable count must be 1", code.Cmd)
 				return
 			}
-			y := ctx.top[0]
+			y := rt.stack.pop()
 			item := ctx.assignVar[0]
 			if item.Owner == nil {
 				if item.Obj.Type != compile.ObjectType_ExtVar {
@@ -426,7 +424,7 @@ func init() {
 					return
 				}
 				rt.setExtendVar(n, ret)
-				rt.stack.set(ctx.size-1, ret)
+				rt.stack.push(ret)
 				return
 			}
 			for i := len(rt.blocks) - 1; i >= 0; i-- {
@@ -439,7 +437,7 @@ func init() {
 						return
 					}
 					rt.setVar(k, ret)
-					rt.stack.set(ctx.size-1, ret)
+					rt.stack.push(ret)
 					break
 				}
 			}
@@ -457,15 +455,15 @@ func init() {
 		compile.CmdBitAnd, compile.CmdBitOr, compile.CmdBitXor,
 	} {
 		instructionTable[c] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-			var ret any
-			x := ctx.top[1]
-			y := ctx.top[0]
-			ret, err = evaluateCmd(x, y, code.Cmd)
+			var z any
+			y := rt.stack.pop()
+			x := rt.stack.pop()
+			z, err = evaluateCmd(x, y, code.Cmd)
 			if err != nil {
 				ctx.isLoop = true
 				return
 			}
-			ctx.bin = ret
+			rt.stack.push(z)
 			return
 		}
 	}

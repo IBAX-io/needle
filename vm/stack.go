@@ -4,74 +4,74 @@ type Stack struct {
 	element []any
 }
 
-func NewStack() *Stack {
+func newStack() *Stack {
 	return &Stack{element: make([]any, 0, 1024)}
 }
 
-func (rt *Stack) Stack() []any {
-	return rt.element
+func (s *Stack) Stack() []any {
+	return s.element
 }
 
-func (rt *Stack) size() int {
-	return len(rt.element)
+func (s *Stack) size() int {
+	return len(s.element)
 }
 
-func (rt *Stack) set(ind int, d any) {
-	rt.element[ind] = d
+func (s *Stack) set(ind int, d any) {
+	s.element[ind] = d
 }
 
-func (rt *Stack) push(d any) {
-	rt.element = append(rt.element, d)
+func (s *Stack) push(d any) {
+	s.element = append(s.element, d)
 }
 
-func (rt *Stack) pushN(d []any) {
-	rt.element = append(rt.element, d...)
+func (s *Stack) pushN(d []any) {
+	s.element = append(s.element, d...)
 	return
 }
 
-func (rt *Stack) get(idx int) any {
-	if idx >= 0 && rt.size() > 0 && rt.size() > idx {
-		return rt.element[idx]
+func (s *Stack) get(idx int) any {
+	if idx >= 0 && s.size() > 0 && s.size() > idx {
+		return s.element[idx]
 	}
 	return nil
 }
 
-func (rt *Stack) peek() any {
-	if rt.size() == 0 {
+func (s *Stack) peek() any {
+	if s.size() == 0 {
 		return nil
 	}
-	return rt.element[rt.size()-1]
+	return s.element[s.size()-1]
 }
 
-func (rt *Stack) PeekN(n int) []any {
-	sLen := len(rt.element)
+func (s *Stack) peekN(n int) []any {
+	sLen := len(s.element)
 	var el []any = nil
 	if sLen >= n {
-		el = rt.element[sLen-n:]
+		el = s.element[sLen-n:]
 	}
 	return el
 }
 
-// PeekFromTo return elements from index from to index to
-func (rt *Stack) PeekFromTo(from, to int) []any {
+// peekFromTo return elements from index from to index to
+func (s *Stack) peekFromTo(from, to int) []any {
 	var el []any = nil
-	if from >= 0 && to >= 0 && from <= to && rt.size() > to {
-		el = rt.element[from:to]
+	if from >= 0 && to >= 0 && from <= to && s.size() > to {
+		el = s.element[from:to]
 	}
 	return el
 }
 
-func (rt *Stack) pop() (ret any) {
-	ret = rt.peek()
-	rt.element = rt.element[:rt.size()-1]
+func (s *Stack) pop() (ret any) {
+	ret = s.peek()
+	s.element = s.element[:s.size()-1]
 	return
 }
 
-func (rt *Stack) PopN(n int) []any {
-	sLen := len(rt.element)
+func (s *Stack) popN(n int) []any {
+	sLen := len(s.element)
 	var el []any
-	el = rt.element[sLen-n:]
-	rt.element = rt.element[:sLen-n]
+	el = s.element[sLen-n:]
+	s.element = s.element[:sLen-n]
 
 	//reverse to make sure the order
 	for i, j := 0, len(el)-1; i < j; i, j = i+1, j-1 {
@@ -80,16 +80,16 @@ func (rt *Stack) PopN(n int) []any {
 	return el
 }
 
-func (rt *Stack) swap(n int) {
-	rt.element[rt.size()-n], rt.element[rt.size()-1] = rt.peek(), rt.element[rt.size()-n]
+func (s *Stack) swap(n int) {
+	s.element[s.size()-n], s.element[s.size()-1] = s.peek(), s.element[s.size()-n]
 }
 
-func (rt *Stack) dup(n int) {
-	rt.push(&rt.element[rt.size()-n])
+func (s *Stack) dup(n int) {
+	s.push(&s.element[s.size()-n])
 }
 
-func (rt *Stack) resetByIdx(idx int) {
-	rt.element = rt.element[:idx]
+func (s *Stack) resetByIdx(idx int) {
+	s.element = s.element[:idx]
 }
 
 func (rt *Runtime) peekBlock() *blockStack {
