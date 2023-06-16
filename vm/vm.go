@@ -100,15 +100,15 @@ func (vm *VM) Call(name string, params []any, extend map[string]any) (ret []any,
 		return nil, fmt.Errorf(`object %s is empty`, name)
 	}
 	switch obj.Type {
-	case compile.ObjectType_Contract:
+	case compile.ObjContract:
 		rt := NewRuntime(vm, extend[Extend_txcost].(int64))
 		ret, err = rt.Run(obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock(), extend)
 		extend[Extend_txcost] = rt.Cost()
-	case compile.ObjectType_Func:
+	case compile.ObjFunc:
 		rt := NewRuntime(vm, extend[Extend_txcost].(int64))
 		ret, err = rt.Run(obj.GetCodeBlock(), extend)
 		extend[Extend_txcost] = rt.Cost()
-	case compile.ObjectType_ExtFunc:
+	case compile.ObjExtFunc:
 		ret = obj.GetExtFuncInfo().Call(params)
 	default:
 		return nil, fmt.Errorf(`unknown object %s for call`, name)
@@ -185,7 +185,7 @@ func VMGetContractByID(vm *VM, id int32) *compile.ContractInfo {
 	if len(vm.Children) <= int(idcont) {
 		return nil
 	}
-	if vm.Children[idcont] == nil || vm.Children[idcont].Type != compile.ObjectType_Contract {
+	if vm.Children[idcont] == nil || vm.Children[idcont].Type != compile.ObjContract {
 		return nil
 	}
 	if tableID > 0 && vm.Children[idcont].GetContractInfo().Owner.TableID != tableID {
@@ -208,7 +208,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		return fmt.Errorf(`unknown object '%s'`, name)
 	}
 
-	if obj.Type != compile.ObjectType_Contract {
+	if obj.Type != compile.ObjContract {
 		return fmt.Errorf(eUnknownContract, name)
 	}
 	contract := obj.GetCodeBlock()
@@ -222,7 +222,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		if !ok {
 			continue
 		}
-		if obj.Type == compile.ObjectType_Func {
+		if obj.Type == compile.ObjFunc {
 			fn := obj.GetCodeBlock()
 			_, err := VMRun(vm, fn, extend)
 			if err != nil {
@@ -278,7 +278,7 @@ func (vm *VM) FlushExtern() {
 func (vm *VM) Compile(input []rune, ext *compile.ExtendData) error {
 	var d compile.ExtendData
 	for s, info := range vm.Objects {
-		if info.Type != compile.ObjectType_ExtFunc {
+		if info.Type != compile.ObjExtFunc {
 			continue
 		}
 		var fn = compile.ExtendFunc{
@@ -311,9 +311,9 @@ func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 	for key, item := range root.Objects {
 		if cur, ok := vm.Objects[key]; ok {
 			switch item.Type {
-			case compile.ObjectType_Contract:
+			case compile.ObjContract:
 				root.Objects[key].GetContractInfo().ID = cur.GetContractInfo().ID + compile.FlushMark
-			case compile.ObjectType_Func:
+			case compile.ObjFunc:
 				root.Objects[key].GetFuncInfo().ID = cur.GetFuncInfo().ID + compile.FlushMark
 				vm.Objects[key].Value = root.Objects[key].Value
 			}
@@ -325,7 +325,7 @@ func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 			continue
 		}
 		switch item.Type {
-		case compile.ObjectType_Contract:
+		case compile.ObjContract:
 			if item.GetContractInfo().ID > compile.FlushMark {
 				item.GetContractInfo().ID -= compile.FlushMark
 				vm.Children[item.GetContractInfo().ID] = item
@@ -334,7 +334,7 @@ func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 			}
 			item.Parent = vm.CodeBlock
 			item.GetContractInfo().ID += uint32(shift)
-		case compile.ObjectType_Func:
+		case compile.ObjFunc:
 			if item.GetFuncInfo().ID > compile.FlushMark {
 				item.GetFuncInfo().ID -= compile.FlushMark
 				vm.Children[item.GetFuncInfo().ID] = item

@@ -84,7 +84,7 @@ func init() {
 	for i := compile.CmdCall; i <= compile.CmdCallVariadic; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			var cost = int64(CostCall)
-			if code.Value.(*compile.ObjInfo).Type == compile.ObjectType_ExtFunc {
+			if code.Value.(*compile.ObjInfo).Type == compile.ObjExtFunc {
 				finfo := code.Value.(*compile.ObjInfo).GetExtFuncInfo()
 				if rt.vm.ExtCost != nil {
 					cost = rt.vm.ExtCost(finfo.Name)
@@ -121,7 +121,7 @@ func init() {
 		ctx.assignVar = code.Value.([]*compile.VarInfo)
 		for _, item := range ctx.assignVar {
 			if item.Owner == nil {
-				if item.Obj.Type == compile.ObjectType_ExtVar {
+				if item.Obj.Type == compile.ObjExtVar {
 					var n = item.Obj.GetExtendVariable().Name
 					if rt.vm.AssertVar(n) {
 						err = fmt.Errorf(eSysVar, n)
@@ -143,7 +143,7 @@ func init() {
 		for ivar, item := range ctx.assignVar {
 			val := rt.stack.get(rt.stack.size() - count + ivar)
 			if item.Owner == nil {
-				if item.Obj.Type == compile.ObjectType_ExtVar {
+				if item.Obj.Type == compile.ObjExtVar {
 					var n = item.Obj.GetExtendVariable().Name
 					if v, ok := rt.extend[n]; ok && v != nil && reflect.TypeOf(v) != reflect.TypeOf(val) {
 						err = fmt.Errorf("$%s (type %s) cannot be represented by the type %s", n, reflect.TypeOf(val), reflect.TypeOf(v))
@@ -408,7 +408,7 @@ func init() {
 			y := rt.stack.pop()
 			item := ctx.assignVar[0]
 			if item.Owner == nil {
-				if item.Obj.Type != compile.ObjectType_ExtVar {
+				if item.Obj.Type != compile.ObjExtVar {
 					err = fmt.Errorf("can not assign to %s", item.Obj.Type)
 					return
 				}

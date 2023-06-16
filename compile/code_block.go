@@ -39,6 +39,52 @@ type CodeBlock struct {
 	Children       CodeBlocks
 }
 
+func NewCodeBlock(ext *ExtendData) *CodeBlock {
+	return &CodeBlock{
+		Objects: ext.MakeExtFunc(),
+		// Reserved 256 indexes for system purposes
+		Children:       make(CodeBlocks, 256, 1024),
+		Info:           ext.Info,
+		PredeclaredVar: ext.MakePreVar(),
+	}
+}
+
+type isCodeBlockInfo interface {
+	isCodeBlockInfo()
+}
+
+func (*OwnerInfo) isCodeBlockInfo()    {}
+func (*ContractInfo) isCodeBlockInfo() {}
+func (*FuncInfo) isCodeBlockInfo()     {}
+
+func (bc *CodeBlock) GetInfo() isCodeBlockInfo {
+	if bc != nil {
+		return bc.Info
+	}
+	return nil
+}
+
+func (bc *CodeBlock) GetFuncInfo() *FuncInfo {
+	if x, ok := bc.GetInfo().(*FuncInfo); ok {
+		return x
+	}
+	return nil
+}
+
+func (bc *CodeBlock) GetContractInfo() *ContractInfo {
+	if x, ok := bc.GetInfo().(*ContractInfo); ok {
+		return x
+	}
+	return nil
+}
+
+func (bc *CodeBlock) GetOwnerInfo() *OwnerInfo {
+	if x, ok := bc.GetInfo().(*OwnerInfo); ok {
+		return x
+	}
+	return nil
+}
+
 func (bc *CodeBlock) resolve(name string) (*CodeBlock, bool) {
 	_, ok := bc.Objects[name]
 	if ok {
@@ -57,31 +103,6 @@ func (bc *CodeBlock) AssertVar(name string) bool {
 		}
 	}
 	return false
-}
-
-// ByteCode stores a command and an additional parameter.
-type ByteCode struct {
-	Cmd    CmdT
-	Lexeme *Lexeme
-	//FuncNameCmd
-	//*ObjInfo
-	//uint16
-	//*IndexInfo
-	//[]*VarInfo
-	//*VarInfo
-	//*CodeBlock
-	//*Map
-	//[]mapItem
-	//string
-	//uint32
-	//lexeme.Value
-	//nil
-	//int
-	Value any
-}
-
-func newByteCode(cmd CmdT, Lexeme *Lexeme, value any) *ByteCode {
-	return &ByteCode{Cmd: cmd, Lexeme: Lexeme, Value: value}
 }
 
 // CodeBlocks is a slice of blocks
@@ -114,6 +135,60 @@ func (bs *CodeBlocks) get(idx int) *CodeBlock {
 	return nil
 }
 
+func (bc *CodeBlock) GetObjByName(name string) (ret *ObjInfo) {
+	if bc == nil {
+		return nil
+	}
+	var ok bool
+	names := strings.Split(name, `.`)
+	for i, name := range names {
+		ret, ok = bc.Objects[name]
+		if !ok {
+			return nil
+		}
+		if i == len(names)-1 {
+			return
+		}
+		if ret.Type != ObjContract && ret.Type != ObjFunc {
+			return nil
+		}
+		bc = ret.GetCodeBlock()
+	}
+	return
+}
+
+func (bc *CodeBlock) IsParentContract() bool {
+	if bc.Parent != nil && bc.Parent.Type == ObjContract {
+		return true
+	}
+	return false
+}
+
+// ByteCode stores a command and an additional parameter.
+type ByteCode struct {
+	Cmd    CmdT
+	Lexeme *Lexeme
+	//FuncNameCmd
+	//*ObjInfo
+	//uint16
+	//*IndexInfo
+	//[]*VarInfo
+	//*VarInfo
+	//*CodeBlock
+	//*Map
+	//[]mapItem
+	//string
+	//uint32
+	//lexeme.Value
+	//nil
+	//int
+	Value any
+}
+
+func newByteCode(cmd CmdT, Lexeme *Lexeme, value any) *ByteCode {
+	return &ByteCode{Cmd: cmd, Lexeme: Lexeme, Value: value}
+}
+
 // ByteCodes is the slice of ByteCode items
 type ByteCodes []*ByteCode
 
@@ -138,72 +213,16 @@ func (b *ByteCodes) peek() *ByteCode {
 	return (*b)[bsLen-1]
 }
 
-func NewCodeBlock(ext *ExtendData) *CodeBlock {
-	return &CodeBlock{
-		Objects: ext.MakeExtFunc(),
-		// Reserved 256 indexes for system purposes
-		Children:       make(CodeBlocks, 256, 1024),
-		Info:           ext.Info,
-		PredeclaredVar: ext.MakePreVar(),
-	}
-}
-
-func (bc *CodeBlock) GetObjByName(name string) (ret *ObjInfo) {
-	if bc == nil {
-		return nil
-	}
-	var ok bool
-	names := strings.Split(name, `.`)
-	for i, name := range names {
-		ret, ok = bc.Objects[name]
-		if !ok {
-			return nil
-		}
-		if i == len(names)-1 {
-			return
-		}
-		if ret.Type != ObjectType_Contract && ret.Type != ObjectType_Func {
-			return nil
-		}
-		bc = ret.GetCodeBlock()
-	}
-	return
-}
-
-func (bc *CodeBlock) IsParentContract() bool {
-	if bc.Parent != nil && bc.Parent.Type == ObjectType_Contract {
-		return true
-	}
-	return false
-}
-
 func setWritable(block *CodeBlocks) {
 	for i := len(*block) - 1; i >= 0; i-- {
 		blockItem := (*block)[i]
-		if blockItem.Type == ObjectType_Func {
+		if blockItem.Type == ObjFunc {
 			blockItem.GetFuncInfo().CanWrite = true
 		}
-		if blockItem.Type == ObjectType_Contract {
+		if blockItem.Type == ObjContract {
 			blockItem.GetContractInfo().CanWrite = true
 		}
 	}
-}
-func (ret *ObjInfo) GetParamsLen() int {
-	if ret.Type == ObjectType_ExtFunc {
-		return len(ret.GetExtFuncInfo().Params)
-	}
-	return len(ret.GetFuncInfo().Params)
-}
-
-func (ret *ObjInfo) GetVariadic() bool {
-	if ret.Type == ObjectType_ExtFunc {
-		return ret.GetExtFuncInfo().Variadic
-	}
-
-	if ret.Type == ObjectType_Func {
-		return ret.GetFuncInfo().Variadic
-	}
-	return false
 }
 
 func findVar(name string, block *CodeBlocks) (*ObjInfo, *CodeBlock) {

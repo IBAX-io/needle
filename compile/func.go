@@ -59,16 +59,16 @@ func fnNameBlock(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	name := lexeme.Value.(string)
 	switch state {
 	case stateBlock:
-		itype = ObjectType_Contract
+		itype = ObjContract
 		name = StateName(buf.ParentOwner().StateID, name)
 		fblock.Info = &ContractInfo{ID: uint32(len(prev.Children) - 1), Name: name, Owner: buf.ParentOwner(), Used: make(map[string]bool)}
 	default:
-		itype = ObjectType_Func
+		itype = ObjFunc
 		fblock.Info = &FuncInfo{Name: name}
 	}
 	fblock.Type = itype
 	if obj, ok := prev.Objects[name]; ok {
-		if obj.Type == ObjectType_Contract {
+		if obj.Type == ObjContract {
 			return fmt.Errorf("%s '%s' redeclared in this code block", itype, name)
 		}
 		return fmt.Errorf("%s '%s' redeclared in this contract '%s'", itype, name, prev.GetContractInfo().Name)
@@ -108,7 +108,7 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		}
 	}
 
-	if block.Type == ObjectType_Func && (state == stateFnParam || state == stateFnParamType) {
+	if block.Type == ObjFunc && (state == stateFnParam || state == stateFnParamType) {
 		fblock := block.GetFuncInfo()
 		if fblock.Names == nil {
 			fblock.Params = append(fblock.Params, reflect.TypeOf(nil))
@@ -125,7 +125,7 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		}
 	}
 
-	block.Objects[name] = NewObjInfo(ObjectType_Var, &ObjInfo_Variable{Name: name, Index: len(block.Vars)})
+	block.Objects[name] = NewObjInfo(ObjVar, &ObjInfoVariable{Name: name, Index: len(block.Vars)})
 	block.Vars = append(block.Vars, reflect.TypeOf(nil))
 	return nil
 }
@@ -139,7 +139,7 @@ func fnParamTYPE(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			block.Vars[i] = rtp
 		}
 	}
-	if block.Type == ObjectType_Func && state == stateFnParam {
+	if block.Type == ObjFunc && state == stateFnParam {
 		fblock := block.GetFuncInfo()
 		if fblock.Names == nil {
 			for pkey, param := range fblock.Params {
@@ -259,11 +259,11 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "lex_value": lexeme.Value}).Error("modifying system variable")
 			return fmt.Errorf(eSysVar, lexeme.Value.(string))
 		}
-		obj := NewObjInfo(ObjectType_ExtVar, &ObjInfo_ExtendVariable{Name: lexeme.Value.(string)})
+		obj := NewObjInfo(ObjExtVar, &ObjInfoExtendVariable{Name: lexeme.Value.(string)})
 		ivar = VarInfo{Obj: obj, Owner: nil}
 	} else {
 		objInfo, tobj := findVar(lexeme.Value.(string), buf)
-		if objInfo == nil || objInfo.Type != ObjectType_Var {
+		if objInfo == nil || objInfo.Type != ObjVar {
 			return fmt.Errorf(`unknown variable %s`, lexeme.Value.(string))
 		}
 		ivar = VarInfo{Obj: objInfo, Owner: tobj}
@@ -291,7 +291,7 @@ func fnAssign(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 
 func fnTx(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	contract := buf.peek()
-	if contract.Type != ObjectType_Contract {
+	if contract.Type != ObjContract {
 		return fmt.Errorf(`data can only be in contract`)
 	}
 	(*contract).GetContractInfo().Tx = new([]*FieldInfo)
@@ -300,7 +300,7 @@ func fnTx(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 
 func fnSettings(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	contract := buf.peek()
-	if contract.Type != ObjectType_Contract {
+	if contract.Type != ObjContract {
 		return fmt.Errorf(`settings can only be in contract`)
 	}
 	(*contract).GetContractInfo().Settings = make(map[string]any)

@@ -192,7 +192,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		}
 		if err != nil && !strings.HasPrefix(err.Error(), `{`) {
 			var name, line string
-			if block.Type == compile.ObjectType_Func {
+			if block.Type == compile.ObjFunc {
 				name = block.GetFuncInfo().Name
 			}
 			if block.IsParentContract() {
@@ -230,14 +230,14 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}()
 	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
 	var names map[string][]any
-	if block.Type == compile.ObjectType_Func && block.GetFuncInfo().Names != nil {
+	if block.Type == compile.ObjFunc && block.GetFuncInfo().Names != nil {
 		if rt.stack.peek() != nil {
 			names, _ = rt.stack.peek().(map[string][]any)
 		}
 		rt.stack.resetByIdx(rt.stack.size() - 1)
 	}
 	start := rt.stack.size()
-	if block.Type == compile.ObjectType_Func {
+	if block.Type == compile.ObjFunc {
 		start -= len(block.GetFuncInfo().Params)
 	}
 	if err = rt.SubCost(int64(len(block.Vars))); err != nil {
@@ -303,7 +303,7 @@ main:
 	}
 	last := rt.popBlock()
 	if status == statusReturn {
-		if last.Block.Type != compile.ObjectType_Func {
+		if last.Block.Type != compile.ObjFunc {
 			return
 		}
 		funcInfo := last.Block.GetFuncInfo()
@@ -359,7 +359,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo) (err error) {
 	if variadic {
 		count = rt.stack.pop().(int)
 	}
-	if obj.Type == compile.ObjectType_Func {
+	if obj.Type == compile.ObjFunc {
 		var imap map[string][]any
 		finfo := obj.GetFuncInfo()
 		if finfo.Names != nil {
@@ -592,7 +592,7 @@ func (rt *Runtime) getResultMap(cmd *compile.Map) (*compile.Map, error) {
 func (rt *Runtime) addVarBy(block *compile.CodeBlock) {
 	for key, par := range block.Vars {
 		var value any
-		if block.Type == compile.ObjectType_Func && key < len(block.GetFuncInfo().Params) {
+		if block.Type == compile.ObjFunc && key < len(block.GetFuncInfo().Params) {
 			value = rt.stack.get(rt.stack.size() - len(block.GetFuncInfo().Params) + key)
 		} else {
 			value = reflect.New(par).Elem().Interface()

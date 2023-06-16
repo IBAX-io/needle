@@ -11,17 +11,17 @@ type ObjectType int32
 
 const (
 	// ObjUnknown is an unknown object.
-	ObjectType_Unknown ObjectType = 0
-	// ObjectType_Contract is a contract object.
-	ObjectType_Contract ObjectType = 1
-	// ObjectType_Func is a function object. myfunc()
-	ObjectType_Func ObjectType = 2
-	// ObjectType_ExtFunc is an extended build in function object. $myfunc()
-	ObjectType_ExtFunc ObjectType = 3
-	// ObjectType_Var is a variable. myvar
-	ObjectType_Var ObjectType = 4
-	// ObjectType_ExtVar is an extended build in variable. $myvar
-	ObjectType_ExtVar ObjectType = 5
+	ObjUnknown ObjectType = iota
+	// ObjContract is a contract object.
+	ObjContract
+	// ObjFunc is a function object. myfunc()
+	ObjFunc
+	// ObjExtFunc is an extended build in function object. $myfunc()
+	ObjExtFunc
+	// ObjVar is a variable. myvar
+	ObjVar
+	// ObjExtVar is an extended build in variable. $myvar
+	ObjExtVar
 )
 
 var ObjectType_name = map[int32]string{
@@ -33,15 +33,6 @@ var ObjectType_name = map[int32]string{
 	5: "ExtVar",
 }
 
-var ObjectType_value = map[string]int32{
-	"Unknown":  0,
-	"Contract": 1,
-	"Func":     2,
-	"ExtFunc":  3,
-	"Var":      4,
-	"ExtVar":   5,
-}
-
 func (x ObjectType) String() string {
 	s, ok := ObjectType_name[int32(x)]
 	if ok {
@@ -50,61 +41,111 @@ func (x ObjectType) String() string {
 	return strconv.Itoa(int(x))
 }
 
-type isCodeBlockInfo interface {
-	isCodeBlockInfo()
-}
+var tailPrefix = "#"
 
-func (*OwnerInfo) isCodeBlockInfo()    {}
-func (*ContractInfo) isCodeBlockInfo() {}
-func (*FuncInfo) isCodeBlockInfo()     {}
-
-func (bc *CodeBlock) GetInfo() isCodeBlockInfo {
-	if bc != nil {
-		return bc.Info
+type (
+	isObjInfoValue interface {
+		isObjInfoValue()
 	}
-	return nil
-}
 
-func (bc *CodeBlock) GetFuncInfo() *FuncInfo {
-	if x, ok := bc.GetInfo().(*FuncInfo); ok {
-		return x
+	// OwnerInfo storing info about owner
+	OwnerInfo struct {
+		StateID  uint32
+		Active   bool
+		TableID  int64
+		WalletID int64
+		TokenID  int64
 	}
-	return nil
-}
 
-func (bc *CodeBlock) GetContractInfo() *ContractInfo {
-	if x, ok := bc.GetInfo().(*ContractInfo); ok {
-		return x
+	// ContractInfo contains the contract information
+	ContractInfo struct {
+		ID       uint32
+		Name     string
+		Owner    *OwnerInfo
+		Used     map[string]bool // Called contracts
+		Tx       *[]*FieldInfo
+		Settings map[string]any
+		CanWrite bool // If the function can update DB
 	}
-	return nil
-}
 
-func (bc *CodeBlock) GetOwnerInfo() *OwnerInfo {
-	if x, ok := bc.GetInfo().(*OwnerInfo); ok {
-		return x
+	// FieldInfo describes the field of the data structure
+	FieldInfo struct {
+		Name     string
+		Type     reflect.Type
+		Original Token
+		Tags     string
 	}
-	return nil
-}
 
-// OwnerInfo storing info about owner
-type OwnerInfo struct {
-	StateID  uint32
-	Active   bool
-	TableID  int64
-	WalletID int64
-	TokenID  int64
-}
+	// FuncInfo contains the function information
+	FuncInfo struct {
+		Name    string
+		Params  []reflect.Type
+		Results []reflect.Type
+		//tail function
+		Names    map[string]FuncName
+		Variadic bool
+		ID       uint32
+		CanWrite bool // If the function can update DB
+	}
 
-// ContractInfo contains the contract information
-type ContractInfo struct {
-	ID       uint32
-	Name     string
-	Owner    *OwnerInfo
-	Used     map[string]bool // Called contracts
-	Tx       *[]*FieldInfo
-	Settings map[string]any
-	CanWrite bool // If the function can update DB
-}
+	// FuncName is storing param of FuncName
+	FuncName struct {
+		Params   []reflect.Type
+		Offset   []int
+		Variadic bool
+	}
+
+	// FuncNameCmd for cmdFuncName
+	FuncNameCmd struct {
+		Name  string
+		Count int
+	}
+
+	// ObjInfo is the common object type
+	ObjInfo struct {
+		Type ObjectType
+		// Types that are valid to be assigned to Value:
+		// 	*CodeBlock,included: *ContractInfo, *FuncInfo
+		//	*ExtFuncInfo
+		//	*ObjInfoVariable
+		//	*ObjInfoExtendVariable
+		Value isObjInfoValue
+	}
+
+	ObjInfoVariable struct {
+		Name  string
+		Index int
+	}
+
+	ObjInfoExtendVariable struct {
+		//object extend variable name
+		Name string
+	}
+	// ExtFuncInfo is the structure for the extended golang function
+	ExtFuncInfo struct {
+		Name     string
+		Params   []reflect.Type
+		Results  []reflect.Type
+		Auto     []string
+		Variadic bool
+		Func     any
+		CanWrite bool // If the function can update DB
+	}
+
+	// VarInfo contains the variable information.
+	// including the location of the variable and the global variable
+	VarInfo struct {
+		Obj   *ObjInfo
+		Owner *CodeBlock // is nil if the variable is global
+	}
+
+	// IndexInfo contains the information for SetIndex
+	IndexInfo struct {
+		VarOffset int
+		Owner     *CodeBlock
+		Extend    string
+	}
+)
 
 func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 	if c == nil {
@@ -117,77 +158,40 @@ func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 	return m
 }
 
-// FieldInfo describes the field of the data structure
-type FieldInfo struct {
-	Name     string
-	Type     reflect.Type
-	Original Token
-	Tags     string
-}
-
 // ContainsTag returns whether the tag is contained in this field
 func (fi *FieldInfo) ContainsTag(tag string) bool {
 	return strings.Contains(fi.Tags, tag)
-}
-
-// FuncInfo contains the function information
-type FuncInfo struct {
-	Name    string
-	Params  []reflect.Type
-	Results []reflect.Type
-	//tail function
-	Names    map[string]FuncName
-	Variadic bool
-	ID       uint32
-	CanWrite bool // If the function can update DB
-}
-
-var tailPrefix = "#"
-
-// FuncName is storing param of FuncName
-type FuncName struct {
-	Params   []reflect.Type
-	Offset   []int
-	Variadic bool
-}
-
-// FuncNameCmd for cmdFuncName
-type FuncNameCmd struct {
-	Name  string
-	Count int
-}
-
-// ObjInfo is the common object type
-type ObjInfo struct {
-	Type ObjectType
-	// Types that are valid to be assigned to Value:
-	// 	*CodeBlock,included: *ContractInfo, *FuncInfo
-	//	*ExtFuncInfo
-	//	*ObjInfo_Variable
-	//	*ObjInfo_ExtendVariable
-	Value isObjInfoValue
 }
 
 func NewObjInfo(t ObjectType, v isObjInfoValue) *ObjInfo {
 	return &ObjInfo{Type: t, Value: v}
 }
 
-type isObjInfoValue interface {
-	isObjInfoValue()
-}
-type ObjInfo_Variable struct {
-	Name  string
-	Index int
-}
-type ObjInfo_ExtendVariable struct {
-	//object extend variable name
-	Name string
+func (ret *ObjInfo) GetParamsLen() int {
+	if ret.Type == ObjExtFunc {
+		return len(ret.GetExtFuncInfo().Params)
+	}
+	if ret.Type == ObjFunc {
+		return len(ret.GetFuncInfo().Params)
+	}
+	return 0
 }
 
-func (*CodeBlock) isObjInfoValue()              {}
-func (*ExtFuncInfo) isObjInfoValue()            {}
-func (*ObjInfo_Variable) isObjInfoValue()       {}
-func (*ObjInfo_ExtendVariable) isObjInfoValue() {}
+func (ret *ObjInfo) GetVariadic() bool {
+	if ret.Type == ObjExtFunc {
+		return ret.GetExtFuncInfo().Variadic
+	}
+
+	if ret.Type == ObjFunc {
+		return ret.GetFuncInfo().Variadic
+	}
+	return false
+}
+
+func (*CodeBlock) isObjInfoValue()             {}
+func (*ExtFuncInfo) isObjInfoValue()           {}
+func (*ObjInfoVariable) isObjInfoValue()       {}
+func (*ObjInfoExtendVariable) isObjInfoValue() {}
 
 func (m *ObjInfo) GetValue() isObjInfoValue {
 	if m != nil {
@@ -224,29 +228,18 @@ func (m *ObjInfo) GetExtFuncInfo() *ExtFuncInfo {
 	return nil
 }
 
-func (m *ObjInfo) GetVariable() *ObjInfo_Variable {
-	if x, ok := m.GetValue().(*ObjInfo_Variable); ok {
+func (m *ObjInfo) GetVariable() *ObjInfoVariable {
+	if x, ok := m.GetValue().(*ObjInfoVariable); ok {
 		return x
 	}
 	return nil
 }
 
-func (m *ObjInfo) GetExtendVariable() *ObjInfo_ExtendVariable {
-	if x, ok := m.GetValue().(*ObjInfo_ExtendVariable); ok {
+func (m *ObjInfo) GetExtendVariable() *ObjInfoExtendVariable {
+	if x, ok := m.GetValue().(*ObjInfoExtendVariable); ok {
 		return x
 	}
 	return nil
-}
-
-// ExtFuncInfo is the structure for the extended golang function
-type ExtFuncInfo struct {
-	Name     string
-	Params   []reflect.Type
-	Results  []reflect.Type
-	Auto     []string
-	Variadic bool
-	Func     any
-	CanWrite bool // If the function can update DB
 }
 
 func (e *ExtFuncInfo) Call(params []any) (ret []any) {
@@ -278,18 +271,4 @@ func (e *ExtFuncInfo) AutoCount() int {
 		}
 	}
 	return count
-}
-
-// VarInfo contains the variable information.
-// including the location of the variable and the global variable
-type VarInfo struct {
-	Obj   *ObjInfo
-	Owner *CodeBlock // is nil if the variable is global
-}
-
-// IndexInfo contains the information for SetIndex
-type IndexInfo struct {
-	VarOffset int
-	Owner     *CodeBlock
-	Extend    string
 }

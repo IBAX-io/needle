@@ -2,10 +2,11 @@ package vm
 
 import (
 	"fmt"
-	"github.com/IBAX-io/needle/compile"
-	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
+
+	"github.com/IBAX-io/needle/compile"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -75,7 +76,7 @@ const (
 // params are the values of parameters
 func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	obj, ok := rt.vm.Objects[name]
-	if !ok || obj.Type != compile.ObjectType_Contract {
+	if !ok || obj.Type != compile.ObjContract {
 		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
@@ -116,9 +117,9 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	parent := ``
 	for i := len(rt.blocks) - 1; i >= 0; i-- {
 		var b = rt.blocks[i].Block
-		if b.Type == compile.ObjectType_Func &&
+		if b.Type == compile.ObjFunc &&
 			b.Parent != nil &&
-			b.Parent.Type == compile.ObjectType_Contract {
+			b.Parent.Type == compile.ObjContract {
 			parent = b.Parent.GetContractInfo().Name
 			fid, fname := ParseName(parent)
 			cid, _ := ParseName(name)
@@ -147,7 +148,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	}
 
 	for _, method := range []string{`conditions`, `action`} {
-		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compile.ObjectType_Func {
+		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compile.ObjFunc {
 			rtemp := NewRuntime(rt.vm, rt.cost)
 			rt.extend[Extend_parent] = parent
 			_, err = rtemp.Run(block.GetCodeBlock(), rt.extend)

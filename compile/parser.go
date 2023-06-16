@@ -106,9 +106,9 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		return nil, fnError(&blocksStack, errMustRCurly, lexemes[len(lexemes)-1])
 	}
 	for _, item := range root.Objects {
-		if item.Type == ObjectType_Contract {
+		if item.Type == ObjContract {
 			if cond, ok := item.GetCodeBlock().Objects[`conditions`]; ok {
-				if cond.Type == ObjectType_Func && cond.GetFuncInfo().CanWrite {
+				if cond.Type == ObjFunc && cond.GetFuncInfo().CanWrite {
 					return nil, errCondWrite
 				}
 			}
@@ -208,11 +208,11 @@ main:
 				var tail *ByteCode
 				if prev := buffer[len(buffer)-1]; prev.Cmd == CmdCall || prev.Cmd == CmdCallVariadic {
 					objInfo := prev.Value.(*ObjInfo)
-					if (objInfo.Type == ObjectType_Func && objInfo.GetFuncInfo().CanWrite) ||
-						(objInfo.Type == ObjectType_ExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
+					if (objInfo.Type == ObjFunc && objInfo.GetFuncInfo().CanWrite) ||
+						(objInfo.Type == ObjExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
 						setWritable(block)
 					}
-					if objInfo.Type == ObjectType_Func && objInfo.GetFuncInfo().Names != nil {
+					if objInfo.Type == ObjFunc && objInfo.GetFuncInfo().Names != nil {
 						if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncName {
 							bytecode.push(newByteCode(CmdPush, lexeme, nil))
 						}
@@ -225,7 +225,7 @@ main:
 							if _, ok := names[(*lexemes)[i+2].Value.(string)]; !ok {
 								if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
 									objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
-									if objInfo != nil && (objInfo.Type == ObjectType_Func || objInfo.Type == ObjectType_ExtFunc) {
+									if objInfo != nil && (objInfo.Type == ObjFunc || objInfo.Type == ObjExtFunc) {
 										tail = newByteCode(CmdCall, lexeme, objInfo)
 									}
 								}
@@ -248,7 +248,7 @@ main:
 					}
 					count := parcount[len(parcount)-1]
 					parcount = parcount[:len(parcount)-1]
-					if prev.Value.(*ObjInfo).Type == ObjectType_ExtFunc {
+					if prev.Value.(*ObjInfo).Type == ObjExtFunc {
 						extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
 						wantlen := len(extFn.Params)
 						wantlen -= extFn.AutoCount()
@@ -372,16 +372,16 @@ main:
 						objContract *ContractInfo
 					)
 					if extern && objInfo == nil {
-						objInfo = &ObjInfo{Type: ObjectType_Contract}
+						objInfo = &ObjInfo{Type: ObjContract}
 					}
 
-					if objInfo == nil || (objInfo.Type != ObjectType_ExtFunc && objInfo.Type != ObjectType_Func &&
-						objInfo.Type != ObjectType_Contract) {
+					if objInfo == nil || (objInfo.Type != ObjExtFunc && objInfo.Type != ObjFunc &&
+						objInfo.Type != ObjContract) {
 						logger.WithFields(log.Fields{"lex_value": lexeme.Value, "type": ParseError}).Error("unknown function")
 						return fmt.Errorf(`unknown %s %s`, lexeme.Type, lexeme.Value)
 					}
 
-					if objInfo.Type == ObjectType_Contract {
+					if objInfo.Type == ObjContract {
 						if objInfo.Value != nil {
 							objContract = objInfo.GetContractInfo()
 						}
@@ -404,7 +404,7 @@ main:
 						name := StateName(block.ParentOwner().StateID, lexeme.Value.(string))
 						for j := len(*block) - 1; j >= 0; j-- {
 							topblock := (*block)[j]
-							if topblock.Type == ObjectType_Contract {
+							if topblock.Type == ObjContract {
 								if name == topblock.GetContractInfo().Name {
 									return errRecursion
 								}
@@ -426,14 +426,14 @@ main:
 					call = true
 				}
 				if (*lexemes)[i+1].Type == LBRACK {
-					if objInfo == nil || objInfo.Type != ObjectType_Var {
+					if objInfo == nil || objInfo.Type != ObjVar {
 						return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 					}
 					buffer.push(newByteCode(CmdGetIndex, lexeme, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))
 				}
 			}
 			if !call {
-				if objInfo.Type != ObjectType_Var {
+				if objInfo.Type != ObjVar {
 					return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 				}
 				cmd = newByteCode(CmdVar, lexeme, &VarInfo{Obj: objInfo, Owner: tobj})
