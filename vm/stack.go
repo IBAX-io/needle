@@ -55,7 +55,7 @@ func (s *Stack) peekN(n int) []any {
 // peekFromTo return elements from index from to index to
 func (s *Stack) peekFromTo(from, to int) []any {
 	var el []any = nil
-	if from >= 0 && to >= 0 && from <= to && s.size() > to {
+	if from >= 0 && to >= 0 && from <= to && s.size() >= to {
 		el = s.element[from:to]
 	}
 	return el

@@ -195,6 +195,17 @@ func (ret *ObjInfo) GetParamsLen() int {
 	return len(ret.GetFuncInfo().Params)
 }
 
+func (ret *ObjInfo) GetVariadic() bool {
+	if ret.Type == ObjectType_ExtFunc {
+		return ret.GetExtFuncInfo().Variadic
+	}
+
+	if ret.Type == ObjectType_Func {
+		return ret.GetFuncInfo().Variadic
+	}
+	return false
+}
+
 func findVar(name string, block *CodeBlocks) (*ObjInfo, *CodeBlock) {
 	if len(name) == 0 || block.peek() == nil {
 		return nil, nil

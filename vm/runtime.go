@@ -291,7 +291,7 @@ main:
 			break
 		}
 		if ctx.isLoop {
-			break main
+			goto main
 		}
 
 		if status == statusReturn || status == statusContinue || status == statusBreak {
@@ -306,37 +306,34 @@ main:
 		if last.Block.Type != compile.ObjectType_Func {
 			return
 		}
-
-		lastResults := last.Block.GetFuncInfo().Results
-		if len(lastResults) > rt.stack.size() {
+		funcInfo := last.Block.GetFuncInfo()
+		refRes := funcInfo.Results
+		local := rt.stack.peekFromTo(start, rt.stack.size())
+		if len(refRes) > len(local) {
 			var keyNames []string
-			for i := 0; i < len(lastResults); i++ {
-				keyNames = append(keyNames, lastResults[i].String())
+			for i := 0; i < len(refRes); i++ {
+				keyNames = append(keyNames, refRes[i].String())
 			}
-			err = fmt.Errorf("func '%s' not enough arguments to return, need [%s]", last.Block.GetFuncInfo().Name, strings.Join(keyNames, "|"))
+			err = fmt.Errorf("func '%s' not enough arguments to return, need [%s]", funcInfo.Name, strings.Join(keyNames, "|"))
 			return
 		}
-		stackCpy := make([]any, rt.stack.size())
-		copy(stackCpy, rt.stack.Stack())
-		var index int
-		for count := len(lastResults); count > 0; count-- {
-			val := stackCpy[len(stackCpy)-1-index]
-			if val != nil && lastResults[count-1] != reflect.TypeOf(val) {
-				err = fmt.Errorf("function '%s' return index[%d] (type %s) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, count-1, reflect.TypeOf(val), lastResults[count-1])
+		rt.stack.resetByIdx(start)
+		ret := local[len(local)-len(refRes):]
+		for i, v := range ret {
+			if refRes[i] != reflect.TypeOf(v) {
+				err = fmt.Errorf("func '%s' return index[%d] %v (type %s) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, i, v, reflect.TypeOf(v), refRes[i])
 				return
 			}
-			rt.stack.set(start, rt.stack.get(rt.stack.size()-count))
+			rt.stack.push(v)
 			start++
-			index++
 		}
 		status = statusNormal
 	}
-
 	rt.stack.resetByIdx(start)
 	return
 }
 
-func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) {
+func (rt *Runtime) callFunc(obj *compile.ObjInfo) (err error) {
 	var (
 		count, in int
 	)
@@ -348,9 +345,9 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 	defer func() {
 		rt.callDepth--
 	}()
-
+	variadic := obj.GetVariadic()
 	in = obj.GetParamsLen()
-	if rt.unwrap && cmd == compile.CmdCallVariadic && rt.stack.size() > 1 &&
+	if rt.unwrap && variadic && rt.stack.size() > 1 &&
 		reflect.TypeOf(rt.stack.get(rt.stack.size()-2)).String() == `[]interface {}` {
 		count = rt.stack.pop().(int)
 		arr := rt.stack.pop().([]any)
@@ -359,7 +356,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 	}
 	rt.unwrap = false
 	count = in
-	if cmd == compile.CmdCallVariadic {
+	if variadic {
 		count = rt.stack.pop().(int)
 	}
 	if obj.Type == compile.ObjectType_Func {
@@ -368,7 +365,7 @@ func (rt *Runtime) callFunc(cmd compile.CmdT, obj *compile.ObjInfo) (err error) 
 		if finfo.Names != nil {
 			imap, _ = rt.stack.pop().(map[string][]any)
 		}
-		if cmd == compile.CmdCallVariadic {
+		if variadic {
 			parcount := count + 1 - in
 			if parcount < 0 {
 				return errWrongCountPars
@@ -623,7 +620,7 @@ func (rt *Runtime) setVarBy(block *compile.CodeBlock, names map[string][]any) er
 				refx := reflect.TypeOf(value)
 				refy := reflect.TypeOf(rt.vars[ind])
 				if refx != refy {
-					return fmt.Errorf("func %s cannot use  (type %s) as the type %s", key, refx, refy)
+					return fmt.Errorf("func %s cannot use (type %s) as the type %s", key, refx, refy)
 				}
 			}
 			rt.setVar(ind, value)

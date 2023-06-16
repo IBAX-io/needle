@@ -280,10 +280,11 @@ func (e *ExtFuncInfo) AutoCount() int {
 	return count
 }
 
-// VarInfo contains the variable information
+// VarInfo contains the variable information.
+// including the location of the variable and the global variable
 type VarInfo struct {
 	Obj   *ObjInfo
-	Owner *CodeBlock
+	Owner *CodeBlock // is nil if the variable is global
 }
 
 // IndexInfo contains the information for SetIndex

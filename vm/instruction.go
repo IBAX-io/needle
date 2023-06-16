@@ -96,7 +96,7 @@ func init() {
 			if err = rt.SubCost(cost); err != nil {
 				return
 			}
-			err = rt.callFunc(code.Cmd, code.Value.(*compile.ObjInfo))
+			err = rt.callFunc(code.Value.(*compile.ObjInfo))
 			return
 		}
 	}
@@ -105,13 +105,13 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdIf] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if valueToBool(rt.stack.peek()) {
+		if valueToBool(rt.stack.pop()) {
 			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
 	}
 	instructionTable[compile.CmdElse] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if !valueToBool(rt.stack.peek()) {
+		if !valueToBool(rt.stack.pop()) {
 			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
@@ -136,6 +136,10 @@ func init() {
 
 	instructionTable[compile.CmdAssign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		count := len(ctx.assignVar)
+		if count > rt.stack.size() {
+			err = fmt.Errorf("not enough values to assign")
+			return
+		}
 		for ivar, item := range ctx.assignVar {
 			val := rt.stack.get(rt.stack.size() - count + ivar)
 			if item.Owner == nil {
@@ -152,18 +156,10 @@ func init() {
 					if item.Owner == rt.blocks[i].Block {
 						k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
 						switch v := rt.blocks[i].Block.Vars[item.Obj.GetVariable().Index]; v.String() {
-						case Decimal:
-							var v decimal.Decimal
-							v, err = ValueToDecimal(val)
-							if err != nil {
-								ctx.isLoop = true
-								return
-							}
-							rt.setVar(k, v)
 						default:
 							if val != nil && v != reflect.TypeOf(val) {
 								err = fmt.Errorf("variable '%v' (type %s) cannot be represented by the type %s", item.Obj.GetVariable().Name, reflect.TypeOf(val), v)
-								break
+								return
 							}
 							rt.setVar(k, val)
 						}

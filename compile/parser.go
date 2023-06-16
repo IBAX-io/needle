@@ -392,8 +392,7 @@ main:
 						isContract = true
 					}
 					cmd := CmdCall
-					if (objInfo.Type == ObjectType_ExtFunc && objInfo.GetExtFuncInfo().Variadic) ||
-						(objInfo.Type == ObjectType_Func && objInfo.GetFuncInfo().Variadic) {
+					if objInfo.GetVariadic() {
 						cmd = CmdCallVariadic
 					}
 					count := 0
