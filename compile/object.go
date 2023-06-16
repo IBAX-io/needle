@@ -176,6 +176,15 @@ func (ret *ObjInfo) GetParamsLen() int {
 	}
 	return 0
 }
+func (ret *ObjInfo) GetResultsLen() int {
+	if ret.Type == ObjExtFunc {
+		return len(ret.GetExtFuncInfo().Results)
+	}
+	if ret.Type == ObjFunc {
+		return len(ret.GetFuncInfo().Results)
+	}
+	return 0
+}
 
 func (ret *ObjInfo) GetVariadic() bool {
 	if ret.Type == ObjExtFunc {

@@ -333,7 +333,7 @@ main:
 	return
 }
 
-func (rt *Runtime) callFunc(obj *compile.ObjInfo) (err error) {
+func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err error) {
 	var (
 		count, in int
 	)
@@ -396,6 +396,9 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo) (err error) {
 			rt.stack.push(imap)
 		}
 		_, err = rt.RunCode(obj.GetCodeBlock())
+		if !hasReturnAssign && err == nil {
+			rt.stack.resetByIdx(rt.stack.size() - obj.GetResultsLen())
+		}
 		return
 	}
 
@@ -468,7 +471,9 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo) (err error) {
 				return ret.Interface().(error)
 			}
 		} else {
-			rt.stack.push(ret.Interface())
+			if hasReturnAssign {
+				rt.stack.push(ret.Interface())
+			}
 		}
 	}
 	return
@@ -593,7 +598,7 @@ func (rt *Runtime) addVarBy(block *compile.CodeBlock) {
 	for key, par := range block.Vars {
 		var value any
 		if block.Type == compile.ObjFunc && key < len(block.GetFuncInfo().Params) {
-			value = rt.stack.get(rt.stack.size() - len(block.GetFuncInfo().Params) + key)
+			value = rt.stack.getAndDel(rt.stack.size() - len(block.GetFuncInfo().Params) + key)
 		} else {
 			value = reflect.New(par).Elem().Interface()
 			if par == reflect.TypeOf(&compile.Map{}) {

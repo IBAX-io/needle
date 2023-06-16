@@ -96,7 +96,14 @@ func init() {
 			if err = rt.SubCost(cost); err != nil {
 				return
 			}
-			err = rt.callFunc(code.Value.(*compile.ObjInfo))
+
+			// false means ignore return value
+			var hasReturnAssign bool
+			if ctx.ci+1 <= len(rt.peekBlock().Block.Code)-1 {
+				nextCode := rt.peekBlock().Block.Code[ctx.ci+1]
+				hasReturnAssign = nextCode.Cmd == compile.CmdAssign
+			}
+			err = rt.callFunc(code.Value.(*compile.ObjInfo), hasReturnAssign)
 			return
 		}
 	}
@@ -140,8 +147,22 @@ func init() {
 			err = fmt.Errorf("not enough values to assign")
 			return
 		}
+		cut := count
+		preCode := rt.peekBlock().Block.Code[ctx.ci-1]
+		if preCode.Cmd == compile.CmdCall || preCode.Cmd == compile.CmdCallVariadic {
+			objInfo := preCode.Value.(*compile.ObjInfo)
+			resultsLen := objInfo.GetResultsLen()
+			if objInfo.Type == compile.ObjExtFunc || objInfo.Type == compile.ObjFunc {
+				if count > resultsLen {
+					err = fmt.Errorf("assignments count mismatch: %d = %d", count, resultsLen)
+					return
+				}
+				cut = resultsLen
+			}
+		}
+		local := rt.stack.popN(cut)
 		for ivar, item := range ctx.assignVar {
-			val := rt.stack.get(rt.stack.size() - count + ivar)
+			val := local[ivar]
 			if item.Owner == nil {
 				if item.Obj.Type == compile.ObjExtVar {
 					var n = item.Obj.GetExtendVariable().Name

@@ -20,6 +20,10 @@ func (s *Stack) set(ind int, d any) {
 	s.element[ind] = d
 }
 
+func (s *Stack) reset() {
+	s.element = s.element[:0]
+}
+
 func (s *Stack) push(d any) {
 	s.element = append(s.element, d)
 }
@@ -32,6 +36,15 @@ func (s *Stack) pushN(d []any) {
 func (s *Stack) get(idx int) any {
 	if idx >= 0 && s.size() > 0 && s.size() > idx {
 		return s.element[idx]
+	}
+	return nil
+}
+
+func (s *Stack) getAndDel(idx int) any {
+	if idx >= 0 && s.size() > 0 && s.size() > idx {
+		ret := s.element[idx]
+		s.element = append(s.element[:idx], s.element[idx+1:]...)
+		return ret
 	}
 	return nil
 }
@@ -89,6 +102,9 @@ func (s *Stack) dup(n int) {
 }
 
 func (s *Stack) resetByIdx(idx int) {
+	if idx < 0 || idx > s.size() {
+		idx = 0
+	}
 	s.element = s.element[:idx]
 }
 
