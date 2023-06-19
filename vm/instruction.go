@@ -169,7 +169,7 @@ func init() {
 			}
 		}
 		local := rt.stack.peekN(cut)
-		rt.stack.resetByIdx(cut)
+		rt.stack.resetByIdx(rt.stack.size() - cut)
 		for ivar, item := range ctx.assignVar {
 			val := local[ivar]
 			if item.Owner == nil {
