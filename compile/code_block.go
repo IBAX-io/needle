@@ -31,6 +31,7 @@ type CodeBlock struct {
 	//*FuncInfo
 	//*ContractInfo
 	//*OwnerInfo
+	//or nil if the block is braced by {}, for example: if,else,while
 	Info           isCodeBlockInfo
 	Parent         *CodeBlock
 	Vars           []reflect.Type
