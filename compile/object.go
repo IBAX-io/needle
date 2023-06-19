@@ -10,8 +10,8 @@ import (
 type ObjectType int32
 
 const (
-	// ObjUnknown is an unknown object.
-	ObjUnknown ObjectType = iota
+	// ObjDefault is an unknown object.
+	ObjDefault ObjectType = iota
 	// ObjContract is a contract object.
 	ObjContract
 	// ObjFunc is a function object. myfunc()
@@ -22,6 +22,8 @@ const (
 	ObjVar
 	// ObjExtVar is an extended build in variable. $myvar
 	ObjExtVar
+	// ObjOwner is an owner object.
+	ObjOwner
 )
 
 var ObjectType_name = map[int32]string{
@@ -31,6 +33,7 @@ var ObjectType_name = map[int32]string{
 	3: "ExtFunc",
 	4: "Var",
 	5: "ExtVar",
+	6: "Owner",
 }
 
 func (x ObjectType) String() string {
@@ -46,6 +49,7 @@ var tailPrefix = "#"
 type (
 	isObjInfoValue interface {
 		isObjInfoValue()
+		ObjectType() ObjectType
 	}
 
 	// OwnerInfo storing info about owner
@@ -147,6 +151,10 @@ type (
 	}
 )
 
+func (o *OwnerInfo) ObjectType() ObjectType {
+	return ObjOwner
+}
+
 func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 	if c == nil {
 		return nil
@@ -200,10 +208,14 @@ func (ret *ObjInfo) GetVariadic() bool {
 	return false
 }
 
-func (*CodeBlock) isObjInfoValue()             {}
-func (*ExtFuncInfo) isObjInfoValue()           {}
-func (*ObjInfoVariable) isObjInfoValue()       {}
-func (*ObjInfoExtendVariable) isObjInfoValue() {}
+func (*CodeBlock) isObjInfoValue()                    {}
+func (*ExtFuncInfo) isObjInfoValue()                  {}
+func (*ObjInfoVariable) isObjInfoValue()              {}
+func (*ObjInfoExtendVariable) isObjInfoValue()        {}
+func (c *CodeBlock) ObjectType() ObjectType           { return c.Type }
+func (*ExtFuncInfo) ObjectType() ObjectType           { return ObjExtFunc }
+func (*ObjInfoVariable) ObjectType() ObjectType       { return ObjVar }
+func (*ObjInfoExtendVariable) ObjectType() ObjectType { return ObjExtVar }
 
 func (m *ObjInfo) GetValue() isObjInfoValue {
 	if m != nil {

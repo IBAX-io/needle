@@ -44,6 +44,7 @@ func NewCodeBlock(ext *ExtendData) *CodeBlock {
 		Objects: ext.MakeExtFunc(),
 		// Reserved 256 indexes for system purposes
 		Children:       make(CodeBlocks, 256, 1024),
+		Type:           ext.Info.ObjectType(),
 		Info:           ext.Info,
 		PredeclaredVar: ext.MakePreVar(),
 	}

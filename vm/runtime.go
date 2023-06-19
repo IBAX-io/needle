@@ -192,6 +192,9 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		}
 		if err != nil && !strings.HasPrefix(err.Error(), `{`) {
 			var name, line string
+			if block.Parent != nil && block.Parent.Type == compile.ObjFunc {
+				name = block.Parent.GetFuncInfo().Name
+			}
 			if block.Type == compile.ObjFunc {
 				name = block.GetFuncInfo().Name
 			}
