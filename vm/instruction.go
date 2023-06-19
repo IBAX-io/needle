@@ -30,6 +30,14 @@ func newInstructionCtx() *instructionCtx {
 		assignVar: make([]*compile.VarInfo, 0),
 	}
 }
+func (c *instructionCtx) popLabel() int {
+	if len(c.labels) == 0 {
+		return 0
+	}
+	label := c.labels[len(c.labels)-1]
+	c.labels = c.labels[:len(c.labels)-1]
+	return label
+}
 
 func init() {
 	instructionTable[compile.CmdPush] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -201,20 +209,18 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdWhile] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		val := rt.stack.pop()
-		if valueToBool(val) {
+		if valueToBool(rt.stack.pop()) {
 			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
-			newci := ctx.labels[len(ctx.labels)-1]
-			ctx.labels = ctx.labels[:len(ctx.labels)-1]
+			newci := ctx.popLabel()
 			if status == statusContinue {
 				ctx.ci = newci - 1
 				status = statusNormal
-				//ctx.isContinue = true
+				ctx.isContinue = true
 				return
 			}
 			if status == statusBreak {
 				status = statusNormal
-				//ctx.isBreak = true
+				ctx.isBreak = true
 				return
 			}
 		}
@@ -389,7 +395,7 @@ func init() {
 		} else if code.Value.(compile.Token) == compile.ERRINFO {
 			eType = "info"
 		}
-		err = SetVMError(eType, rt.stack.peek())
+		err = SetVMError(eType, rt.stack.pop())
 		return
 	}
 	instructionTable[compile.CmdNot] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
