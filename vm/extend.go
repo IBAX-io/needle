@@ -231,6 +231,9 @@ func genExtVars(contract *compile.ContractInfo, txs string, params ...any) (map[
 	txMap := contract.TxMap()
 
 	for i, par := range pars {
+		if len(par) == 0 {
+			continue
+		}
 		_, ok := txMap[par]
 		if !ok {
 			return nil, fmt.Errorf("'%s' parameter is not required", par)

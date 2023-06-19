@@ -231,10 +231,10 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
 	var names map[string][]any
 	if block.Type == compile.ObjFunc && block.GetFuncInfo().Names != nil {
-		if rt.stack.peek() != nil {
-			names, _ = rt.stack.peek().(map[string][]any)
+		ret := rt.stack.pop()
+		if ret != nil {
+			names, _ = ret.(map[string][]any)
 		}
-		rt.stack.resetByIdx(rt.stack.size() - 1)
 	}
 	start := rt.stack.size()
 	if block.Type == compile.ObjFunc {

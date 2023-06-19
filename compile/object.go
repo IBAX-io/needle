@@ -152,6 +152,9 @@ func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 		return nil
 	}
 	var m = make(map[string]*FieldInfo)
+	if c.Tx == nil {
+		return m
+	}
 	for _, n := range *c.Tx {
 		m[n.Name] = n
 	}

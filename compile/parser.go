@@ -250,8 +250,7 @@ main:
 					parcount = parcount[:len(parcount)-1]
 					if prev.Value.(*ObjInfo).Type == ObjExtFunc {
 						extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
-						wantlen := len(extFn.Params)
-						wantlen -= extFn.AutoCount()
+						wantlen := len(extFn.Params) - extFn.AutoCount()
 						if count != wantlen && (!extFn.Variadic || count < wantlen) {
 							return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
 						}
