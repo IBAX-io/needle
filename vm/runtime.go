@@ -170,7 +170,7 @@ func (rt *Runtime) Run(block *compile.CodeBlock, extend map[string]any) (ret []a
 			for i := 0; i < len(info.Results); i++ {
 				keyNames = append(keyNames, info.Results[i].String())
 			}
-			err = fmt.Errorf("not enough arguments to return, need %s", strings.Join(keyNames, "|"))
+			err = fmt.Errorf("func '%s' not enough arguments to return, need %s", info.Name, strings.Join(keyNames, "|"))
 		}
 		off := rt.stack.size() - len(info.Results)
 		for i := 0; i < len(info.Results) && off >= 0; i++ {
