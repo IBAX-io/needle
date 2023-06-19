@@ -168,7 +168,8 @@ func init() {
 				cut = resultsLen
 			}
 		}
-		local := rt.stack.popN(cut)
+		local := rt.stack.peekN(cut)
+		rt.stack.resetByIdx(cut)
 		for ivar, item := range ctx.assignVar {
 			val := local[ivar]
 			if item.Owner == nil {
