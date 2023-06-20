@@ -1,6 +1,7 @@
 package compile
 
 import (
+	"log"
 	"reflect"
 )
 
@@ -48,7 +49,13 @@ func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
 				}
 				data.Params[i] = fobj.In(i)
 			}
+
 			for i := 0; i < fobj.NumOut(); i++ {
+				if fobj.Out(i).String() != "error" && fobj.Out(i).String() != "interface {}" {
+					if !SupportedType(fobj.Out(i)) {
+						log.Panicf("unsupported output type %s for function %s", fobj.Out(i), item.Name)
+					}
+				}
 				data.Results[i] = fobj.Out(i)
 			}
 			objects[item.Name] = NewObjInfo(ObjExtFunc, data)

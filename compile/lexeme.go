@@ -136,7 +136,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 				if strings.ContainsAny(name, `.`) {
 					val, err := strconv.ParseFloat(name, 64)
 					if err != nil {
-						return nil, fmt.Errorf(`%v %s [%d:%d]`, err, name, line, off-offline+1)
+						return nil, fmt.Errorf(`%v [%d:%d]`, err, line, off-offline+1)
 					}
 					value = val
 				} else if val, err := strconv.ParseInt(name, 10, 64); err == nil {

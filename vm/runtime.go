@@ -319,7 +319,7 @@ main:
 		ret := local[len(local)-len(refRes):]
 		for i, v := range ret {
 			if refRes[i] != reflect.TypeOf(v) {
-				err = fmt.Errorf("func '%s' return index[%d] %v (type %s) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, i, v, reflect.TypeOf(v), refRes[i])
+				err = fmt.Errorf("func '%s' return index[%d] %v (type %v) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, i, v, reflect.TypeOf(v), refRes[i])
 				return
 			}
 			rt.stack.push(v)

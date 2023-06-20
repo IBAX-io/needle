@@ -176,7 +176,7 @@ func init() {
 				if item.Obj.Type == compile.ObjExtVar {
 					var n = item.Obj.GetExtendVariable().Name
 					if v, ok := rt.extend[n]; ok && v != nil && reflect.TypeOf(v) != reflect.TypeOf(val) {
-						err = fmt.Errorf("$%s (type %s) cannot be represented by the type %s", n, reflect.TypeOf(val), reflect.TypeOf(v))
+						err = fmt.Errorf("$%s (type %v) cannot be represented by the type %s", n, reflect.TypeOf(val), reflect.TypeOf(v))
 						return
 					}
 					rt.setExtendVar(n, val)
@@ -202,7 +202,7 @@ func init() {
 							rt.setVar(k, d)
 						default:
 							if val != nil && v != reflect.TypeOf(val) {
-								err = fmt.Errorf("variable '%v' (type %s) cannot be represented by the type %s", item.Obj.GetVariable().Name, reflect.TypeOf(val), v)
+								err = fmt.Errorf("variable '%v' (type %v) cannot be represented by the type %s", item.Obj.GetVariable().Name, reflect.TypeOf(val), v)
 								return
 							}
 							rt.setVar(k, val)

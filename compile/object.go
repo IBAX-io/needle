@@ -187,14 +187,20 @@ func (ret *ObjInfo) GetParamsLen() int {
 	}
 	return 0
 }
+
 func (ret *ObjInfo) GetResultsLen() int {
+	var retLen int
 	if ret.Type == ObjExtFunc {
-		return len(ret.GetExtFuncInfo().Results)
+		for _, result := range ret.GetExtFuncInfo().Results {
+			if result.String() != "error" {
+				retLen++
+			}
+		}
 	}
 	if ret.Type == ObjFunc {
 		return len(ret.GetFuncInfo().Results)
 	}
-	return 0
+	return retLen
 }
 
 func (ret *ObjInfo) GetVariadic() bool {

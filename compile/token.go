@@ -238,6 +238,15 @@ func GetFieldDefaultValue(fieldType Token) any {
 	return defaultValue
 }
 
+func SupportedType(fieldType reflect.Type) bool {
+	for _, t := range TypeNameReflect {
+		if t == fieldType {
+			return true
+		}
+	}
+	return false
+}
+
 var tokenToString = map[Token]string{
 	UNKNOWN: `UNKNOWN`,
 	//basic token
