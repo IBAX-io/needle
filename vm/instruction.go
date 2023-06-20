@@ -186,6 +186,20 @@ func init() {
 					if item.Owner == rt.blocks[i].Block {
 						k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
 						switch v := rt.blocks[i].Block.Vars[item.Obj.GetVariable().Index]; v.String() {
+						case "float64":
+							var d decimal.Decimal
+							d, err = ValueToDecimal(val)
+							if err != nil {
+								return
+							}
+							rt.setVar(k, d.InexactFloat64())
+						case Decimal:
+							var d decimal.Decimal
+							d, err = ValueToDecimal(val)
+							if err != nil {
+								return
+							}
+							rt.setVar(k, d)
 						default:
 							if val != nil && v != reflect.TypeOf(val) {
 								err = fmt.Errorf("variable '%v' (type %s) cannot be represented by the type %s", item.Obj.GetVariable().Name, reflect.TypeOf(val), v)
@@ -433,7 +447,12 @@ func init() {
 				err = fmt.Errorf("assign op %s variable count must be 1", code.Cmd)
 				return
 			}
-			y := rt.stack.pop()
+			var y any
+			if code.Cmd == compile.CmdInc || code.Cmd == compile.CmdDec {
+				y = 1
+			} else {
+				y = rt.stack.pop()
+			}
 			item := ctx.assignVar[0]
 			if item.Owner == nil {
 				if item.Obj.Type != compile.ObjExtVar {
@@ -448,7 +467,6 @@ func init() {
 					return
 				}
 				rt.setExtendVar(n, ret)
-				rt.stack.push(ret)
 				return
 			}
 			for i := len(rt.blocks) - 1; i >= 0; i-- {
@@ -461,7 +479,6 @@ func init() {
 						return
 					}
 					rt.setVar(k, ret)
-					rt.stack.push(ret)
 					break
 				}
 			}

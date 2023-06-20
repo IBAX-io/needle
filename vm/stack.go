@@ -76,6 +76,10 @@ func (s *Stack) peekFromTo(from, to int) []any {
 
 func (s *Stack) pop() (ret any) {
 	ret = s.peek()
+	if s.size() == 0 {
+		s.element = s.element[:0]
+		return
+	}
 	s.element = s.element[:s.size()-1]
 	return
 }

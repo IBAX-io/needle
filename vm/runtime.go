@@ -273,11 +273,6 @@ main:
 		ctx.isBreak = false
 		ctx.isLoop = false
 
-		if rt.stack.size() < int(cmd.Cmd>>8) {
-			err = fmt.Errorf(`stack is empty`)
-			break
-		}
-
 		instruction, ok := instructionTable[cmd.Cmd]
 		if !ok {
 			err = fmt.Errorf(`unknown command '%s'`, cmd.Cmd)
