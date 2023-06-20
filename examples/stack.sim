@@ -1,27 +1,41 @@
 func aaa()string,int {
-    var a1 int a2 string a3 bool a4 int
-    a1 = 234
-    a2 = "567"
-    a3 = true
-    a4 = 890
-    //return "a2-a1" 222
+    var a1 int a2 string a3 bool a4 float a6 money
+    a2 = `"890"`
+    a3 = 2 == 3
+    a4 = "20.1"
+    a6 = "666e3"
+    $a5 = 3
+    if 2 == 2{
+        var a int
+        Println(a2)
+        a = 2
+        while "w"{
+            if a4 >= 29.1{
+                Println("a2--",a2)
+                break
+            }
+            Println(a4)
+            a4 +=1
+        }
+    }
+    Println(1234567890)
+    return "a2-a1" a1
 }
 
 contract ABC2 {
-    func ab(a1 a2 int, a3 ...).d6(b1,b2 int b3 string).ef(c string).gh(d string,e ...) int,int {
+    func ab(a1 a2 int, a3 ...).gh(d string,e ...) int,int {
         var o1 int o2 bool o3 map o4 array o5 string o6 int
-        aaa()
-        Println(o5,o1) // return type is int and error
-        o1 += 21
-        o6 = 135
-        return
+        o5 o1 = aaa()
+        //o5,o1 = aaa()
+        //$o6, o5, o1 = aaa()
+        Println(o5,o1)
+        return 3,4
     }
 
-    conditions{
-        var c1 int c2 string
+    action{
+        var c1 c2 int c3 string
         c1 = 123
-        c2 = "456"
-        ab(234567,32,2,3,333).d6(2,32).ef("1234").gh("1",2,3,4,5,6,7,"ture2",true,{"a":2})
+        c1 = ab(234567,32, 3,333).gh("1",2,7,"ture2",true,{"a":2})
         return
     }
 }
