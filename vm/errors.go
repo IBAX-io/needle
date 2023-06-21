@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -19,6 +18,9 @@ const (
 	eConditionNotAllowed = `condition %s is not allowed`
 )
 
+// MaxErrLen is the maximum length of error, over which it will be truncated.
+const MaxErrLen = 150
+
 const (
 	ContractError     = "Contract"
 	JSONMarshallError = "JSONMarshall"
@@ -27,25 +29,43 @@ const (
 )
 
 var (
-	errContractPars       = errors.New(`wrong contract parameters`)
+	ErrMemoryLimit = errors.New("memory limit exceeded")
+	ErrVMTimeLimit = errors.New(`time limit exceeded`)
+)
+
+var (
 	errWrongCountPars     = errors.New(`wrong count of parameters`)
 	errUnsupportedType    = errors.New(`unsupported combination of types in the operator`)
 	errMaxArrayIndex      = errors.New(`the index is out of range`)
-	errMaxMapCount        = errors.New(`the maxumim length of map`)
+	errMaxMapCount        = errors.New(`the maximum length of map`)
 	errSelfAssignment     = errors.New(`self assignment`)
 	errIncorrectParameter = errors.New(`incorrect parameter of the condition function`)
 )
 
-// SetVMError sets error of VM
-func SetVMError(eType string, eText any) error {
-	errText := fmt.Sprintf(`%v`, eText)
+// ExtFuncErr stores info about extend function
+type ExtFuncErr struct {
+	Name  string
+	Value any
+}
+
+func (e ExtFuncErr) Error() string {
+	return fmt.Sprint(e.Value)
+}
+
+// VMError represents error of VM
+type VMError struct {
+	Type string `json:"type"`
+	Err  any    `json:"error"`
+}
+
+func (e VMError) Error() string {
+	errText := fmt.Sprintf(`%v`, e.Err)
 	if len(errText) > MaxErrLen {
 		errText = errText[:MaxErrLen] + `...`
 	}
-	out, err := json.Marshal(&VMError{Type: eType, Error: errText})
+	out, err := json.Marshal(&VMError{Type: e.Type, Err: errText})
 	if err != nil {
-		log.WithFields(log.Fields{"type": JSONMarshallError, "error": err}).Error("marshalling VMError")
 		out = []byte(`{"type": "panic", "error": "marshalling VMError"}`)
 	}
-	return fmt.Errorf(string(out))
+	return string(out)
 }

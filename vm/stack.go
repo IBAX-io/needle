@@ -1,5 +1,7 @@
 package vm
 
+import "github.com/IBAX-io/needle/compile"
+
 type Stack struct {
 	element []any
 }
@@ -110,6 +112,11 @@ func (s *Stack) resetByIdx(idx int) {
 		idx = 0
 	}
 	s.element = s.element[:idx]
+}
+
+type blockStack struct {
+	Block  *compile.CodeBlock
+	Offset int
 }
 
 func (rt *Runtime) peekBlock() *blockStack {

@@ -58,7 +58,11 @@ func NewVM() *VM {
 		{Name: "MemoryUsage", Func: MemoryUsage, AutoPars: auto},
 		{"ExecContract", ExecContract, true, auto},
 		{"CallContract", CallContract, true, auto},
-		{Name: "Println", Func: fmt.Println},
+		{Name: "Println", Func: func(a ...any) (int64, error) {
+			n, err := fmt.Println(a...)
+			return int64(n), err
+		},
+		},
 		{Name: "Sprintf", Func: fmt.Sprintf},
 	}
 	var v []string
@@ -240,7 +244,7 @@ func VMRun(vm *VM, block *compile.CodeBlock, extend map[string]any) (ret []any, 
 	}
 	var cost int64
 	if ecost, ok := extend[Extend_txcost]; ok {
-		cost = ecost.(int64)
+		cost, _ = ecost.(int64)
 	}
 	rt := NewRuntime(vm, cost)
 	ret, err = rt.Run(block, extend)

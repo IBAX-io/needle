@@ -292,8 +292,8 @@ func (e *ExtFuncInfo) Call(params []any) (ret []any) {
 	return ret
 }
 
-// AutoCount returns the number of auto params
-func (e *ExtFuncInfo) AutoCount() int {
+// AutoParamsCount returns the number of auto params
+func (e *ExtFuncInfo) AutoParamsCount() int {
 	count := 0
 	for i := 0; i < len(e.Params); i++ {
 		if len(e.Auto[i]) > 0 {

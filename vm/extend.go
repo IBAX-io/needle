@@ -72,6 +72,66 @@ const (
 	sysVars_pre_block_data_hash = `pre_block_data_hash`
 )
 
+var sysVars = map[string]struct{}{
+	sysVars_block:               {},
+	sysVars_block_key_id:        {},
+	sysVars_block_time:          {},
+	sysVars_data:                {},
+	sysVars_ecosystem_id:        {},
+	sysVars_key_id:              {},
+	sysVars_account_id:          {},
+	sysVars_node_position:       {},
+	sysVars_parent:              {},
+	sysVars_original_contract:   {},
+	sysVars_sc:                  {},
+	sysVars_contract:            {},
+	sysVars_stack:               {},
+	sysVars_this_contract:       {},
+	sysVars_time:                {},
+	sysVars_type:                {},
+	sysVars_txcost:              {},
+	sysVars_txhash:              {},
+	sysVars_guest_key:           {},
+	sysVars_guest_account:       {},
+	sysVars_black_hole_key:      {},
+	sysVars_black_hole_account:  {},
+	sysVars_white_hole_key:      {},
+	sysVars_white_hole_account:  {},
+	sysVars_gen_block:           {},
+	sysVars_time_limit:          {},
+	sysVars_pre_block_data_hash: {},
+}
+
+func isSysVar(name string) bool {
+	if _, ok := sysVars[name]; ok || strings.HasPrefix(name, Extend_loop) {
+		return true
+	}
+	return false
+}
+
+type extendInfo struct {
+	genBlock  bool
+	txCost    int64
+	timeLimit int64
+}
+
+func (rt *Runtime) loadExtendBy(key string) *extendInfo {
+	var e = &extendInfo{}
+	extend, ok := rt.extend[key]
+	if !ok {
+		return e
+	}
+	switch key {
+	case Extend_gen_block:
+		e.genBlock, _ = extend.(bool)
+	case Extend_txcost:
+		e.txCost, _ = extend.(int64)
+	case Extend_time_limit:
+		e.timeLimit, _ = extend.(int64)
+	}
+	return e
+}
+
 // ExecContract runs the name contract where txs contains the list of parameters and
 // params are the values of parameters
 func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
@@ -154,7 +214,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 			_, err = rtemp.Run(block.GetCodeBlock(), rt.extend)
 			rt.cost = rtemp.cost
 			if err != nil {
-				logger.WithFields(log.Fields{"error": err, "method_name": method, "type": ContractError}).Error("executing contract method")
+				//logger.WithFields(log.Fields{"error": err, "method_name": method, "type": ContractError}).Error("executing contract method")
 				break
 			}
 		}

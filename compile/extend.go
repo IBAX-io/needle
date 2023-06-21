@@ -29,36 +29,9 @@ func NewExtendData(info *OwnerInfo, fns []ExtendFunc, vars []string) *ExtendData
 func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
 	objects := make(map[string]*ObjInfo)
 	for _, item := range ext.Func {
-		fobj := reflect.ValueOf(item.Func).Type()
-		switch fobj.Kind() {
-		case reflect.Func:
-			data := &ExtFuncInfo{
-				Name:     item.Name,
-				Params:   make([]reflect.Type, fobj.NumIn()),
-				Results:  make([]reflect.Type, fobj.NumOut()),
-				Auto:     make([]string, fobj.NumIn()),
-				Variadic: fobj.IsVariadic(),
-				Func:     item.Func,
-				CanWrite: item.CanWrite,
-			}
-
-			// populate Params, Auto, and Results
-			for i := 0; i < fobj.NumIn(); i++ {
-				if isauto, ok := item.AutoPars[fobj.In(i).String()]; ok {
-					data.Auto[i] = isauto
-				}
-				data.Params[i] = fobj.In(i)
-			}
-
-			for i := 0; i < fobj.NumOut(); i++ {
-				if fobj.Out(i).String() != "error" && fobj.Out(i).String() != "interface {}" {
-					if !SupportedType(fobj.Out(i)) {
-						log.Panicf("unsupported output type %s for function %s", fobj.Out(i), item.Name)
-					}
-				}
-				data.Results[i] = fobj.Out(i)
-			}
-			objects[item.Name] = NewObjInfo(ObjExtFunc, data)
+		obj := item.MakeObj()
+		if obj != nil {
+			objects[item.Name] = obj
 		}
 	}
 	return objects
@@ -66,4 +39,41 @@ func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
 
 func (ext *ExtendData) MakePreVar() []string {
 	return ext.PreVar
+}
+
+func (item *ExtendFunc) MakeObj() *ObjInfo {
+	var obj *ObjInfo
+	fobj := reflect.ValueOf(item.Func).Type()
+	switch fobj.Kind() {
+	case reflect.Func:
+		data := &ExtFuncInfo{
+			Name:     item.Name,
+			Params:   make([]reflect.Type, fobj.NumIn()),
+			Results:  make([]reflect.Type, fobj.NumOut()),
+			Auto:     make([]string, fobj.NumIn()),
+			Variadic: fobj.IsVariadic(),
+			Func:     item.Func,
+			CanWrite: item.CanWrite,
+		}
+
+		// populate Params, Auto, and Results
+		for i := 0; i < fobj.NumIn(); i++ {
+			if isauto, ok := item.AutoPars[fobj.In(i).String()]; ok {
+				data.Auto[i] = isauto
+			}
+			data.Params[i] = fobj.In(i)
+		}
+
+		for i := 0; i < fobj.NumOut(); i++ {
+			if fobj.Out(i).String() != "error" && fobj.Out(i).String() != "interface {}" {
+				if !SupportedType(fobj.Out(i)) {
+					log.Panicf("unsupported output type %s for function %s", fobj.Out(i), item.Name)
+				}
+			}
+			data.Results[i] = fobj.Out(i)
+		}
+		obj = NewObjInfo(ObjExtFunc, data)
+	}
+
+	return obj
 }

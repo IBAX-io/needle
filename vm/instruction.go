@@ -10,9 +10,23 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type instruction func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error)
+const (
+	// Decimal is the constant string for decimal type
+	Decimal = `decimal.Decimal`
+	// Interface is the constant string for interface type
+	Interface = `interface`
 
-var instructionTable = make(map[compile.CmdT]instruction)
+	brackets = `[]`
+)
+
+const (
+	statusNormal = iota
+	statusReturn
+	statusContinue
+	statusBreak
+)
+
+type instruction func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error)
 
 type instructionCtx struct {
 	ci         int
@@ -30,6 +44,7 @@ func newInstructionCtx() *instructionCtx {
 		assignVar: make([]*compile.VarInfo, 0),
 	}
 }
+
 func (c *instructionCtx) popLabel() int {
 	if len(c.labels) == 0 {
 		return 0
@@ -38,6 +53,8 @@ func (c *instructionCtx) popLabel() int {
 	c.labels = c.labels[:len(c.labels)-1]
 	return label
 }
+
+var instructionTable = make(map[compile.CmdT]instruction)
 
 func init() {
 	instructionTable[compile.CmdPush] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -306,7 +323,7 @@ func init() {
 		}
 		switch {
 		case itype == `*compile.Map`:
-			if indextype.(*compile.Map).Size() > maxMapCount {
+			if indextype.(*compile.Map).Size() > MaxMapCount {
 				err = errMaxMapCount
 				break
 			}
@@ -325,7 +342,7 @@ func init() {
 			if strings.Contains(itype, Interface) {
 				slice := indextype.([]any)
 				if int(ind) >= len(slice) {
-					if ind > maxArrayIndex {
+					if ind > MaxArrayIndex {
 						err = errMaxArrayIndex
 						break
 					}
@@ -410,7 +427,7 @@ func init() {
 		} else if code.Value.(compile.Token) == compile.ERRINFO {
 			eType = "info"
 		}
-		err = SetVMError(eType, rt.stack.pop())
+		err = VMError{Type: eType, Err: rt.stack.pop()}
 		return
 	}
 	instructionTable[compile.CmdNot] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {

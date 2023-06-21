@@ -2,7 +2,7 @@ func aaa()string,int {
     var a1 int a2 string a3 bool a4 float a6 money
     a2 = `"890"`
     a3 = 2 == 3
-    a4 = "20.1"
+    a4 = "27.1"
     a6 = "666e3"
     $a5 = 3
     if 2 == 2{
@@ -15,13 +15,23 @@ func aaa()string,int {
                 break
             }
             Println(a4)
-            a4 +=1
+            a4 += 1
         }
     }
     Println(1234567890)
     return "a2-a1" a1
 }
-
+func rfn() int {
+    var a int
+    a = 2
+    return a
+}
+contract rts{
+    action{
+        rfn()
+        $result = 1999
+    }
+}
 contract ABC2 {
     func ab(a1 a2 int, a3 ...).gh(d string,e ...) int,int {
         var o1 int o2 bool o3 map o4 array o5 string o6 int
@@ -36,6 +46,8 @@ contract ABC2 {
         var c1 c2 int c3 string
         c1 = 123
         c1 = ab(234567,32, 3,333).gh("1",2,7,"ture2",true,{"a":2})
-        return
+        c2 = rts()
+        Println(c1,c2)
+        //return
     }
 }

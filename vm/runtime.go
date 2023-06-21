@@ -10,86 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	statusNormal = iota
-	statusReturn
-	statusContinue
-	statusBreak
-
-	// Decimal is the constant string for decimal type
-	Decimal = `decimal.Decimal`
-	// Interface is the constant string for interface type
-	Interface = `interface`
-
-	brackets = `[]`
-
-	maxArrayIndex = 1000000
-	maxMapCount   = 100000
-	maxCallDepth  = 1000
-	memoryLimit   = 128 << 20 // 128 MB
-	MaxErrLen     = 150
-)
-
-var sysVars = map[string]struct{}{
-	sysVars_block:               {},
-	sysVars_block_key_id:        {},
-	sysVars_block_time:          {},
-	sysVars_data:                {},
-	sysVars_ecosystem_id:        {},
-	sysVars_key_id:              {},
-	sysVars_account_id:          {},
-	sysVars_node_position:       {},
-	sysVars_parent:              {},
-	sysVars_original_contract:   {},
-	sysVars_sc:                  {},
-	sysVars_contract:            {},
-	sysVars_stack:               {},
-	sysVars_this_contract:       {},
-	sysVars_time:                {},
-	sysVars_type:                {},
-	sysVars_txcost:              {},
-	sysVars_txhash:              {},
-	sysVars_guest_key:           {},
-	sysVars_guest_account:       {},
-	sysVars_black_hole_key:      {},
-	sysVars_black_hole_account:  {},
-	sysVars_white_hole_key:      {},
-	sysVars_white_hole_account:  {},
-	sysVars_gen_block:           {},
-	sysVars_time_limit:          {},
-	sysVars_pre_block_data_hash: {},
-}
-
-func isSysVar(name string) bool {
-	if _, ok := sysVars[name]; ok || strings.HasPrefix(name, Extend_loop) {
-		return true
-	}
-	return false
-}
-
-var (
-	ErrMemoryLimit = errors.New("Memory limit exceeded")
-	//ErrVMTimeLimit returns when the time limit exceeded
-	ErrVMTimeLimit = errors.New(`time limit exceeded`)
-)
-
-// VMError represents error of VM
-type VMError struct {
-	Type  string `json:"type"`
-	Error string `json:"error"`
-}
-
-type blockStack struct {
-	Block  *compile.CodeBlock
-	Offset int
-}
-
-// ErrInfo stores info about current contract or function
-type ErrInfo struct {
-	Name string
-	Line uint16
-}
-
 // Runtime is needed for the execution of the byte-code
 type Runtime struct {
 	stack     *Stack
@@ -104,7 +24,7 @@ type Runtime struct {
 	callDepth uint16
 	mem       int64
 	memVars   map[any]int64
-	errInfo   ErrInfo
+	errInfo   ExtFuncErr
 }
 
 // NewRuntime creates a new Runtime for the virtual machine
@@ -148,37 +68,39 @@ func (rt *Runtime) Run(block *compile.CodeBlock, extend map[string]any) (ret []a
 	}()
 	info := block.GetFuncInfo()
 	if info == nil {
-		return nil, fmt.Errorf("func info is nil")
+		return nil, fmt.Errorf("the block is not a function")
 	}
 	rt.extend = extend
 	var (
 		genBlock bool
 		timer    *time.Timer
 	)
-	if gen, ok := extend[Extend_gen_block]; ok {
-		genBlock, _ = gen.(bool)
-	}
+	genBlock = rt.loadExtendBy(Extend_gen_block).genBlock
 	timeOver := func() {
 		rt.timeLimit = false
 	}
 	if genBlock {
-		timer = time.AfterFunc(time.Millisecond*time.Duration(extend[Extend_time_limit].(int64)), timeOver)
+		timer = time.AfterFunc(time.Millisecond*time.Duration(rt.loadExtendBy(Extend_time_limit).timeLimit), timeOver)
 	}
-	if _, err = rt.RunCode(block); err == nil {
-		if rt.stack.size() < len(info.Results) {
-			var keyNames []string
-			for i := 0; i < len(info.Results); i++ {
-				keyNames = append(keyNames, info.Results[i].String())
-			}
-			err = fmt.Errorf("func '%s' not enough arguments to return, need %s", info.Name, strings.Join(keyNames, "|"))
+	defer func() {
+		if genBlock {
+			timer.Stop()
 		}
-		off := rt.stack.size() - len(info.Results)
-		for i := 0; i < len(info.Results) && off >= 0; i++ {
-			ret = append(ret, rt.stack.get(off+i))
-		}
+	}()
+
+	if _, err = rt.RunCode(block); err != nil {
+		return
 	}
-	if genBlock {
-		timer.Stop()
+	if rt.stack.size() < len(info.Results) {
+		var keyNames []string
+		for i := 0; i < len(info.Results); i++ {
+			keyNames = append(keyNames, info.Results[i].String())
+		}
+		err = fmt.Errorf("func '%s' not enough arguments to return, need %s", info.Name, strings.Join(keyNames, "|"))
+	}
+	off := rt.stack.size() - len(info.Results)
+	for i := 0; i < len(info.Results) && off >= 0; i++ {
+		ret = append(ret, rt.stack.get(off+i))
 	}
 	return
 }
@@ -190,7 +112,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		if r := recover(); r != nil {
 			err = errors.Errorf(`runtime panic: %v`, r)
 		}
-		if err != nil && !strings.HasPrefix(err.Error(), `{`) {
+		if err != nil && !errors.As(err, &VMError{}) {
 			var name, line string
 			if block.Parent != nil && block.Parent.Type == compile.ObjFunc {
 				name = block.Parent.GetFuncInfo().Name
@@ -209,7 +131,11 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 
 			line = "]"
 			if cmd != nil && cmd.Lexeme != nil {
-				line = fmt.Sprintf(":%d]", cmd.Lexeme.Line)
+				line = fmt.Sprintf(":%d", cmd.Lexeme.Line)
+				if cmd.Lexeme.Column != 0 {
+					//line += fmt.Sprintf(":%d", cmd.Lexeme.Column)
+				}
+				line += "]"
 			}
 
 			if len(rt.errInfo.Name) > 0 && rt.errInfo.Name != `ExecContract` {
@@ -263,7 +189,7 @@ main:
 			break
 		}
 
-		if rt.mem > memoryLimit {
+		if rt.mem > MemoryLimit {
 			err = ErrMemoryLimit
 			break
 		}
@@ -308,11 +234,11 @@ main:
 		refRes := funcInfo.Results
 		local := rt.stack.peekFromTo(start, rt.stack.size())
 		if len(refRes) > len(local) {
-			var keyNames []string
-			for i := 0; i < len(refRes); i++ {
-				keyNames = append(keyNames, refRes[i].String())
-			}
-			err = fmt.Errorf("func '%s' not enough arguments to return, need %s", funcInfo.Name, strings.Join(keyNames, "|"))
+			err = fmt.Errorf("not enough arguments to return")
+			return
+		}
+		if len(refRes) < len(local) {
+			err = fmt.Errorf("too many arguments to return")
 			return
 		}
 		rt.stack.resetByIdx(start)
@@ -335,7 +261,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err err
 	var (
 		count, in int
 	)
-	if rt.callDepth >= maxCallDepth {
+	if rt.callDepth >= MaxCallDepth {
 		return fmt.Errorf("max call depth of recursive call")
 	}
 
@@ -415,7 +341,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err err
 		}
 	}
 	rt.extend[Extend_rt] = rt
-	auto := finfo.AutoCount()
+	auto := finfo.AutoParamsCount()
 	size := rt.stack.size()
 	shift := size - count + auto
 	if finfo.Variadic {
@@ -465,8 +391,8 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err err
 		}
 		if finfo.Results[i].String() == `error` {
 			if ret.Interface() != nil {
-				rt.errInfo = ErrInfo{Name: finfo.Name}
-				return ret.Interface().(error)
+				rt.errInfo = ExtFuncErr{Name: finfo.Name, Value: ret.Interface()}
+				return rt.errInfo
 			}
 		} else {
 			if hasReturnAssign {

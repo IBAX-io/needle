@@ -22,7 +22,7 @@ func TestVM_Compile(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{"case_contract", "@1ABC.action", []rune(string(file)), assert.NoError},
-		{"case_stack", "@1ABC2.conditions", []rune(string(stack)), assert.NoError},
+		{"case_stack", "@1ABC2.action", []rune(string(stack)), assert.NoError},
 		{"case_expr", "operand", []rune(string(expr)), assert.NoError},
 		{"case_expr_add", "operand_add", []rune(string(expr)), assert.NoError},
 		{"case_expr_inc_dec", "operand_inc_dec", []rune(string(expr)), assert.NoError},
@@ -30,10 +30,11 @@ func TestVM_Compile(t *testing.T) {
 		{"case_expr_bit", "operand_bit", []rune(string(expr)), assert.NoError},
 		{"case_expr_comparison", "operand_comparison", []rune(string(expr)), assert.NoError},
 	}
-	limit := int64(100000)
+	limit := int64(2200)
 	extend := map[string]any{
-		Extend_txcost:    limit,
-		Extend_gen_block: 1,
+		Extend_txcost:     limit,
+		Extend_gen_block:  true,
+		Extend_time_limit: int64(1000),
 	}
 	start := time.Now()
 	for _, tt := range tests {
