@@ -27,13 +27,6 @@ func init() {
 	}
 }
 
-const (
-	TagFile      = "file"
-	TagAddress   = "address"
-	TagSignature = "signature"
-	TagOptional  = "optional"
-)
-
 // VM is the main type of the virtual machine
 type VM struct {
 	*compile.CodeBlock
@@ -105,13 +98,13 @@ func (vm *VM) Call(name string, params []any, extend map[string]any) (ret []any,
 	}
 	switch obj.Type {
 	case compile.ObjContract:
-		rt := NewRuntime(vm, extend[Extend_txcost].(int64))
+		rt := NewRuntime(vm, extend[ExtendTxCost].(int64))
 		ret, err = rt.Run(obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock(), extend)
-		extend[Extend_txcost] = rt.Cost()
+		extend[ExtendTxCost] = rt.Cost()
 	case compile.ObjFunc:
-		rt := NewRuntime(vm, extend[Extend_txcost].(int64))
+		rt := NewRuntime(vm, extend[ExtendTxCost].(int64))
 		ret, err = rt.Run(obj.GetCodeBlock(), extend)
-		extend[Extend_txcost] = rt.Cost()
+		extend[ExtendTxCost] = rt.Cost()
 	case compile.ObjExtFunc:
 		ret = obj.GetExtFuncInfo().Call(params)
 	default:
@@ -135,7 +128,7 @@ func ReleaseSmartVMObjects() {
 	children = 0
 }
 
-func VMCompileEval(vm *VM, src string, prefix uint32) error {
+func CompileEval(vm *VM, src string, prefix uint32) error {
 	var ok bool
 	if len(src) == 0 {
 		return nil
@@ -156,7 +149,7 @@ func VMCompileEval(vm *VM, src string, prefix uint32) error {
 	if err != nil {
 		return err
 	}
-	re := regexp.MustCompile(`^@?[\d\w_]+$`)
+	re := regexp.MustCompile(`^@?[\w_]+$`)
 	for _, item := range getContractList(src) {
 		if len(item) == 0 || !re.Match([]byte(item)) {
 			return errIncorrectParameter
@@ -179,7 +172,7 @@ func getContractList(src string) (list []string) {
 	return
 }
 
-func VMGetContractByID(vm *VM, id int32) *compile.ContractInfo {
+func GetContractByID(vm *VM, id int32) *compile.ContractInfo {
 	var tableID int64
 	if id > ShiftContractID {
 		tableID = int64(id - ShiftContractID)
@@ -199,7 +192,7 @@ func VMGetContractByID(vm *VM, id int32) *compile.ContractInfo {
 }
 
 func RunContractById(vm *VM, id int32, methods []string, extend map[string]any) error {
-	info := VMGetContractByID(vm, id)
+	info := GetContractByID(vm, id)
 	if info == nil {
 		return fmt.Errorf(`unknown contract id '%d'`, id)
 	}
@@ -216,8 +209,8 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		return fmt.Errorf(eUnknownContract, name)
 	}
 	contract := obj.GetCodeBlock()
-	extend[Extend_txcost] = extend[Extend_txcost].(int64) - CostContract - ContractBaseCost(contract)
-	if extend[Extend_txcost].(int64) < 0 {
+	extend[ExtendTxCost] = extend[ExtendTxCost].(int64) - CostContract - ContractBaseCost(contract)
+	if extend[ExtendTxCost].(int64) < 0 {
 		return fmt.Errorf("runtime cost limit overflow")
 	}
 	for i := 0; i < len(methods); i++ {
@@ -228,7 +221,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		}
 		if obj.Type == compile.ObjFunc {
 			fn := obj.GetCodeBlock()
-			_, err := VMRun(vm, fn, extend)
+			_, err := Run(vm, fn, extend)
 			if err != nil {
 				return err
 			}
@@ -237,26 +230,26 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 	return nil
 }
 
-// VMRun executes CodeBlock in vm
-func VMRun(vm *VM, block *compile.CodeBlock, extend map[string]any) (ret []any, err error) {
+// Run executes CodeBlock in vm
+func Run(vm *VM, block *compile.CodeBlock, extend map[string]any) (ret []any, err error) {
 	if block == nil {
 		return nil, fmt.Errorf(`code block is nil`)
 	}
 	var cost int64
-	if ecost, ok := extend[Extend_txcost]; ok {
+	if ecost, ok := extend[ExtendTxCost]; ok {
 		cost, _ = ecost.(int64)
 	}
 	rt := NewRuntime(vm, cost)
 	ret, err = rt.Run(block, extend)
-	extend[Extend_txcost] = rt.Cost()
+	extend[ExtendTxCost] = rt.Cost()
 	if err != nil {
-		vm.logger.WithFields(log.Fields{"type": VMErr, "error": err, "original_contract": extend[Extend_original_contract], "this_contract": extend[Extend_this_contract], "ecosystem_id": extend[Extend_ecosystem_id]}).Error("running block in smart vm")
+		vm.logger.WithFields(log.Fields{"type": VMErr, "error": err, "original_contract": extend[ExtendOriginalContract], "this_contract": extend[ExtendThisContract], "ecosystem_id": extend[ExtendEcosystemId]}).Error("running block in smart vm")
 		return nil, err
 	}
 	return
 }
 
-func VMObjectExists(vm *VM, name string, state uint32) bool {
+func ObjectExists(vm *VM, name string, state uint32) bool {
 	name = StateName(state, name)
 	_, ok := vm.Objects[name]
 	return ok

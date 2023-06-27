@@ -75,12 +75,12 @@ func (rt *Runtime) Run(block *compile.CodeBlock, extend map[string]any) (ret []a
 		genBlock bool
 		timer    *time.Timer
 	)
-	genBlock = rt.loadExtendBy(Extend_gen_block).genBlock
+	genBlock = rt.loadExtendBy(ExtendGenBlock).genBlock
 	timeOver := func() {
 		rt.timeLimit = false
 	}
 	if genBlock {
-		timer = time.AfterFunc(time.Millisecond*time.Duration(rt.loadExtendBy(Extend_time_limit).timeLimit), timeOver)
+		timer = time.AfterFunc(time.Millisecond*time.Duration(rt.loadExtendBy(ExtendTimeLimit).timeLimit), timeOver)
 	}
 	defer func() {
 		if genBlock {
@@ -125,7 +125,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 				name = stack.Name
 			}
 
-			if stack, ok := rt.extend[Extend_stack].([]any); ok {
+			if stack, ok := rt.extend[ExtendStack].([]any); ok {
 				name = stack[len(stack)-1].(string)
 			}
 
@@ -179,7 +179,6 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}
 
 	ctx := newInstructionCtx()
-main:
 	for ctx.ci = 0; ctx.ci < len(block.Code); ctx.ci++ {
 		if err = rt.SubCost(1); err != nil {
 			break
@@ -197,7 +196,6 @@ main:
 		cmd = block.Code[ctx.ci]
 		ctx.isContinue = false
 		ctx.isBreak = false
-		ctx.isLoop = false
 
 		instruction, ok := instructionTable[cmd.Cmd]
 		if !ok {
@@ -213,9 +211,6 @@ main:
 		}
 		if ctx.isBreak {
 			break
-		}
-		if ctx.isLoop {
-			goto main
 		}
 
 		if status == statusReturn || status == statusContinue || status == statusBreak {
@@ -257,7 +252,7 @@ main:
 	return
 }
 
-func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err error) {
+func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 	var (
 		count, in int
 	)
@@ -320,7 +315,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err err
 			rt.stack.push(imap)
 		}
 		_, err = rt.RunCode(obj.GetCodeBlock())
-		if !hasReturnAssign && err == nil {
+		if !hasAssign && err == nil {
 			rt.stack.resetByIdx(rt.stack.size() - obj.GetResultsLen())
 		}
 		return
@@ -335,12 +330,12 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err err
 		foo    = reflect.ValueOf(finfo.Func)
 		pars   = make([]reflect.Value, in)
 	)
-	if stack, ok = rt.extend[Extend_sc].(Stacker); ok {
+	if stack, ok = rt.extend[ExtendSc].(Stacker); ok {
 		if err := stack.AppendStack(finfo.Name); err != nil {
 			return err
 		}
 	}
-	rt.extend[Extend_rt] = rt
+	rt.extend[ExtendRt] = rt
 	auto := finfo.AutoParamsCount()
 	size := rt.stack.size()
 	shift := size - count + auto
@@ -395,7 +390,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err err
 				return rt.errInfo
 			}
 		} else {
-			if hasReturnAssign {
+			if hasAssign {
 				rt.stack.push(ret.Interface())
 			}
 		}
@@ -404,31 +399,97 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasReturnAssign bool) (err err
 }
 
 func (rt *Runtime) extendFunc(name string) error {
-	var (
-		ok bool
-		f  any
-	)
-	if f, ok = rt.extend[name]; !ok || reflect.ValueOf(f).Kind() != reflect.Func {
+	f, ok := rt.extend[name]
+	foo := reflect.ValueOf(f)
+	if !ok || foo.Kind() != reflect.Func {
 		return fmt.Errorf(`unknown function %s`, name)
 	}
 	size := rt.stack.size()
-	foo := reflect.ValueOf(f)
-
+	variadic := foo.Type().IsVariadic()
 	count := foo.Type().NumIn()
-	pars := make([]reflect.Value, count)
-	for i := count; i > 0; i-- {
-		pars[count-i] = reflect.ValueOf(rt.stack.get(size - i))
+	last := count
+	if variadic {
+		last--
+		if size < last {
+			return fmt.Errorf("expected at least %d, got %d", last, size)
+		}
+	} else {
+		if size != count {
+			return fmt.Errorf("expected %d, got %d", count, size)
+		}
 	}
-	result := foo.Call(pars)
+	stack := rt.stack.peekN(size)
+	var result []reflect.Value
+	pars := make([]reflect.Value, count)
+	var lastType reflect.Type
 
-	rt.stack.resetByIdx(size - count)
-	for i, iret := range result {
+	for i, vs := range stack {
+		ftyp := foo.Type()
+		v := reflect.ValueOf(vs)
+		var ityp reflect.Type
+		if i < last {
+			ityp = ftyp.In(i)
+		} else {
+			ityp = ftyp.In(last).Elem()
+			lastType = ityp
+		}
+		if !v.IsValid() {
+			stack[i] = reflect.Zero(ityp)
+			continue
+		}
+		vtyp := v.Type()
+		if !vtyp.AssignableTo(ityp) {
+			k := vtyp.Kind()
+			if (k == reflect.Ptr || k == reflect.Interface) && !v.IsNil() && vtyp.Elem().AssignableTo(ityp) {
+				stack[i] = v.Elem()
+				continue
+			}
+			if reflect.PtrTo(vtyp).AssignableTo(ityp) && v.CanAddr() {
+				stack[i] = v.Addr()
+				continue
+			}
+			return fmt.Errorf("can't with %s as argument %d, need %s", vtyp, i+1, ityp)
+		}
+	}
+	if foo.Type().IsVariadic() {
+		var arr = make([]any, 0)
+		for _, v := range stack[last:] {
+			arr = append(arr, v)
+		}
+		if len(stack) <= last {
+			stack = append(stack, reflect.Value{})
+		}
+		for i := 0; i < count; i++ {
+			if i >= last {
+				if lastType == reflect.TypeOf((*any)(nil)).Elem() {
+					pars[i] = reflect.ValueOf(arr)
+				} else {
+					lastSlice := reflect.MakeSlice(foo.Type().In(last), len(arr), len(arr))
+					for y, v := range arr {
+						lastSlice.Index(y).Set(reflect.ValueOf(v))
+					}
+					pars[i] = lastSlice
+				}
+				continue
+			}
+			pars[i] = reflect.ValueOf(stack[i])
+		}
+		result = foo.CallSlice(pars)
+	} else {
+		for i := 0; i < count; i++ {
+			pars[i] = reflect.ValueOf(stack[i])
+		}
+		result = foo.Call(pars)
+	}
+
+	rt.stack.popN(size)
+	for i, ret := range result {
 		if foo.Type().Out(i).String() == `error` {
-			if iret.Interface() != nil {
-				return iret.Interface().(error)
+			if ret.Interface() != nil {
+				return ret.Interface().(error)
 			}
 		} else {
-			rt.stack.push(iret.Interface())
+			rt.stack.push(ret.Interface())
 		}
 	}
 	return nil

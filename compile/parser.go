@@ -251,6 +251,9 @@ main:
 					if prev.Value.(*ObjInfo).Type == ObjExtFunc {
 						extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
 						wantlen := len(extFn.Params) - extFn.AutoParamsCount()
+						if extFn.Variadic {
+							wantlen--
+						}
 						if count != wantlen && (!extFn.Variadic || count < wantlen) {
 							return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
 						}

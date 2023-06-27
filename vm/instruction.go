@@ -32,7 +32,6 @@ type instructionCtx struct {
 	ci         int
 	isContinue bool
 	isBreak    bool
-	isLoop     bool
 	labels     []int
 	assignVar  []*compile.VarInfo
 	costRemain decimal.Decimal
@@ -72,7 +71,6 @@ func init() {
 		}
 		if i < 0 {
 			err = fmt.Errorf(`wrong var %v`, ivar.Obj.Value)
-			ctx.isLoop = true
 		}
 		return
 	}
@@ -81,23 +79,23 @@ func init() {
 			if err = rt.SubCost(CostExtend); err != nil {
 				return
 			}
-			if val, ok := rt.extend[code.Value.(string)]; ok {
-				if code.Cmd == compile.CmdCallExtend {
-					err = rt.extendFunc(code.Value.(string))
-					if err != nil {
-						err = fmt.Errorf(`extend function %v %s`, code.Value, err)
-						ctx.isLoop = true
-						return
-					}
-				} else {
-					switch varVal := val.(type) {
-					case int:
-						val = int64(varVal)
-					}
-					rt.stack.push(val)
+			val, ok := rt.extend[code.Value.(string)]
+			if !ok {
+				err = fmt.Errorf(`unknown extend identifier %v`, code.Value)
+				return
+			}
+			if code.Cmd == compile.CmdCallExtend {
+				err = rt.extendFunc(code.Value.(string))
+				if err != nil {
+					err = fmt.Errorf(`extend function %v %s`, code.Value, err)
+					return
 				}
 			} else {
-				err = fmt.Errorf(`unknown extend identifier %v`, code.Value)
+				switch varVal := val.(type) {
+				case int:
+					val = int64(varVal)
+				}
+				rt.stack.push(val)
 			}
 			return
 		}
@@ -123,12 +121,12 @@ func init() {
 			}
 
 			// false means ignore return value
-			var hasReturnAssign bool
+			var hasAssign bool
 			if ctx.ci+1 <= len(rt.peekBlock().Block.Code)-1 {
 				nextCode := rt.peekBlock().Block.Code[ctx.ci+1]
-				hasReturnAssign = nextCode.Cmd == compile.CmdAssign
+				hasAssign = nextCode.Cmd == compile.CmdAssign
 			}
-			err = rt.callFunc(code.Value.(*compile.ObjInfo), hasReturnAssign)
+			err = rt.callFunc(code.Value.(*compile.ObjInfo), hasAssign)
 			return
 		}
 	}
@@ -157,7 +155,6 @@ func init() {
 					var n = item.Obj.GetExtendVariable().Name
 					if rt.vm.AssertVar(n) {
 						err = fmt.Errorf(eSysVar, n)
-						ctx.isLoop = true
 						return
 					}
 				}
@@ -308,7 +305,6 @@ func init() {
 		itype := reflect.TypeOf(indextype).String()
 		if isSelfAssignment(indextype, value) {
 			err = errSelfAssignment
-			ctx.isLoop = true
 			return
 		}
 		var indexKey int
@@ -404,7 +400,6 @@ func init() {
 		var initMap *compile.Map
 		initMap, err = rt.getResultMap(code.Value.(*compile.Map))
 		if err != nil {
-			ctx.isLoop = true
 			return
 		}
 		rt.stack.push(initMap)
@@ -414,7 +409,6 @@ func init() {
 		var initArray []any
 		initArray, err = rt.getResultArray(code.Value.([]compile.MapItem))
 		if err != nil {
-			ctx.isLoop = true
 			return
 		}
 		rt.stack.push(initArray)
@@ -446,7 +440,6 @@ func init() {
 			rt.stack.push(-z.(int64))
 		default:
 			err = errUnsupportedType
-			ctx.isLoop = true
 			return
 		}
 		return
@@ -460,7 +453,6 @@ func init() {
 	} {
 		instructionTable[c] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			if len(ctx.assignVar) != 1 {
-				ctx.isLoop = true
 				err = fmt.Errorf("assign op %s variable count must be 1", code.Cmd)
 				return
 			}
@@ -480,7 +472,6 @@ func init() {
 				var ret any
 				ret, err = evaluateCmd(rt.extend[n], y, code.Cmd)
 				if err != nil {
-					ctx.isLoop = true
 					return
 				}
 				rt.setExtendVar(n, ret)
@@ -492,7 +483,6 @@ func init() {
 					var ret any
 					ret, err = evaluateCmd(rt.vars[k], y, code.Cmd)
 					if err != nil {
-						ctx.isLoop = true
 						return
 					}
 					rt.setVar(k, ret)
@@ -518,7 +508,6 @@ func init() {
 			x := rt.stack.pop()
 			z, err = evaluateCmd(x, y, code.Cmd)
 			if err != nil {
-				ctx.isLoop = true
 				return
 			}
 			rt.stack.push(z)

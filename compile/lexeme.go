@@ -186,8 +186,6 @@ func NewLexer(input []rune) (Lexemes, error) {
 				} else {
 					value = name
 				}
-			default:
-				//fmt.Println("error---", off, tk, start, off, string(input[start:off]))
 			}
 			if tk != COMMENT {
 				lexemes = append(lexemes, NewLexeme(tk, value, line, lexOffset-offline+1))
