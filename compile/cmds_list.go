@@ -79,7 +79,9 @@ const (
 	CmdLessEq                      // <=
 	CmdShiftL                      // <<
 	CmdShiftR                      // >>
+)
 
+const (
 	CmdSys   CmdT = 0xff
 	CmdUnary      = 50
 )

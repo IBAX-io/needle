@@ -34,7 +34,6 @@ type instructionCtx struct {
 	isBreak    bool
 	labels     []int
 	assignVar  []*compile.VarInfo
-	costRemain decimal.Decimal
 }
 
 func newInstructionCtx() *instructionCtx {
@@ -56,10 +55,10 @@ func (c *instructionCtx) popLabel() int {
 var instructionTable = make(map[compile.CmdT]instruction)
 
 func init() {
-	instructionTable[compile.CmdPush] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		rt.stack.push(code.Value)
-		return
-	}
+	loadInstruction()
+}
+
+func loadInstruction() {
 	instructionTable[compile.CmdVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		ivar := code.Value.(*compile.VarInfo)
 		var i int
@@ -88,15 +87,14 @@ func init() {
 				err = rt.extendFunc(code.Value.(string))
 				if err != nil {
 					err = fmt.Errorf(`extend function %v %s`, code.Value, err)
-					return
 				}
-			} else {
-				switch varVal := val.(type) {
-				case int:
-					val = int64(varVal)
-				}
-				rt.stack.push(val)
+				return
 			}
+			switch varVal := val.(type) {
+			case int:
+				val = int64(varVal)
+			}
+			rt.stack.push(val)
 			return
 		}
 	}
@@ -136,13 +134,13 @@ func init() {
 	}
 	instructionTable[compile.CmdIf] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if valueToBool(rt.stack.pop()) {
-			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
+			return rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
 	}
 	instructionTable[compile.CmdElse] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if !valueToBool(rt.stack.pop()) {
-			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
+			return rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
 	}
@@ -150,13 +148,11 @@ func init() {
 	instructionTable[compile.CmdAssignVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		ctx.assignVar = code.Value.([]*compile.VarInfo)
 		for _, item := range ctx.assignVar {
-			if item.Owner == nil {
-				if item.Obj.Type == compile.ObjExtVar {
-					var n = item.Obj.GetExtendVariable().Name
-					if rt.vm.AssertVar(n) {
-						err = fmt.Errorf(eSysVar, n)
-						return
-					}
+			if item.Owner == nil && item.Obj.Type == compile.ObjExtVar {
+				var n = item.Obj.GetExtendVariable().Name
+				if rt.vm.AssertVar(n) {
+					err = fmt.Errorf(eSysVar, n)
+					return
 				}
 			}
 		}
@@ -366,28 +362,32 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compile.CmdFuncName] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ifunc := code.Value.(compile.FuncNameCmd)
-		mapoff := rt.stack.size() - 1 - ifunc.Count
-		if rt.stack.get(mapoff) == nil {
-			rt.stack.set(mapoff, make(map[string][]any))
-		}
-		params := make([]any, 0, ifunc.Count)
-		for i := 0; i < ifunc.Count; i++ {
-			cur := rt.stack.get(mapoff + 1 + i)
-			if i == ifunc.Count-1 && rt.unwrap &&
-				reflect.TypeOf(cur).String() == `[]interface {}` {
-				params = append(params, cur.([]any)...)
-				rt.unwrap = false
-			} else {
-				params = append(params, cur)
-			}
-		}
-		rt.stack.get(mapoff).(map[string][]any)[ifunc.Name] = params
-		rt.stack.resetByIdx(mapoff + 1)
-		ctx.isContinue = true
+	instructionTable[compile.CmdPush] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		rt.stack.push(code.Value)
 		return
 	}
+	instructionTable[compile.CmdFuncName] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		f := code.Value.(compile.FuncNameCmd)
+		off := rt.stack.size() - f.Count
+		if off < 0 {
+			err = fmt.Errorf("not enough stack to assign for tail function '%v'", f.FuncName.Name)
+			return
+		}
+		params := rt.stack.popN(f.Count)
+		names := rt.stack.pop()
+		if names == nil {
+			names = make(map[string][]any)
+		}
+
+		if rt.unwrap && len(params) > 0 && reflect.TypeOf(params[len(params)-1]).String() == `[]interface {}` {
+			params = append(params[:len(params)-1], params[len(params)-1].([]any)...)
+			rt.unwrap = false
+		}
+		names.(map[string][]any)[f.FuncName.Name] = params
+		rt.stack.push(names)
+		return
+	}
+
 	instructionTable[compile.CmdUnwrapArr] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if reflect.TypeOf(rt.stack.peek()).String() != `[]interface {}` {
 			err = fmt.Errorf(`invalid use of '...'`)

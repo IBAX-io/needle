@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // identifierRegexp = letter { letter | unicode_digit }
@@ -34,12 +32,9 @@ func fnNothing(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 
 func fnError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	err := errTable[int(state)]
-	logger := lexeme.GetLogger().WithFields(log.Fields{"error": err, "lex_value": lexeme.Value, "type": ParseError})
 	if lexeme.Type == NEWLINE {
-		logger.Error("unexpected new line")
 		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, err, lexeme.Line-1)
 	}
-	logger.Error("parsing error")
 	return fmt.Errorf(`%s %s %v [%d:%d]`, err, lexeme.Type, lexeme.Value, lexeme.Line, lexeme.Column)
 }
 
@@ -103,35 +98,37 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if _, ok := block.Objects[name]; ok {
 		if state == stateFnParamType {
 			return fmt.Errorf("duplicate argument '%s'", name)
-		} else if state == stateVarType {
-			return fmt.Errorf("'%s' redeclared in this code block", name)
 		}
-	}
-
-	if block.Type == ObjFunc && (state == stateFnParam || state == stateFnParamType) {
-		fblock := block.GetFuncInfo()
-		if fblock.Names == nil {
-			fblock.Params = append(fblock.Params, reflect.TypeOf(nil))
-		} else {
-			for key := range fblock.Names {
-				if strings.HasPrefix(key, tailPrefix) {
-					name := key[1:]
-					params := append(fblock.Names[name].Params, reflect.TypeOf(nil))
-					offset := append(fblock.Names[name].Offset, len(block.Vars))
-					fblock.Names[name] = FuncName{Params: params, Offset: offset}
-					break
-				}
-			}
+		if state == stateVarType {
+			return fmt.Errorf("'%s' redeclared in this code block", name)
 		}
 	}
 
 	block.Objects[name] = NewObjInfo(ObjVar, &ObjInfoVariable{Name: name, Index: len(block.Vars)})
 	block.Vars = append(block.Vars, reflect.TypeOf(nil))
+
+	if block.Type != ObjFunc || (state != stateFnParam && state != stateFnParamType) {
+		return nil
+	}
+
+	fblock := block.GetFuncInfo()
+	if !fblock.HasNames() {
+		fblock.Params = append(fblock.Params, reflect.TypeOf(nil))
+		return nil
+	}
+	for name, f := range fblock.Names {
+		if f.Decl {
+			continue
+		}
+		params := append(fblock.Names[name].Params, reflect.TypeOf(nil))
+		offset := append(fblock.Names[name].Offset, len(block.Vars)-1)
+		fblock.Names[name] = FuncName{Name: f.Name, Params: params, Offset: offset}
+	}
 	return nil
 }
 
-// fnParamTYPE sets the type of the function parameter or variable.
-func fnParamTYPE(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+// fnParamType sets the type of the function parameter or variable.
+func fnParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	block := buf.peek()
 	rtp := lexeme.Value.(reflect.Type)
 	for i, v := range block.Vars {
@@ -139,27 +136,30 @@ func fnParamTYPE(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			block.Vars[i] = rtp
 		}
 	}
-	if block.Type == ObjFunc && state == stateFnParam {
-		fblock := block.GetFuncInfo()
-		if fblock.Names == nil {
-			for pkey, param := range fblock.Params {
-				if param == reflect.TypeOf(nil) {
-					fblock.Params[pkey] = rtp
-				}
+	if block.Type != ObjFunc || state != stateFnParam {
+		return nil
+	}
+	fblock := block.GetFuncInfo()
+	if !fblock.HasNames() {
+		for pkey, param := range fblock.Params {
+			if param == reflect.TypeOf(nil) {
+				fblock.Params[pkey] = rtp
 			}
-			return nil
 		}
-		for key := range fblock.Names {
-			if strings.HasPrefix(key, tailPrefix) {
-				for pkey, param := range fblock.Names[key[1:]].Params {
-					if param == reflect.TypeOf(nil) {
-						fblock.Names[key[1:]].Params[pkey] = rtp
-					}
-				}
-				break
+		return nil
+	}
+
+	for key, f := range fblock.Names {
+		if f.Decl {
+			continue
+		}
+		for pkey, param := range fblock.Names[key].Params {
+			if param == reflect.TypeOf(nil) {
+				fblock.Names[key].Params[pkey] = rtp
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -168,23 +168,33 @@ func fnNameTail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if err := canIdent(lexeme.Value.(string)); err != nil {
 		return err
 	}
-	block := buf.peek()
 
-	fblock := block.GetFuncInfo()
-	if fblock.Names == nil {
+	fblock := buf.peek().GetFuncInfo()
+	if !fblock.HasNames() {
 		fblock.Names = make(map[string]FuncName)
 	}
-	for key := range fblock.Names {
-		if strings.HasPrefix(key, tailPrefix) {
-			delete(fblock.Names, key)
+	if _, ok := fblock.Names[lexeme.Value.(string)]; ok {
+		return fmt.Errorf("tail func redeclared '%s'", lexeme.Value)
+	}
+	for k, name := range fblock.Names {
+		fblock.Names[k] = FuncName{
+			Name:     name.Name,
+			Params:   name.Params,
+			Offset:   name.Offset,
+			Variadic: name.Variadic,
+			Decl:     true,
 		}
 	}
-	fblock.Names[tailPrefix+lexeme.Value.(string)] = FuncName{}
+	fblock.Names[lexeme.Value.(string)] = FuncName{
+		Name:   lexeme.Value.(string),
+		Params: make([]reflect.Type, 0),
+		Offset: make([]int, 0),
+	}
 	return nil
 }
 
-// fnTailParam sets the type of the function final parameter.
-func fnTailParam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+// fnTailParamType sets the type of the function final parameter.
+func fnTailParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	block := buf.peek()
 	fblock := block.GetFuncInfo()
 	for vkey, ivar := range block.Vars {
@@ -193,7 +203,7 @@ func fnTailParam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		}
 	}
 	var used bool
-	if fblock.Names == nil {
+	if !fblock.HasNames() {
 		for pkey, param := range fblock.Params {
 			if param == reflect.TypeOf(nil) {
 				if used {
@@ -206,22 +216,26 @@ func fnTailParam(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		fblock.Variadic = true
 		return nil
 	}
-	for key := range fblock.Names {
-		if strings.HasPrefix(key, tailPrefix) {
-			name := key[1:]
-			for pkey, param := range fblock.Names[name].Params {
-				if param == reflect.TypeOf(nil) {
-					if used {
-						return fmt.Errorf(`... parameter must be one`)
-					}
-					fblock.Names[name].Params[pkey] = reflect.TypeOf([]any{})
-					used = true
+
+	for name, f := range fblock.Names {
+		if f.Decl {
+			continue
+		}
+		for pkey, param := range fblock.Names[name].Params {
+			if param == reflect.TypeOf(nil) {
+				if used {
+					return fmt.Errorf("... parameter must be one")
 				}
+				fblock.Names[name].Params[pkey] = reflect.TypeOf([]any{})
+				used = true
 			}
-			offset := append(fblock.Names[name].Offset, len(block.Vars))
-			fblock.Names[name] = FuncName{Params: fblock.Names[name].Params,
-				Offset: offset, Variadic: true}
-			break
+		}
+		offset := append(fblock.Names[name].Offset, len(block.Vars))
+		fblock.Names[name] = FuncName{
+			Name:     f.Name,
+			Params:   fblock.Names[name].Params,
+			Offset:   offset,
+			Variadic: true,
 		}
 	}
 	return nil
@@ -256,7 +270,6 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	)
 	if lexeme.Type == EXTEND {
 		if buf.get(0).AssertVar(lexeme.Value.(string)) {
-			lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "lex_value": lexeme.Value}).Error("modifying system variable")
 			return fmt.Errorf(eSysVar, lexeme.Value.(string))
 		}
 		obj := NewObjInfo(ObjExtVar, &ObjInfoExtendVariable{Name: lexeme.Value.(string)})
@@ -336,7 +349,6 @@ func fnField(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return err
 	}
 	if buf.get(0).AssertVar(lexeme.Value.(string)) {
-		lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "contract": info.Name, "lex_value": lexeme.Value.(string)}).Error("param variable in the data section of the contract collides with the 'builtin' variable")
 		return fmt.Errorf(eDataParamVarCollides, lexeme.Value.(string), info.Name)
 	}
 	*tx = append(*tx, &FieldInfo{Name: lexeme.Value.(string), Type: reflect.TypeOf(nil)})

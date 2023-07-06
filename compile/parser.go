@@ -58,7 +58,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 
 			curlen := len(blocksStack.peek().Code)
 			if err := parserEval(&lexemes, &i, &blocksStack); err != nil {
-				return nil, fmt.Errorf("parser eval: %s", err)
+				return nil, fmt.Errorf("parser eval: %s [%d:%d]", err, lexemes[i].Line, lexemes[i].Column)
 			}
 			if (newState.nextState&stateMustEval) > 0 && curlen == len(blocksStack.peek().Code) {
 				return nil, fmt.Errorf("there is not eval expression")
@@ -177,7 +177,7 @@ main:
 				parcount[len(parcount)-1]++
 			}
 			for len(buffer) > 0 {
-				prev := buffer[len(buffer)-1]
+				prev := buffer.peek()
 				if prev.Cmd == CmdSys && prev.Value.(uint16) == 0xff {
 					break
 				}
@@ -190,85 +190,111 @@ main:
 				if len(buffer) == 0 {
 					return fmt.Errorf("%s: there is not pair", lexeme.Type)
 				}
-				prev := buffer[len(buffer)-1]
-				buffer = buffer[:len(buffer)-1]
+				prev := buffer.pop()
 				if prev.Value.(uint16) == 0xff {
 					break
 				}
 				bytecode.push(prev)
 			}
-			if len(buffer) > 0 {
-				if prev := buffer[len(buffer)-1]; prev.Cmd == CmdFuncName {
-					buffer = buffer[:len(buffer)-1]
-					(*prev).Value = FuncNameCmd{Name: prev.Value.(FuncNameCmd).Name,
-						Count: parcount[len(parcount)-1]}
-					parcount = parcount[:len(parcount)-1]
-					bytecode.push(prev)
+			if len(buffer) == 0 {
+				continue
+			}
+
+			if prev := buffer.peek(); prev.Cmd == CmdFuncName {
+				buffer = buffer[:len(buffer)-1]
+				fn := prev.Value.(FuncNameCmd)
+				names := fn.FuncName
+				wantlen := len(names.Params)
+				if names.Variadic {
+					wantlen--
 				}
-				var tail *ByteCode
-				if prev := buffer[len(buffer)-1]; prev.Cmd == CmdCall || prev.Cmd == CmdCallVariadic {
-					objInfo := prev.Value.(*ObjInfo)
-					if (objInfo.Type == ObjFunc && objInfo.GetFuncInfo().CanWrite) ||
-						(objInfo.Type == ObjExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
-						setWritable(block)
+				count := parcount[len(parcount)-1]
+				if count != wantlen && (!names.Variadic || count < wantlen) {
+					if names.Variadic {
+						return fmt.Errorf("%s: at least %d params, but %d given", names.Name, wantlen, count)
 					}
-					if objInfo.Type == ObjFunc && objInfo.GetFuncInfo().Names != nil {
-						if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncName {
-							bytecode.push(newByteCode(CmdPush, lexeme, nil))
-						}
-						if i < len(*lexemes)-4 && (*lexemes)[i+1].Type == DOT {
-							if (*lexemes)[i+2].Type != IDENTIFIER {
-								log.WithFields(log.Fields{"type": ParseError}).Error("must be the name of the tail")
-								return fmt.Errorf(`must be the name of the tail`)
+					return fmt.Errorf("%s: want %d params, but %d given", names.Name, wantlen, count)
+				}
+				fn.Count = count
+				(*prev).Value = fn
+				parcount = parcount[:len(parcount)-1]
+				bytecode.push(prev)
+			}
+			var tail *ByteCode
+			prev := buffer.peek()
+			if prev.Cmd != CmdCall && prev.Cmd != CmdCallVariadic {
+				continue
+			}
+
+			objInfo := prev.Value.(*ObjInfo)
+			if (objInfo.Type == ObjFunc && objInfo.GetFuncInfo().CanWrite) ||
+				(objInfo.Type == ObjExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
+				setWritable(block)
+			}
+			if objInfo.Type == ObjFunc && objInfo.GetFuncInfo().HasNames() {
+				if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncName {
+					bytecode.push(newByteCode(CmdPush, lexeme, make(map[string][]any)))
+				}
+				if i < len(*lexemes)-4 && (*lexemes)[i+1].Type == DOT {
+					if (*lexemes)[i+2].Type != IDENTIFIER {
+						return fmt.Errorf(`must be the name of the tail`)
+					}
+					names := prev.Value.(*ObjInfo).GetFuncInfo().Names
+					if _, ok := names[(*lexemes)[i+2].Value.(string)]; !ok {
+						if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
+							objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
+							if objInfo != nil && (objInfo.Type == ObjFunc || objInfo.Type == ObjExtFunc) {
+								tail = newByteCode(CmdCall, lexeme, objInfo)
 							}
-							names := prev.Value.(*ObjInfo).GetFuncInfo().Names
-							if _, ok := names[(*lexemes)[i+2].Value.(string)]; !ok {
-								if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
-									objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
-									if objInfo != nil && (objInfo.Type == ObjFunc || objInfo.Type == ObjExtFunc) {
-										tail = newByteCode(CmdCall, lexeme, objInfo)
-									}
-								}
-								if tail == nil {
-									log.WithFields(log.Fields{"type": ParseError, "tail": (*lexemes)[i+2].Value.(string)}).Error("unknown function tail")
-									return fmt.Errorf(`unknown function tail '%s'`, (*lexemes)[i+2].Value.(string))
-								}
-							}
-							if tail == nil {
-								buffer.push(newByteCode(CmdFuncName, lexeme, FuncNameCmd{Name: (*lexemes)[i+2].Value.(string)}))
-								count := 0
-								if (*lexemes)[i+3].Type != RPAREN {
-									count++
-								}
-								parcount = append(parcount, count)
-								i += 2
-								break
-							}
+						}
+						if tail == nil {
+							return fmt.Errorf(`unknown function tail '%v'`, (*lexemes)[i+2].Value)
 						}
 					}
-					count := parcount[len(parcount)-1]
-					parcount = parcount[:len(parcount)-1]
-					if prev.Value.(*ObjInfo).Type == ObjExtFunc {
-						extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
-						wantlen := len(extFn.Params) - extFn.AutoParamsCount()
-						if extFn.Variadic {
-							wantlen--
+					if tail == nil {
+						v, _ := names[(*lexemes)[i+2].Value.(string)]
+						buffer.push(newByteCode(CmdFuncName, lexeme, FuncNameCmd{FuncName: v}))
+						count := 0
+						if (*lexemes)[i+4].Type != RPAREN {
+							count++
 						}
-						if count != wantlen && (!extFn.Variadic || count < wantlen) {
-							return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
-						}
-					}
-					if prev.Cmd == CmdCallVariadic {
-						bytecode.push(newByteCode(CmdPush, lexeme, count))
-					}
-					buffer = buffer[:len(buffer)-1]
-					bytecode.push(prev)
-					if tail != nil {
-						buffer.push(tail)
-						parcount = append(parcount, 1)
+						parcount = append(parcount, count)
 						i += 2
+						break
 					}
 				}
+			}
+			count := parcount[len(parcount)-1]
+			parcount = parcount[:len(parcount)-1]
+			if prev.Value.(*ObjInfo).Type == ObjExtFunc {
+				extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
+				wantlen := len(extFn.Params) - extFn.AutoParamsCount()
+				if extFn.Variadic {
+					wantlen--
+				}
+				if count != wantlen && (!extFn.Variadic || count < wantlen) {
+					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
+				}
+			}
+			if prev.Value.(*ObjInfo).Type == ObjFunc {
+				extFn := prev.Value.(*ObjInfo).GetFuncInfo()
+				wantlen := len(extFn.Params)
+				if extFn.Variadic {
+					wantlen--
+				}
+				if count != wantlen && (!extFn.Variadic || count < wantlen) {
+					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
+				}
+			}
+			if prev.Cmd == CmdCallVariadic {
+				bytecode.push(newByteCode(CmdPush, lexeme, count))
+			}
+			buffer = buffer[:len(buffer)-1]
+			bytecode.push(prev)
+			if tail != nil {
+				buffer.push(tail)
+				parcount = append(parcount, 1)
+				i += 2
 			}
 		case RBRACK:
 			noMap = true
@@ -276,8 +302,7 @@ main:
 				if len(buffer) == 0 {
 					return fmt.Errorf("%s: there is not pair", lexeme.Type)
 				}
-				prev := buffer.peek()
-				buffer = buffer[:len(buffer)-1]
+				prev := buffer.pop()
 				if prev.Value.(uint16) == 0xff {
 					break
 				}
@@ -440,14 +465,14 @@ main:
 				}
 				cmd = newByteCode(CmdVar, lexeme, &VarInfo{Obj: objInfo, Owner: tobj})
 			}
+		case TAIL:
+			cmd = newByteCode(CmdUnwrapArr, lexeme, 0)
 		}
 		if lexeme.Type != NEWLINE {
 			prevLex = lexeme
 		}
-		if lexeme.Type&0xff == KEYWORD {
-			if lexeme.Value.(Token) == TAIL {
-				cmd = newByteCode(CmdUnwrapArr, lexeme, 0)
-			}
+		if lexeme.Type&0xff == KEYWORD && lexeme.Value.(string) == Keyword2Str(TAIL) {
+			cmd = newByteCode(CmdUnwrapArr, lexeme, 0)
 		}
 		if cmd != nil {
 			bytecode.push(cmd)

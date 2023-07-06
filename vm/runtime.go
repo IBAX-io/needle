@@ -112,6 +112,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		if r := recover(); r != nil {
 			err = errors.Errorf(`runtime panic: %v`, r)
 		}
+
 		if err != nil && !errors.As(err, &VMError{}) {
 			var name, line string
 			if block.Parent != nil && block.Parent.Type == compile.ObjFunc {
@@ -159,7 +160,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}()
 	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
 	var names map[string][]any
-	if block.Type == compile.ObjFunc && block.GetFuncInfo().Names != nil {
+	if block.Type == compile.ObjFunc && block.GetFuncInfo().HasNames() {
 		ret := rt.stack.pop()
 		if ret != nil {
 			names, _ = ret.(map[string][]any)
@@ -281,7 +282,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 	if obj.Type == compile.ObjFunc {
 		var imap map[string][]any
 		finfo := obj.GetFuncInfo()
-		if finfo.Names != nil {
+		if finfo.HasNames() {
 			imap, _ = rt.stack.pop().(map[string][]any)
 		}
 		if variadic {
@@ -311,7 +312,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 				return fmt.Errorf("func '%s' param '%v' (type %T) cannot be represented by the type %s", finfo.Name, stack, stack, v)
 			}
 		}
-		if finfo.Names != nil {
+		if finfo.HasNames() {
 			rt.stack.push(imap)
 		}
 		_, err = rt.RunCode(obj.GetCodeBlock())
@@ -389,10 +390,8 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 				rt.errInfo = ExtFuncErr{Name: finfo.Name, Value: ret.Interface()}
 				return rt.errInfo
 			}
-		} else {
-			if hasAssign {
-				rt.stack.push(ret.Interface())
-			}
+		} else if hasAssign {
+			rt.stack.push(ret.Interface())
 		}
 	}
 	return

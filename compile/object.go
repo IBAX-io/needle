@@ -44,8 +44,6 @@ func (x ObjectType) String() string {
 	return strconv.Itoa(int(x))
 }
 
-var tailPrefix = "#"
-
 type (
 	isObjInfoValue interface {
 		isObjInfoValue()
@@ -94,15 +92,17 @@ type (
 
 	// FuncName is storing param of FuncName
 	FuncName struct {
+		Name     string
 		Params   []reflect.Type
 		Offset   []int
 		Variadic bool
+		Decl     bool
 	}
 
 	// FuncNameCmd for cmdFuncName
 	FuncNameCmd struct {
-		Name  string
-		Count int
+		Count    int
+		FuncName FuncName
 	}
 
 	// ObjInfo is the common object type
@@ -122,7 +122,7 @@ type (
 	}
 
 	ObjInfoExtendVariable struct {
-		//object extend variable name
+		//object extend variable name or function name
 		Name string
 	}
 	// ExtFuncInfo is the structure for the extended golang function
@@ -301,4 +301,20 @@ func (e *ExtFuncInfo) AutoParamsCount() int {
 		}
 	}
 	return count
+}
+
+func (e *FuncInfo) ParamsCount() int {
+	count := 0
+	for i := 0; i < len(e.Params); i++ {
+		count++
+	}
+	return count
+}
+
+func (e *FuncInfo) HasNames() bool {
+	return e.Names != nil
+}
+
+func (f FuncName) IsParamEmpty(i int) bool {
+	return f.Params[i] == reflect.TypeOf(nil)
 }

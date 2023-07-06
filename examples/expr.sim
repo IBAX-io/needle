@@ -2,7 +2,7 @@ func operand {
     var a int a2 string
     a = 2
     a = +1; Println("+=",a)
-    a2 + = "hello"; Println("+=",a2)
+    a2 += "hello"; Println("+=",a2)
     //a,a2 += 23,"ds"; Println("+=",a,a2)
     var b int
     b = 2 << 8

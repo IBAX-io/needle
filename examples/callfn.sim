@@ -1,0 +1,34 @@
+contract ABC2{
+    conditions{
+    }
+}
+
+ func ccc(c c2 int).ddd(i i2 int, a ...).ggg(g1 map g2 array).eee().fff(f int)bool{
+    Println("this is println",i,i2,a,g1,f,g2)
+ }
+ 
+contract ABC{
+    func fn() int{
+        var a int b string
+        a = 333
+        b = "bbb"
+        Println("this is fn","hello")
+        return $extFn(1,2)
+    }
+    conditions{
+        var a int
+        a = nil
+        var arr array
+        arr[3] = 332
+        arr[2] = "ddss"
+        ccc(23,31).ddd(1111,2222,444,5555,arr...,33333,arr...).fff(3).eee().ggg({"a1a":"aaa"},[1,2])
+
+        Println("a is ",a)
+
+        var i int
+        i = $pop
+        Println("i",i)
+
+        @1ABC2()
+    }
+}

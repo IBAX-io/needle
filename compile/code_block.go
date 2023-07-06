@@ -215,6 +215,16 @@ func (b *ByteCodes) peek() *ByteCode {
 	return (*b)[bsLen-1]
 }
 
+func (b *ByteCodes) pop() *ByteCode {
+	bsLen := len(*b)
+	if bsLen == 0 {
+		return nil
+	}
+	ret := (*b)[bsLen-1]
+	*b = (*b)[:bsLen-1]
+	return ret
+}
+
 func setWritable(block *CodeBlocks) {
 	for i := len(*block) - 1; i >= 0; i-- {
 		blockItem := (*block)[i]

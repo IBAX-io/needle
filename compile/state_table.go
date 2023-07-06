@@ -133,18 +133,16 @@ func init() {
 	stateTable[stateFnParam] = map[Token]compileState{
 		NEWLINE:    {stateFnParam, fnNothing},
 		IDENTIFIER: {stateFnParamType, fnParamName},
-		//TYPENAME:  {stateFnParam,fFType},
-		COMMA:   {stateFnParam, fnNothing},
-		RPAREN:  {stateFnResult, fnNothing},
-		UNKNOWN: {errMisplacedDotDotDot, fnError},
+		COMMA:      {stateFnParam, fnNothing},
+		RPAREN:     {stateFnResult, fnNothing},
+		UNKNOWN:    {errParams, fnError},
 	}
 	stateTable[stateFnParamType] = map[Token]compileState{
 		IDENTIFIER: {stateFnParamType, fnParamName},
-		TYPENAME:   {stateFnParam, fnParamTYPE},
-		TAIL:       {stateFnTail, fnTailParam},
+		TYPENAME:   {stateFnParam, fnParamType},
+		TAIL:       {stateFnTail, fnTailParamType},
 		COMMA:      {stateFnParamType, fnNothing},
-		//			isRPar:  {stateFnResult,fnunc: cnil},
-		UNKNOWN: {errVarType, fnError},
+		UNKNOWN:    {errVarType, fnError},
 	}
 	stateTable[stateFnTail] = map[Token]compileState{
 		NEWLINE: {stateFnTail, fnNothing},
@@ -172,7 +170,7 @@ func init() {
 	}
 	stateTable[stateVarType] = map[Token]compileState{
 		IDENTIFIER: {stateVarType, fnParamName},
-		TYPENAME:   {stateVar, fnParamTYPE},
+		TYPENAME:   {stateVar, fnParamType},
 		COMMA:      {stateVarType, fnNothing},
 		UNKNOWN:    {errVarType, fnError},
 	}

@@ -15,6 +15,7 @@ func TestVM_Compile(t *testing.T) {
 	file, _ := os.ReadFile("../examples/scope.sim")
 	expr, _ := os.ReadFile("../examples/expr.sim")
 	stack, _ := os.ReadFile("../examples/stack.sim")
+	callfn, _ := os.ReadFile("../examples/callfn.sim")
 	tests := []struct {
 		name    string
 		method  string
@@ -29,24 +30,34 @@ func TestVM_Compile(t *testing.T) {
 		{"case_expr_logic", "operand_logic", []rune(string(expr)), assert.NoError},
 		{"case_expr_bit", "operand_bit", []rune(string(expr)), assert.NoError},
 		{"case_expr_comparison", "operand_comparison", []rune(string(expr)), assert.NoError},
+		{"case_callfn", "@1ABC.conditions", []rune(string(callfn)), assert.NoError},
 	}
-	limit := int64(2200)
+	limit := int64(2700)
 	extend := map[string]any{
-		Extend_txcost:     limit,
-		Extend_gen_block:  true,
-		Extend_time_limit: int64(1000),
+		ExtendTxCost:    limit,
+		ExtendGenBlock:  true,
+		ExtendTimeLimit: int64(1000),
+		"extFn": func(a1, a2 int64, a ...int64) int64 {
+			fmt.Println("extFn", a1, a2, a)
+			return 2323
+		},
+		"pop": 234,
 	}
 	start := time.Now()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vm := GetVM()
+			vm := NewVM()
 			vm.SetExtendCost(getcost)
 			tt.wantErr(t, vm.Compile(tt.args, compile.NewExtendData(&compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}, obj, []string{"key_id"})))
 			//func|contract|golang func
-			t.Error(vm.Call(tt.method, nil, extend))
+			ret, err := vm.Call(tt.method, nil, extend)
+			if err != nil {
+				t.Error(err)
+			}
+			t.Log(ret)
 		})
 	}
-	fmt.Println("time used", time.Since(start), limit-extend[Extend_txcost].(int64))
+	fmt.Println("time used:", time.Since(start), "gas:", limit-extend[ExtendTxCost].(int64))
 }
 
 func getcost(name string) int64 {

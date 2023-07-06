@@ -185,6 +185,33 @@ var KeywordValue = map[string]Token{
 	`...`:        TAIL,
 	`error`:      ERROR,
 }
+var KeywordStr = map[Token]string{
+	CONTRACT:   `contract`,
+	FUNC:       `func`,
+	RETURN:     `return`,
+	IF:         `if`,
+	ELIF:       `elif`,
+	ELSE:       `else`,
+	WHILE:      `while`,
+	TRUE:       `true`,
+	FALSE:      `false`,
+	VAR:        `var`,
+	TX:         `data`,
+	SETTINGS:   `settings`,
+	BREAK:      `break`,
+	CONTINUE:   `continue`,
+	ERRWARNING: `warning`,
+	ERRINFO:    `info`,
+	NIL:        `nil`,
+	ACTION:     `action`,
+	CONDITIONS: `conditions`,
+	TAIL:       `...`,
+	ERROR:      `error`,
+}
+
+func Keyword2Str(t Token) string {
+	return KeywordStr[t]
+}
 
 // data types for parameters and variables for Type.
 const (

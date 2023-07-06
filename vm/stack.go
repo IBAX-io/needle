@@ -88,15 +88,18 @@ func (s *Stack) pop() (ret any) {
 
 func (s *Stack) popN(n int) []any {
 	sLen := len(s.element)
-	var el []any
-	el = s.element[sLen-n:]
-	s.element = s.element[:sLen-n]
-
-	//reverse to make sure the order
-	for i, j := 0, len(el)-1; i < j; i, j = i+1, j-1 {
-		el[i], el[j] = el[j], el[i]
+	if sLen < n {
+		n = sLen
 	}
-	return el
+	elem := s.element[sLen-n:]
+	s.element = s.element[:sLen-n]
+	ret := make([]any, n)
+	copy(ret, elem)
+	//reverse to make sure the order
+	//for i, j := 0, len(ret)-1; i < j; i, j = i+1, j-1 {
+	//	ret[i], ret[j] = ret[j], ret[i]
+	//}
+	return ret
 }
 
 func (s *Stack) swap(n int) {

@@ -24,6 +24,20 @@ func (l *Lexeme) GetLogger() *log.Entry {
 	return log.WithFields(log.Fields{"lex_type": l.Type, "lex_line": l.Line, "lex_column": l.Column})
 }
 
+func (l *Lexeme) Position() string {
+	var s string
+	if l.Line != 0 {
+		s += fmt.Sprintf("%d", l.Line)
+	}
+	if l.Column != 0 {
+		s += fmt.Sprintf(":%d", l.Column)
+	}
+	if s == "" {
+		s = "-"
+	}
+	return s
+}
+
 type ifBuf struct {
 	count int
 	pair  int
@@ -95,7 +109,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 			case SYSTEM:
 				ch := input[lexOffset]
 				tk = system2Token[ch]
-				value = ch
+				value = string(ch)
 				if len(ifbuf) > 0 {
 					if ch == '{' {
 						ifbuf[len(ifbuf)-1].pair++
@@ -156,9 +170,9 @@ func NewLexer(input []rune) (Lexemes, error) {
 							return nil, fmt.Errorf(`expected statement, found '%s' [%d:%d]`, name, line, lexOffset-offline+1)
 						}
 						lexemes = append(lexemes,
-							NewLexeme(ELSE, ELSE, line, lexOffset-offline+1),
-							NewLexeme(LBRACE, LBRACE, line, lexOffset-offline+1))
-						tk, value = IF, IF
+							NewLexeme(ELSE, Keyword2Str(ELSE), line, lexOffset-offline+1),
+							NewLexeme(LBRACE, Keyword2Str(LBRACE), line, lexOffset-offline+1))
+						tk, value = IF, Keyword2Str(IF)
 						ifbuf[len(ifbuf)-1].count++
 					case ACTION, CONDITIONS:
 						if len(lexemes) == 0 {
@@ -166,7 +180,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 						}
 						lexf := lexemes[len(lexemes)-1]
 						if lexf.Type&0xff != KEYWORD || lexf.Value.(Token) != FUNC {
-							lexemes = append(lexemes, NewLexeme(FUNC, FUNC, line, lexOffset-offline+1))
+							lexemes = append(lexemes, NewLexeme(FUNC, Keyword2Str(FUNC), line, lexOffset-offline+1))
 						}
 						value = name
 					case TRUE:
@@ -179,7 +193,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 						if keyID == IF {
 							ifbuf = append(ifbuf, ifBuf{})
 						}
-						tk, value = keyID, keyID
+						tk, value = keyID, Keyword2Str(keyID)
 					}
 				} else if tInfo, ok := TypeNameReflect[TypeNameValue[name]]; ok {
 					tk, value = TYPENAME, tInfo
