@@ -55,24 +55,6 @@ func (c *instructionCtx) popLabel() int {
 var instructionTable = make(map[compile.CmdT]instruction)
 
 func init() {
-	loadInstruction()
-}
-
-func loadInstruction() {
-	instructionTable[compile.CmdVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ivar := code.Value.(*compile.VarInfo)
-		var i int
-		for i = len(rt.blocks) - 1; i >= 0; i-- {
-			if ivar.Owner == rt.blocks[i].Block {
-				rt.stack.push(rt.vars[rt.blocks[i].Offset+ivar.Obj.GetVariable().Index])
-				break
-			}
-		}
-		if i < 0 {
-			err = fmt.Errorf(`wrong var %v`, ivar.Obj.Value)
-		}
-		return
-	}
 	for i := compile.CmdExtend; i <= compile.CmdCallExtend; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			if err = rt.SubCost(CostExtend); err != nil {
@@ -84,7 +66,12 @@ func loadInstruction() {
 				return
 			}
 			if code.Cmd == compile.CmdCallExtend {
-				err = rt.extendFunc(code.Value.(string))
+				var hasAssign bool
+				if ctx.ci+1 <= len(rt.peekBlock().Block.Code)-1 {
+					nextCode := rt.peekBlock().Block.Code[ctx.ci+1]
+					hasAssign = nextCode.Cmd == compile.CmdAssign || nextCode.Cmd == compile.CmdSetIndex
+				}
+				err = rt.extendFunc(code.Value.(string), hasAssign)
 				if err != nil {
 					err = fmt.Errorf(`extend function %v %s`, code.Value, err)
 				}
@@ -122,7 +109,7 @@ func loadInstruction() {
 			var hasAssign bool
 			if ctx.ci+1 <= len(rt.peekBlock().Block.Code)-1 {
 				nextCode := rt.peekBlock().Block.Code[ctx.ci+1]
-				hasAssign = nextCode.Cmd == compile.CmdAssign
+				hasAssign = nextCode.Cmd == compile.CmdAssign || nextCode.Cmd == compile.CmdSetIndex
 			}
 			err = rt.callFunc(code.Value.(*compile.ObjInfo), hasAssign)
 			return
@@ -229,6 +216,7 @@ func loadInstruction() {
 		ctx.labels = append(ctx.labels, ctx.ci)
 		return
 	}
+
 	instructionTable[compile.CmdContinue] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		status = statusContinue
 		return
@@ -293,7 +281,25 @@ func loadInstruction() {
 		}
 		return
 	}
+	instructionTable[compile.CmdVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		ivar := code.Value.(*compile.VarInfo)
+		var i int
+		for i = len(rt.blocks) - 1; i >= 0; i-- {
+			if ivar.Owner == rt.blocks[i].Block {
+				rt.stack.push(rt.vars[rt.blocks[i].Offset+ivar.Obj.GetVariable().Index])
+				break
+			}
+		}
+		if i < 0 {
+			err = fmt.Errorf(`wrong var %v`, ivar.Obj.Value)
+		}
+		return
+	}
 	instructionTable[compile.CmdSetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		if err = rt.stack.CheckDepth(3); err != nil {
+			return 0, err
+		}
+
 		value := rt.stack.pop()
 		key := rt.stack.pop()
 		indextype := rt.stack.pop()
@@ -317,18 +323,18 @@ func loadInstruction() {
 		case itype == `*compile.Map`:
 			if indextype.(*compile.Map).Size() > MaxMapCount {
 				err = errMaxMapCount
-				break
+				return
 			}
 			if rkt != `string` {
 				err = fmt.Errorf(eMapIndex, rkt)
-				break
+				return
 			}
 			indextype.(*compile.Map).Set(key.(string), value)
 			rt.stack.push(indextype)
 		case itype[:2] == brackets:
 			if rkt != `int64` {
 				err = fmt.Errorf(eArrIndex, rkt)
-				break
+				return
 			}
 			ind := key.(int64)
 			if strings.Contains(itype, Interface) {
@@ -336,7 +342,7 @@ func loadInstruction() {
 				if int(ind) >= len(slice) {
 					if ind > MaxArrayIndex {
 						err = errMaxArrayIndex
-						break
+						return
 					}
 					slice = append(slice, make([]any, int(ind)-len(slice)+1)...)
 					if indexInfo.Owner == nil { // Extend variable $varname
@@ -346,17 +352,18 @@ func loadInstruction() {
 					}
 				}
 				slice[ind] = value
-				rt.stack.push(slice)
+				//rt.stack.push(slice)
 			} else {
 				slice := indextype.([]map[string]string)
 				slice[ind] = value.(map[string]string)
-				rt.stack.push(slice)
+				//rt.stack.push(slice)
 			}
 		default:
 			err = fmt.Errorf(`type %s doesn't support indexing`, itype)
+			return
 		}
 		if indexInfo.Owner == nil {
-			rt.recalcMemExtendVar(indexInfo.Extend)
+			rt.recalculateMemExtendVar(indexInfo.Extend)
 		} else {
 			rt.recalculateMemVar(indexKey)
 		}

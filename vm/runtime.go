@@ -397,16 +397,17 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 	return
 }
 
-func (rt *Runtime) extendFunc(name string) error {
+func (rt *Runtime) extendFunc(name string, hasAssign bool) error {
 	f, ok := rt.extend[name]
 	foo := reflect.ValueOf(f)
 	if !ok || foo.Kind() != reflect.Func {
 		return fmt.Errorf(`unknown function %s`, name)
 	}
-	size := rt.stack.size()
 	variadic := foo.Type().IsVariadic()
 	count := foo.Type().NumIn()
 	last := count
+	stack := rt.stack.popN(count)
+	size := len(stack)
 	if variadic {
 		last--
 		if size < last {
@@ -417,7 +418,6 @@ func (rt *Runtime) extendFunc(name string) error {
 			return fmt.Errorf("expected %d, got %d", count, size)
 		}
 	}
-	stack := rt.stack.peekN(size)
 	var result []reflect.Value
 	pars := make([]reflect.Value, count)
 	var lastType reflect.Type
@@ -481,13 +481,12 @@ func (rt *Runtime) extendFunc(name string) error {
 		result = foo.Call(pars)
 	}
 
-	rt.stack.popN(size)
 	for i, ret := range result {
 		if foo.Type().Out(i).String() == `error` {
 			if ret.Interface() != nil {
 				return ret.Interface().(error)
 			}
-		} else {
+		} else if hasAssign {
 			rt.stack.push(ret.Interface())
 		}
 	}
@@ -496,10 +495,10 @@ func (rt *Runtime) extendFunc(name string) error {
 
 func (rt *Runtime) setExtendVar(k string, v any) {
 	rt.extend[k] = v
-	rt.recalcMemExtendVar(k)
+	rt.recalculateMemExtendVar(k)
 }
 
-func (rt *Runtime) recalcMemExtendVar(k string) {
+func (rt *Runtime) recalculateMemExtendVar(k string) {
 	mem := calcMem(rt.extend[k])
 	rt.mem += mem - rt.memVars[k]
 	rt.memVars[k] = mem

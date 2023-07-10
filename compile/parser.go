@@ -489,7 +489,7 @@ main:
 		bytecode.push(buffer[i])
 	}
 	if setIndex {
-		bytecode.push(newByteCode(CmdSetIndex, &Lexeme{Line: bytecode.peek().Lexeme.Line}, indexInfo))
+		bytecode.push(newByteCode(CmdSetIndex, &Lexeme{Line: bytecode[len(bytecode)-1].Lexeme.Line}, indexInfo))
 	}
 	curBlock.Code = append(curBlock.Code, bytecode...)
 	return nil
