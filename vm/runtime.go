@@ -188,16 +188,11 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 			err = ErrVMTimeLimit
 			break
 		}
-
 		if rt.mem > MemoryLimit {
 			err = ErrMemoryLimit
 			break
 		}
-
 		cmd = block.Code[ctx.ci]
-		ctx.isContinue = false
-		ctx.isBreak = false
-
 		instruction, ok := instructionTable[cmd.Cmd]
 		if !ok {
 			err = fmt.Errorf(`unknown command '%s'`, cmd.Cmd)
@@ -207,13 +202,6 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		if err != nil {
 			break
 		}
-		if ctx.isContinue {
-			continue
-		}
-		if ctx.isBreak {
-			break
-		}
-
 		if status == statusReturn || status == statusContinue || status == statusBreak {
 			break
 		}

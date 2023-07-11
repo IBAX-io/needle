@@ -29,11 +29,9 @@ const (
 type instruction func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error)
 
 type instructionCtx struct {
-	ci         int
-	isContinue bool
-	isBreak    bool
-	labels     []int
-	assignVar  []*compile.VarInfo
+	ci        int
+	labels    []int
+	assignVar []*compile.VarInfo
 }
 
 func newInstructionCtx() *instructionCtx {
@@ -222,20 +220,17 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdWhile] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if valueToBool(rt.stack.pop()) {
-			status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
-			newci := ctx.popLabel()
-			if status == statusContinue {
-				ctx.ci = newci - 1
-				status = statusNormal
-				ctx.isContinue = true
-				return
-			}
-			if status == statusBreak {
-				status = statusNormal
-				ctx.isBreak = true
-				return
-			}
+		if !valueToBool(rt.stack.pop()) {
+			return
+		}
+		status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
+		newci := ctx.popLabel()
+		if status == statusContinue {
+			ctx.ci = newci - 1
+			status = statusNormal
+		}
+		if status == statusBreak {
+			status = statusNormal
 		}
 		return
 	}
@@ -295,6 +290,7 @@ func init() {
 		}
 		return
 	}
+
 	instructionTable[compile.CmdSetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if err = rt.stack.CheckDepth(3); err != nil {
 			return 0, err
