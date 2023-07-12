@@ -160,7 +160,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}()
 	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
 	var names map[string][]any
-	if block.Type == compile.ObjFunc && block.GetFuncInfo().HasNames() {
+	if block.Type == compile.ObjFunc && block.GetFuncInfo().HasTails() {
 		ret := rt.stack.pop()
 		if ret != nil {
 			names, _ = ret.(map[string][]any)
@@ -270,7 +270,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 	if obj.Type == compile.ObjFunc {
 		var imap map[string][]any
 		finfo := obj.GetFuncInfo()
-		if finfo.HasNames() {
+		if finfo.HasTails() {
 			imap, _ = rt.stack.pop().(map[string][]any)
 		}
 		if variadic {
@@ -300,7 +300,7 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 				return fmt.Errorf("func '%s' param '%v' (type %T) cannot be represented by the type %s", finfo.Name, stack, stack, v)
 			}
 		}
-		if finfo.HasNames() {
+		if finfo.HasTails() {
 			rt.stack.push(imap)
 		}
 		_, err = rt.RunCode(obj.GetCodeBlock())
@@ -585,7 +585,7 @@ func (rt *Runtime) addVarBy(block *compile.CodeBlock) {
 func (rt *Runtime) setVarBy(block *compile.CodeBlock, names map[string][]any) error {
 	varoff := len(rt.vars) - len(block.Vars)
 	for key, item := range names {
-		params := block.GetFuncInfo().Names[key]
+		params := block.GetFuncInfo().Tails[key]
 		for i, value := range item {
 			var ind int
 			if params.Variadic && i >= len(params.Params)-1 {

@@ -170,7 +170,7 @@ func (bc *CodeBlock) IsParentContract() bool {
 type ByteCode struct {
 	Cmd    CmdT
 	Lexeme *Lexeme
-	//FuncNameCmd
+	//FuncTailCmd
 	//*ObjInfo
 	//uint16
 	//*IndexInfo

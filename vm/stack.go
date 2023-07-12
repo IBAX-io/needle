@@ -1,6 +1,11 @@
 package vm
 
-import "github.com/IBAX-io/needle/compile"
+import (
+	"github.com/IBAX-io/needle/compile"
+	"github.com/pkg/errors"
+)
+
+var ErrStackUnderFlow = errors.New("stack under flow")
 
 type Stack struct {
 	element []any
@@ -16,6 +21,13 @@ func (s *Stack) Stack() []any {
 
 func (s *Stack) size() int {
 	return len(s.element)
+}
+
+func (s *Stack) CheckDepth(min int) error {
+	if s.size() < min {
+		return ErrStackUnderFlow
+	}
+	return nil
 }
 
 func (s *Stack) set(ind int, d any) {

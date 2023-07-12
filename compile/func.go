@@ -35,7 +35,7 @@ func fnError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if lexeme.Type == NEWLINE {
 		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, err, lexeme.Line-1)
 	}
-	return fmt.Errorf(`%s %s %v [%d:%d]`, err, lexeme.Type, lexeme.Value, lexeme.Line, lexeme.Column)
+	return fmt.Errorf(`%s %s %v [%s]`, err, lexeme.Type, lexeme.Value, lexeme.Position())
 }
 
 // StateName checks the name of the contract and modifies it to @[state]name if it is necessary.
@@ -47,7 +47,9 @@ func StateName(state uint32, name string) string {
 	}
 	return name
 }
-func fnNameBlock(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+
+// fnDeclBlock is the function for the block declaration.
+func fnDeclBlock(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	var itype ObjectType
 	prev := (*buf)[len(*buf)-2]
 	fblock := buf.peek()
@@ -112,17 +114,17 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	}
 
 	fblock := block.GetFuncInfo()
-	if !fblock.HasNames() {
+	if !fblock.HasTails() {
 		fblock.Params = append(fblock.Params, reflect.TypeOf(nil))
 		return nil
 	}
-	for name, f := range fblock.Names {
+	for name, f := range fblock.Tails {
 		if f.Decl {
 			continue
 		}
-		params := append(fblock.Names[name].Params, reflect.TypeOf(nil))
-		offset := append(fblock.Names[name].Offset, len(block.Vars)-1)
-		fblock.Names[name] = FuncName{Name: f.Name, Params: params, Offset: offset}
+		params := append(fblock.Tails[name].Params, reflect.TypeOf(nil))
+		offset := append(fblock.Tails[name].Offset, len(block.Vars)-1)
+		fblock.Tails[name] = FuncTail{Name: f.Name, Params: params, Offset: offset}
 	}
 	return nil
 }
@@ -140,7 +142,7 @@ func fnParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return nil
 	}
 	fblock := block.GetFuncInfo()
-	if !fblock.HasNames() {
+	if !fblock.HasTails() {
 		for pkey, param := range fblock.Params {
 			if param == reflect.TypeOf(nil) {
 				fblock.Params[pkey] = rtp
@@ -149,13 +151,13 @@ func fnParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return nil
 	}
 
-	for key, f := range fblock.Names {
+	for key, f := range fblock.Tails {
 		if f.Decl {
 			continue
 		}
-		for pkey, param := range fblock.Names[key].Params {
+		for pkey, param := range fblock.Tails[key].Params {
 			if param == reflect.TypeOf(nil) {
-				fblock.Names[key].Params[pkey] = rtp
+				fblock.Tails[key].Params[pkey] = rtp
 			}
 		}
 	}
@@ -163,21 +165,21 @@ func fnParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	return nil
 }
 
-// fnNameTail the name of the tail function.
-func fnNameTail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+// fnDeclTail the name of the tail function.
+func fnDeclTail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if err := canIdent(lexeme.Value.(string)); err != nil {
 		return err
 	}
 
 	fblock := buf.peek().GetFuncInfo()
-	if !fblock.HasNames() {
-		fblock.Names = make(map[string]FuncName)
+	if !fblock.HasTails() {
+		fblock.Tails = make(map[string]FuncTail)
 	}
-	if _, ok := fblock.Names[lexeme.Value.(string)]; ok {
+	if _, ok := fblock.Tails[lexeme.Value.(string)]; ok {
 		return fmt.Errorf("tail func redeclared '%s'", lexeme.Value)
 	}
-	for k, name := range fblock.Names {
-		fblock.Names[k] = FuncName{
+	for k, name := range fblock.Tails {
+		fblock.Tails[k] = FuncTail{
 			Name:     name.Name,
 			Params:   name.Params,
 			Offset:   name.Offset,
@@ -185,7 +187,7 @@ func fnNameTail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			Decl:     true,
 		}
 	}
-	fblock.Names[lexeme.Value.(string)] = FuncName{
+	fblock.Tails[lexeme.Value.(string)] = FuncTail{
 		Name:   lexeme.Value.(string),
 		Params: make([]reflect.Type, 0),
 		Offset: make([]int, 0),
@@ -203,7 +205,7 @@ func fnTailParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		}
 	}
 	var used bool
-	if !fblock.HasNames() {
+	if !fblock.HasTails() {
 		for pkey, param := range fblock.Params {
 			if param == reflect.TypeOf(nil) {
 				if used {
@@ -217,23 +219,23 @@ func fnTailParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return nil
 	}
 
-	for name, f := range fblock.Names {
+	for name, f := range fblock.Tails {
 		if f.Decl {
 			continue
 		}
-		for pkey, param := range fblock.Names[name].Params {
+		for pkey, param := range fblock.Tails[name].Params {
 			if param == reflect.TypeOf(nil) {
 				if used {
 					return fmt.Errorf("... parameter must be one")
 				}
-				fblock.Names[name].Params[pkey] = reflect.TypeOf([]any{})
+				fblock.Tails[name].Params[pkey] = reflect.TypeOf([]any{})
 				used = true
 			}
 		}
-		offset := append(fblock.Names[name].Offset, len(block.Vars))
-		fblock.Names[name] = FuncName{
+		offset := append(fblock.Tails[name].Offset, len(block.Vars))
+		fblock.Tails[name] = FuncTail{
 			Name:     f.Name,
-			Params:   fblock.Names[name].Params,
+			Params:   fblock.Tails[name].Params,
 			Offset:   offset,
 			Variadic: true,
 		}

@@ -84,14 +84,14 @@ type (
 		Params  []reflect.Type
 		Results []reflect.Type
 		//tail function
-		Names    map[string]FuncName
+		Tails    map[string]FuncTail
 		Variadic bool
 		ID       uint32
 		CanWrite bool // If the function can update DB
 	}
 
-	// FuncName is storing param of FuncName
-	FuncName struct {
+	// FuncTail is storing param of FuncTail
+	FuncTail struct {
 		Name     string
 		Params   []reflect.Type
 		Offset   []int
@@ -99,10 +99,10 @@ type (
 		Decl     bool
 	}
 
-	// FuncNameCmd for cmdFuncName
-	FuncNameCmd struct {
+	// FuncTailCmd for CmdFuncTail
+	FuncTailCmd struct {
 		Count    int
-		FuncName FuncName
+		FuncTail FuncTail
 	}
 
 	// ObjInfo is the common object type
@@ -311,10 +311,10 @@ func (e *FuncInfo) ParamsCount() int {
 	return count
 }
 
-func (e *FuncInfo) HasNames() bool {
-	return e.Names != nil
+func (e *FuncInfo) HasTails() bool {
+	return e.Tails != nil
 }
 
-func (f FuncName) IsParamEmpty(i int) bool {
+func (f FuncTail) IsParamEmpty(i int) bool {
 	return f.Params[i] == reflect.TypeOf(nil)
 }

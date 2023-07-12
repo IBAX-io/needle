@@ -239,6 +239,9 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdGetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		if err = rt.stack.CheckDepth(2); err != nil {
+			return
+		}
 		ind := rt.stack.pop()
 		value := rt.stack.pop()
 		rv := reflect.ValueOf(value)
@@ -369,13 +372,17 @@ func init() {
 		rt.stack.push(code.Value)
 		return
 	}
-	instructionTable[compile.CmdFuncName] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		f := code.Value.(compile.FuncNameCmd)
+	instructionTable[compile.CmdFuncTail] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		f := code.Value.(compile.FuncTailCmd)
 		off := rt.stack.size() - f.Count
 		if off < 0 {
-			err = fmt.Errorf("not enough stack to assign for tail function '%v'", f.FuncName.Name)
+			err = fmt.Errorf("not enough stack to assign for tail function '%v'", f.FuncTail.Name)
 			return
 		}
+		if err = rt.stack.CheckDepth(f.Count + 1); err != nil {
+			return
+		}
+
 		params := rt.stack.popN(f.Count)
 		names := rt.stack.pop()
 		if names == nil {
@@ -386,7 +393,7 @@ func init() {
 			params = append(params[:len(params)-1], params[len(params)-1].([]any)...)
 			rt.unwrap = false
 		}
-		names.(map[string][]any)[f.FuncName.Name] = params
+		names.(map[string][]any)[f.FuncTail.Name] = params
 		rt.stack.push(names)
 		return
 	}

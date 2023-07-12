@@ -35,7 +35,7 @@ const (
 	CmdBreak                        // break
 	CmdGetIndex                     // get index []
 	CmdSetIndex                     // set index []
-	CmdFuncName                     // set func name Func(...).Name(...)
+	CmdFuncTail                     // set func tail Func(...).tail(...)
 	CmdUnwrapArr                    // unwrap array to stack
 	CmdMapInit                      // map initialization
 	CmdArrayInit                    // array initialization
@@ -105,7 +105,7 @@ var cmdName = map[CmdT]string{
 	CmdBreak:        `BREAK`,
 	CmdGetIndex:     `INDEX`,
 	CmdSetIndex:     `SETINDEX`,
-	CmdFuncName:     `FUNCNAME`,
+	CmdFuncTail:     `FUNCTAIL`,
 	CmdUnwrapArr:    `UNWRAPARR`,
 	CmdMapInit:      `MAPINIT`,
 	CmdArrayInit:    `ARRAYINIT`,

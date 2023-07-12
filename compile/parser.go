@@ -2,6 +2,9 @@ package compile
 
 import (
 	"fmt"
+	"reflect"
+	"runtime"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -23,87 +26,84 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 
 	curState := stateRoot
 	stateStack := make([]stateType, 0)
-	blocksStack := make(CodeBlocks, 1)
-	blocksStack[0] = root
+	blocks := make(CodeBlocks, 1)
+	blocks[0] = root
 	fork := 0
 
 	for i := 0; i < len(lexemes); i++ {
-		var (
-			newState compileState
-			ok       bool
-		)
 		lexeme := lexemes[i]
-		if newState, ok = stateTable[curState][lexeme.Type]; !ok {
-			newState = stateTable[curState][0]
+		comps, ok := stateTable[curState][lexeme.Type]
+		if !ok {
+			comps = stateTable[curState][0]
 		}
 
-		nextState := newState.nextState & 0xff
-		if newState.hasState(stateFork) {
+		nextState := comps.next & 0xff
+		if comps.hasState(stateFork) {
 			fork = i
 		}
-		if newState.hasState(stateToFork) {
+		if comps.hasState(stateToFork) {
 			i = fork
 			fork = 0
 			lexeme = lexemes[i]
 		}
-		if newState.hasState(stateStay) {
+		if comps.hasState(stateStay) {
 			curState = nextState
 			i--
 			continue
 		}
 		if nextState == stateEval {
-			if newState.hasState(stateLabel) {
-				blocksStack.peek().Code.push(newByteCode(CmdLabel, lexeme, 0))
+			if comps.hasState(stateLabel) {
+				blocks.peek().Code.push(newByteCode(CmdLabel, lexeme, 0))
 			}
 
-			curlen := len(blocksStack.peek().Code)
-			if err := parserEval(&lexemes, &i, &blocksStack); err != nil {
-				return nil, fmt.Errorf("parser eval: %s [%d:%d]", err, lexemes[i].Line, lexemes[i].Column)
+			curlen := len(blocks.peek().Code)
+			if err := parserEval(&lexemes, &i, &blocks); err != nil {
+				return nil, fmt.Errorf("parser eval: %s [%s]", err, lexemes[i].Position())
 			}
-			if (newState.nextState&stateMustEval) > 0 && curlen == len(blocksStack.peek().Code) {
+			if (comps.next&stateMustEval) > 0 && curlen == len(blocks.peek().Code) {
 				return nil, fmt.Errorf("there is not eval expression")
 			}
 
 			nextState = curState
 		}
-		if newState.hasState(statePush) {
+		if comps.hasState(statePush) {
 			stateStack = append(stateStack, curState)
-			top := blocksStack.peek()
-			block := &CodeBlock{Objects: make(map[string]*ObjInfo), Parent: top}
-			top.Children.push(block)
-			blocksStack.push(block)
+			parent := blocks.peek()
+			block := &CodeBlock{Objects: make(map[string]*ObjInfo), Parent: parent}
+			parent.Children.push(block)
+			blocks.push(block)
 		}
 
-		if newState.hasState(statePop) {
+		if comps.hasState(statePop) {
 			if len(stateStack) == 0 {
-				return nil, fnError(&blocksStack, errMustLCurly, lexeme)
+				return nil, fnError(&blocks, errMustLBRACE, lexeme)
 			}
-			nextState = stateStack[len(stateStack)-1]
-			stateStack = stateStack[:len(stateStack)-1]
-			if len(blocksStack) >= 2 {
-				prev := blocksStack.get(len(blocksStack) - 2)
+			nextState, stateStack = stateStack[len(stateStack)-1], stateStack[:len(stateStack)-1]
+			if len(blocks) >= 2 {
+				prev := blocks.get(len(blocks) - 2)
 				if len(prev.Code) > 0 && (*prev).Code[len((*prev).Code)-1].Cmd == CmdContinue {
 					(*prev).Code = (*prev).Code[:len((*prev).Code)-1]
-					prev = blocksStack.peek()
+					prev = blocks.peek()
 					(*prev).Code.push(newByteCode(CmdContinue, lexeme, 0))
 				}
 			}
-			blocksStack = blocksStack[:len(blocksStack)-1]
+			blocks = blocks[:len(blocks)-1]
 		}
-		if newState.hasState(stateToBlock) {
+		if comps.hasState(stateToBlock) {
 			nextState = stateBlock
 		}
-		if newState.hasState(stateToBody) {
+		if comps.hasState(stateToBody) {
 			nextState = stateBody
 		}
-		if err := newState.fnHandle(&blocksStack, nextState, lexeme); err != nil {
+
+		if err := comps.fn(&blocks, nextState, lexeme); err != nil {
 			lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "nextState": nextState, "err": err, "lex_value": lexeme.Value}).Errorf("func handles")
 			return nil, fmt.Errorf("func handles: %s", err)
 		}
 		curState = nextState
 	}
 	if len(stateStack) > 0 {
-		return nil, fnError(&blocksStack, errMustRCurly, lexemes[len(lexemes)-1])
+		return nil, fnError(&blocks, errMustRBRACE, lexemes[len(lexemes)-1])
 	}
 	for _, item := range root.Objects {
 		if item.Type == ObjContract {
@@ -200,10 +200,10 @@ main:
 				continue
 			}
 
-			if prev := buffer.peek(); prev.Cmd == CmdFuncName {
+			if prev := buffer.peek(); prev.Cmd == CmdFuncTail {
 				buffer = buffer[:len(buffer)-1]
-				fn := prev.Value.(FuncNameCmd)
-				names := fn.FuncName
+				fn := prev.Value.(FuncTailCmd)
+				names := fn.FuncTail
 				wantlen := len(names.Params)
 				if names.Variadic {
 					wantlen--
@@ -231,15 +231,15 @@ main:
 				(objInfo.Type == ObjExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
 				setWritable(block)
 			}
-			if objInfo.Type == ObjFunc && objInfo.GetFuncInfo().HasNames() {
-				if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncName {
+			if objInfo.Type == ObjFunc && objInfo.GetFuncInfo().HasTails() {
+				if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncTail {
 					bytecode.push(newByteCode(CmdPush, lexeme, make(map[string][]any)))
 				}
 				if i < len(*lexemes)-4 && (*lexemes)[i+1].Type == DOT {
 					if (*lexemes)[i+2].Type != IDENTIFIER {
 						return fmt.Errorf(`must be the name of the tail`)
 					}
-					names := prev.Value.(*ObjInfo).GetFuncInfo().Names
+					names := prev.Value.(*ObjInfo).GetFuncInfo().Tails
 					if _, ok := names[(*lexemes)[i+2].Value.(string)]; !ok {
 						if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
 							objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
@@ -253,7 +253,7 @@ main:
 					}
 					if tail == nil {
 						v, _ := names[(*lexemes)[i+2].Value.(string)]
-						buffer.push(newByteCode(CmdFuncName, lexeme, FuncNameCmd{FuncName: v}))
+						buffer.push(newByteCode(CmdFuncTail, lexeme, FuncTailCmd{FuncTail: v}))
 						count := 0
 						if (*lexemes)[i+4].Type != RPAREN {
 							count++
