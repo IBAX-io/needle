@@ -10,7 +10,7 @@ import (
 type ObjectType int32
 
 const (
-	// ObjDefault is an unknown object.
+	// ObjDefault is an default object.
 	ObjDefault ObjectType = iota
 	// ObjContract is a contract object.
 	ObjContract
@@ -218,7 +218,7 @@ func (*CodeBlock) isObjInfoValue()                    {}
 func (*ExtFuncInfo) isObjInfoValue()                  {}
 func (*ObjInfoVariable) isObjInfoValue()              {}
 func (*ObjInfoExtendVariable) isObjInfoValue()        {}
-func (c *CodeBlock) ObjectType() ObjectType           { return c.Type }
+func (bc *CodeBlock) ObjectType() ObjectType          { return bc.Type }
 func (*ExtFuncInfo) ObjectType() ObjectType           { return ObjExtFunc }
 func (*ObjInfoVariable) ObjectType() ObjectType       { return ObjVar }
 func (*ObjInfoExtendVariable) ObjectType() ObjectType { return ObjExtVar }

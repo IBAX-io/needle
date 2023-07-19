@@ -1,15 +1,15 @@
 package compile
 
 import (
-	"log"
 	"reflect"
 )
 
 // ExtendData is used for the definition of the extended functions and variables
 type ExtendData struct {
-	Info   *OwnerInfo
-	Func   []ExtendFunc
-	PreVar []string
+	Info    *OwnerInfo
+	Func    []ExtendFunc
+	PreVar  []string
+	Objects map[string]*ObjInfo
 }
 
 type ExtendFunc struct {
@@ -19,11 +19,31 @@ type ExtendFunc struct {
 	AutoPars map[string]string
 }
 
-func NewExtendData(info *OwnerInfo, fns []ExtendFunc, vars []string) *ExtendData {
-	if info == nil {
-		info = &OwnerInfo{StateID: 1}
-	}
-	return &ExtendData{Info: info, Func: fns, PreVar: vars}
+type ExtendBuilder struct {
+	data ExtendData
+}
+
+func NewExtendBuilder() *ExtendBuilder {
+	return &ExtendBuilder{}
+}
+func (b *ExtendBuilder) SetInfo(info *OwnerInfo) *ExtendBuilder {
+	b.data.Info = info
+	return b
+}
+
+func (b *ExtendBuilder) SetPreVar(vars []string) *ExtendBuilder {
+	b.data.PreVar = vars
+	return b
+}
+
+func (b *ExtendBuilder) SetFunc(fns []ExtendFunc) *ExtendBuilder {
+	b.data.Func = fns
+	return b
+}
+
+func (b *ExtendBuilder) Build() *ExtendData {
+	b.data.Objects = make(map[string]*ObjInfo)
+	return &b.data
 }
 
 func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
@@ -35,10 +55,6 @@ func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
 		}
 	}
 	return objects
-}
-
-func (ext *ExtendData) MakePreVar() []string {
-	return ext.PreVar
 }
 
 func (item *ExtendFunc) MakeObj() *ObjInfo {
@@ -65,11 +81,11 @@ func (item *ExtendFunc) MakeObj() *ObjInfo {
 		}
 
 		for i := 0; i < fobj.NumOut(); i++ {
-			if fobj.Out(i).String() != "error" && fobj.Out(i).String() != "interface {}" {
-				if !SupportedType(fobj.Out(i)) {
-					log.Panicf("unsupported output type %s for function %s", fobj.Out(i), item.Name)
-				}
-			}
+			//if fobj.Out(i).String() != "error" {
+			//	if !SupportedType(fobj.Out(i)) {
+			//		log.Panicf("unsupported output type %s for function %s", fobj.Out(i), item.Name)
+			//	}
+			//}
 			data.Results[i] = fobj.Out(i)
 		}
 		obj = NewObjInfo(ObjExtFunc, data)

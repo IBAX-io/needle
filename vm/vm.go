@@ -2,7 +2,6 @@ package vm
 
 import (
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -13,8 +12,8 @@ import (
 )
 
 type GlobalVm struct {
-	mu      sync.Mutex
-	smartVM *VM
+	mu sync.Mutex
+	vm *VM
 }
 
 var (
@@ -23,7 +22,7 @@ var (
 
 func init() {
 	_vm = &GlobalVm{
-		smartVM: NewVM(),
+		vm: NewVM(),
 	}
 }
 
@@ -49,8 +48,8 @@ func NewVM() *VM {
 	var fn = []compile.ExtendFunc{
 		{Name: "Settings", Func: GetSettings, AutoPars: auto},
 		{Name: "MemoryUsage", Func: MemoryUsage, AutoPars: auto},
-		{"ExecContract", ExecContract, true, auto},
-		{"CallContract", CallContract, true, auto},
+		{Name: "ExecContract", Func: ExecContract, CanWrite: false, AutoPars: auto},
+		{Name: "CallContract", Func: CallContract, CanWrite: true, AutoPars: auto},
 		{Name: "Println", Func: func(a ...any) (int64, error) {
 			n, err := fmt.Println(a...)
 			return int64(n), err
@@ -63,7 +62,7 @@ func NewVM() *VM {
 		v = append(v, p)
 	}
 	vm := &VM{
-		CodeBlock:   compile.NewCodeBlock(compile.NewExtendData(nil, fn, v)),
+		CodeBlock:   compile.NewCodeBlock(compile.NewExtendBuilder().SetFunc(fn).SetPreVar(v).Build()),
 		Extern:      true,
 		FuncCallsDB: make(map[string]struct{}),
 		logger:      log.WithFields(log.Fields{"type": VMErr, "extern": true}),
@@ -75,7 +74,7 @@ func NewVM() *VM {
 func GetVM() *VM {
 	_vm.mu.Lock()
 	defer _vm.mu.Unlock()
-	return _vm.smartVM
+	return _vm.vm
 }
 
 var smartObjects map[string]*compile.ObjInfo
@@ -271,30 +270,24 @@ func (vm *VM) FlushExtern() {
 	return
 }
 
+func (vm *VM) extendData(ext *compile.ExtendData) *compile.ExtendData {
+	if ext == nil {
+		ext = &compile.ExtendData{
+			Objects: make(map[string]*compile.ObjInfo),
+		}
+	}
+	for s, info := range vm.Objects {
+		if ext != nil {
+			ext.Objects[s] = info
+		}
+	}
+	ext.PreVar = append(vm.PreVar, ext.PreVar...)
+	return ext
+}
+
 // Compile compiles a source code and loads the byte-code into the virtual machine,
 func (vm *VM) Compile(input []rune, ext *compile.ExtendData) error {
-	var d compile.ExtendData
-	for s, info := range vm.Objects {
-		if info.Type != compile.ObjExtFunc {
-			continue
-		}
-		var fn = compile.ExtendFunc{
-			Name:     s,
-			Func:     info.GetExtFuncInfo().Func,
-			CanWrite: info.GetExtFuncInfo().CanWrite,
-			AutoPars: make(map[string]string),
-		}
-		fobj := reflect.ValueOf(fn.Func).Type()
-		for i := 0; i < fobj.NumIn(); i++ {
-			if info.GetExtFuncInfo().Auto[i] != "" {
-				fn.AutoPars[fobj.In(i).String()] = info.GetExtFuncInfo().Auto[i]
-			}
-		}
-		d.Func = append(d.Func, fn)
-	}
-	ext.Func = append(d.Func, ext.Func...)
-	ext.PreVar = append(vm.PredeclaredVar, ext.PreVar...)
-	root, err := compile.CompileBlock(input, ext)
+	root, err := compile.CompileBlock(input, vm.extendData(ext))
 	if err != nil {
 		return err
 	}
@@ -329,6 +322,7 @@ func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 				shift--
 				continue
 			}
+
 			item.Parent = vm.CodeBlock
 			item.GetContractInfo().ID += uint32(shift)
 		case compile.ObjFunc:
@@ -349,7 +343,7 @@ func LoadSysFuncs(vm *VM, state int) error {
 	code := `
 func DBFind(table string).Select(query string).Columns(columns string).Where(where map)
 .WhereId(id int).Order(order string).Limit(limit int).Offset(offset int).Group(group string).All(all bool) array {
-        return DBSelect(table, columns, id, order, offset, limit, where, query, group, all)
+       return DBSelect(table, columns, id, order, offset, limit, where, query, group, all)
 }
 
 func One(list array, name string) string {
@@ -434,5 +428,5 @@ func CurrentKeyFromAccount(account string) int {
         return 0
 }
 `
-	return vm.Compile([]rune(code), compile.NewExtendData(&compile.OwnerInfo{StateID: uint32(state)}, nil, nil))
+	return vm.Compile([]rune(code), compile.NewExtendBuilder().SetInfo(&compile.OwnerInfo{StateID: uint32(state)}).Build())
 }

@@ -418,7 +418,7 @@ func fnFieldTag(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 
 func fnElse(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if buf.get(len(*buf)-2).Code.peek().Cmd != CmdIf {
-		return fmt.Errorf(`there is not if before %v [%d:%d]`, lexeme.Type, lexeme.Line, lexeme.Column)
+		return fmt.Errorf(`there is not if before %v [%s]`, lexeme.Type, lexeme.Position())
 	}
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdElse, lexeme, buf.peek()))
 	return nil

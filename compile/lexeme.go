@@ -38,15 +38,14 @@ func (l *Lexeme) Position() string {
 	return s
 }
 
-type ifBuf struct {
-	count int
-	pair  int
-	stop  bool
-}
-
 type Lexemes []*Lexeme
 
 func NewLexer(input []rune) (Lexemes, error) {
+	type ifBuf struct {
+		count int
+		pair  int
+		stop  bool
+	}
 	var (
 		curState, offline,
 		flag, start, off int

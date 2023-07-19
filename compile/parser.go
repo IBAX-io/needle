@@ -2,9 +2,6 @@ package compile
 
 import (
 	"fmt"
-	"reflect"
-	"runtime"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -19,7 +16,18 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			Info:   &OwnerInfo{StateID: 1},
 		}
 	}
-	root := NewCodeBlock(ext)
+	root := &CodeBlock{
+		Objects: make(map[string]*ObjInfo),
+		Type:    ext.Info.ObjectType(),
+		Info:    ext.Info,
+		PreVar:  ext.PreVar,
+	}
+	for s, info := range ext.Objects {
+		root.Objects[s] = info
+	}
+	for s, info := range ext.MakeExtFunc() {
+		root.Objects[s] = info
+	}
 	if len(lexemes) == 0 {
 		return root, nil
 	}
@@ -58,7 +66,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 
 			curlen := len(blocks.peek().Code)
 			if err := parserEval(&lexemes, &i, &blocks); err != nil {
-				return nil, fmt.Errorf("parser eval: %s [%s]", err, lexemes[i].Position())
+				return nil, fmt.Errorf("parser eval: %s", err)
 			}
 			if (comps.next&stateMustEval) > 0 && curlen == len(blocks.peek().Code) {
 				return nil, fmt.Errorf("there is not eval expression")
@@ -390,7 +398,7 @@ main:
 			noMap = true
 			objInfo, tobj := findObj(lexeme.Value.(string), block)
 			if objInfo == nil && (!extern || i > *ind || i >= len(*lexemes)-2 || (*lexemes)[i+1].Type != LPAREN) {
-				return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%d:%d]`, lexeme.Value, lexeme.Line, lexeme.Column))
+				return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 			}
 			if i < len(*lexemes)-2 {
 				if (*lexemes)[i+1].Type == LPAREN {
@@ -414,7 +422,7 @@ main:
 						}
 						objInfo, tobj = findObj(`ExecContract`, block)
 						if objInfo == nil {
-							return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%d:%d]`, lexeme.Value, lexeme.Line, lexeme.Column))
+							return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 						}
 						isContract = true
 					}

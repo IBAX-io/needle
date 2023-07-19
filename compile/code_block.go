@@ -6,21 +6,24 @@ import (
 	"strings"
 )
 
-/* Byte code could be described as a tree where functions and contracts are on the top level and
+/*
+	Byte code could be described as a tree where functions and contracts are on the top level and
+
 nesting goes further according to nesting of bracketed. Tree nodes are structures of
 'CodeBlock' type. For instance,
- func a {
-	 if b {
-		 while d {
 
+	 func a {
+		 if b {
+			 while d {
+
+			 }
+		 }
+		 if c {
 		 }
 	 }
-	 if c {
-	 }
- }
- will be compiled into CodeBlock(a) which will have two child blocks CodeBlock (b) and CodeBlock (c) that
- are responsible for executing bytecode inside if. CodeBlock (b) will have a child CodeBlock (d) with
- a cycle.
+	 will be compiled into CodeBlock(a) which will have two child blocks CodeBlock (b) and CodeBlock (c) that
+	 are responsible for executing bytecode inside if. CodeBlock (b) will have a child CodeBlock (d) with
+	 a cycle.
 */
 
 // CodeBlock contains all information about compiled block {...} and its children
@@ -32,22 +35,23 @@ type CodeBlock struct {
 	//*ContractInfo
 	//*OwnerInfo
 	//or nil if the block is braced by {}, for example: if,else,while
-	Info           isCodeBlockInfo
-	Parent         *CodeBlock
-	Vars           []reflect.Type
-	Code           ByteCodes
-	PredeclaredVar []string
-	Children       CodeBlocks
+	Info   isCodeBlockInfo
+	Parent *CodeBlock
+	Vars   []reflect.Type
+	Code   ByteCodes
+	// PredeclaredVar is a list of variables that are declared in the block
+	PreVar   []string
+	Children CodeBlocks
 }
 
 func NewCodeBlock(ext *ExtendData) *CodeBlock {
 	return &CodeBlock{
 		Objects: ext.MakeExtFunc(),
 		// Reserved 256 indexes for system purposes
-		Children:       make(CodeBlocks, 256, 1024),
-		Type:           ext.Info.ObjectType(),
-		Info:           ext.Info,
-		PredeclaredVar: ext.MakePreVar(),
+		Children: make(CodeBlocks, 256, 1024),
+		Type:     ext.Info.ObjectType(),
+		Info:     ext.Info,
+		PreVar:   ext.PreVar,
 	}
 }
 
@@ -99,7 +103,7 @@ func (bc *CodeBlock) resolve(name string) (*CodeBlock, bool) {
 }
 
 func (bc *CodeBlock) AssertVar(name string) bool {
-	for _, s := range bc.PredeclaredVar {
+	for _, s := range bc.PreVar {
 		if s == name {
 			return true
 		}
@@ -164,6 +168,33 @@ func (bc *CodeBlock) IsParentContract() bool {
 		return true
 	}
 	return false
+}
+
+func (bc *CodeBlock) SetExtendFunc(ext []ExtendFunc) {
+	for _, item := range ext {
+		fobj := reflect.ValueOf(item.Func).Type()
+		switch fobj.Kind() {
+		case reflect.Func:
+			data := &ExtFuncInfo{
+				Name:     item.Name,
+				Params:   make([]reflect.Type, fobj.NumIn()),
+				Results:  make([]reflect.Type, fobj.NumOut()),
+				Auto:     make([]string, fobj.NumIn()),
+				Variadic: fobj.IsVariadic(),
+				Func:     item.Func,
+				CanWrite: item.CanWrite}
+			for i := 0; i < fobj.NumIn(); i++ {
+				if isauto, ok := item.AutoPars[fobj.In(i).String()]; ok {
+					data.Auto[i] = isauto
+				}
+				data.Params[i] = fobj.In(i)
+			}
+			for i := 0; i < fobj.NumOut(); i++ {
+				data.Results[i] = fobj.Out(i)
+			}
+			bc.Objects[item.Name] = &ObjInfo{Type: ObjExtFunc, Value: data}
+		}
+	}
 }
 
 // ByteCode stores a command and an additional parameter.
