@@ -9,7 +9,8 @@ type ExtendData struct {
 	Info    *OwnerInfo
 	Func    []ExtendFunc
 	PreVar  []string
-	Objects map[string]*ObjInfo
+	Objects map[string]*Object
+	Extern  bool
 }
 
 type ExtendFunc struct {
@@ -26,6 +27,7 @@ type ExtendBuilder struct {
 func NewExtendBuilder() *ExtendBuilder {
 	return &ExtendBuilder{}
 }
+
 func (b *ExtendBuilder) SetInfo(info *OwnerInfo) *ExtendBuilder {
 	b.data.Info = info
 	return b
@@ -41,13 +43,18 @@ func (b *ExtendBuilder) SetFunc(fns []ExtendFunc) *ExtendBuilder {
 	return b
 }
 
+func (b *ExtendBuilder) SetExtern(extern bool) *ExtendBuilder {
+	b.data.Extern = extern
+	return b
+}
+
 func (b *ExtendBuilder) Build() *ExtendData {
-	b.data.Objects = make(map[string]*ObjInfo)
+	b.data.Objects = make(map[string]*Object)
 	return &b.data
 }
 
-func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
-	objects := make(map[string]*ObjInfo)
+func (ext *ExtendData) MakeExtFunc() map[string]*Object {
+	objects := make(map[string]*Object)
 	for _, item := range ext.Func {
 		obj := item.MakeObj()
 		if obj != nil {
@@ -57,36 +64,31 @@ func (ext *ExtendData) MakeExtFunc() map[string]*ObjInfo {
 	return objects
 }
 
-func (item *ExtendFunc) MakeObj() *ObjInfo {
-	var obj *ObjInfo
-	fobj := reflect.ValueOf(item.Func).Type()
-	switch fobj.Kind() {
+func (item *ExtendFunc) MakeObj() *Object {
+	var obj *Object
+	f := reflect.ValueOf(item.Func).Type()
+	switch f.Kind() {
 	case reflect.Func:
 		data := &ExtFuncInfo{
 			Name:     item.Name,
-			Params:   make([]reflect.Type, fobj.NumIn()),
-			Results:  make([]reflect.Type, fobj.NumOut()),
-			Auto:     make([]string, fobj.NumIn()),
-			Variadic: fobj.IsVariadic(),
+			Params:   make([]reflect.Type, f.NumIn()),
+			Results:  make([]reflect.Type, f.NumOut()),
+			Auto:     make([]string, f.NumIn()),
+			Variadic: f.IsVariadic(),
 			Func:     item.Func,
 			CanWrite: item.CanWrite,
 		}
 
 		// populate Params, Auto, and Results
-		for i := 0; i < fobj.NumIn(); i++ {
-			if isauto, ok := item.AutoPars[fobj.In(i).String()]; ok {
+		for i := 0; i < f.NumIn(); i++ {
+			if isauto, ok := item.AutoPars[f.In(i).String()]; ok {
 				data.Auto[i] = isauto
 			}
-			data.Params[i] = fobj.In(i)
+			data.Params[i] = f.In(i)
 		}
 
-		for i := 0; i < fobj.NumOut(); i++ {
-			//if fobj.Out(i).String() != "error" {
-			//	if !SupportedType(fobj.Out(i)) {
-			//		log.Panicf("unsupported output type %s for function %s", fobj.Out(i), item.Name)
-			//	}
-			//}
-			data.Results[i] = fobj.Out(i)
+		for i := 0; i < f.NumOut(); i++ {
+			data.Results[i] = f.Out(i)
 		}
 		obj = NewObjInfo(ObjExtFunc, data)
 	}

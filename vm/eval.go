@@ -27,7 +27,7 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 		}`
 	}
 
-	block, err := compile.CompileBlock([]rune(source), compile.NewExtendBuilder().SetInfo(&compile.OwnerInfo{StateID: state}).Build())
+	block, err := compile.CompileBlock([]rune(source), vm.ExtendData(compile.NewExtendBuilder().SetInfo(&compile.OwnerInfo{StateID: state}).Build()))
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 }
 
 // EvalIf runs the conditional expression. It compiles the source code before that if that's necessary.
-func (vm *VM) EvalIf(input string, state uint32, maxCost int64, extend map[string]any) (bool, error) {
+func (vm *VM) EvalIf(input string, state uint32, extend map[string]any) (bool, error) {
 	if len(input) == 0 {
 		return true, nil
 	}
@@ -47,7 +47,7 @@ func (vm *VM) EvalIf(input string, state uint32, maxCost int64, extend map[strin
 			return false, err
 		}
 	}
-	ret, err := NewRuntime(vm, maxCost).Run(evals[crc].Code.Children[0], extend)
+	ret, err := NewRuntime(vm, extend).Run(evals[crc].Code.Children[0])
 	if err == nil {
 		if len(ret) == 0 {
 			return false, nil

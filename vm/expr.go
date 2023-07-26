@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+
 	"github.com/IBAX-io/needle/compile"
 	"github.com/shopspring/decimal"
 )
@@ -47,7 +48,7 @@ func evaluateCmd(x, y any, op compile.CmdT) (any, error) {
 	if f, ok := ops[op.String()]; ok {
 		z, err := f(x, y)
 		if err != nil {
-			return nil, fmt.Errorf("error evaluating %s: %v", op, err)
+			return nil, fmt.Errorf("error evaluating: %v", err)
 		}
 		return z, nil
 	}

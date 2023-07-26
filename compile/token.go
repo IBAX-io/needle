@@ -17,7 +17,7 @@ const (
 	SYSTEM           // Delimiters
 	OPERATOR         // Operators
 	NUMBER           // integer or float
-	IDENTIFIER       // IDENTIFIER, including KEYWORD,TYPENAME,EXTEND,
+	IDENTIFIER       // IDENTIFIER, including KEYWORD, TYPENAME, EXTEND
 	NEWLINE          // Line translation
 	LITERAL          // string or char
 	COMMENT          // Comment

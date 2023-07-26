@@ -6,8 +6,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var extern bool // extern is mode of compilation
-
 func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 	if ext == nil {
 		ext = &ExtendData{
@@ -17,7 +15,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		}
 	}
 	root := &CodeBlock{
-		Objects: make(map[string]*ObjInfo),
+		Objects: make(map[string]*Object),
 		Type:    ext.Info.ObjectType(),
 		Info:    ext.Info,
 		PreVar:  ext.PreVar,
@@ -65,7 +63,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			}
 
 			curlen := len(blocks.peek().Code)
-			if err := parserEval(&lexemes, &i, &blocks); err != nil {
+			if err := parserEval(&lexemes, &i, &blocks, ext.Extern); err != nil {
 				return nil, fmt.Errorf("parser eval: %s", err)
 			}
 			if (comps.next&stateMustEval) > 0 && curlen == len(blocks.peek().Code) {
@@ -77,7 +75,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		if comps.hasState(statePush) {
 			stateStack = append(stateStack, curState)
 			parent := blocks.peek()
-			block := &CodeBlock{Objects: make(map[string]*ObjInfo), Parent: parent}
+			block := &CodeBlock{Objects: make(map[string]*Object), Parent: parent}
 			parent.Children.push(block)
 			blocks.push(block)
 		}
@@ -125,7 +123,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 	return root, nil
 }
 
-func parserEval(lexemes *Lexemes, ind *int, block *CodeBlocks) error {
+func parserEval(lexemes *Lexemes, ind *int, block *CodeBlocks, extern bool) error {
 	var indexInfo *IndexInfo
 	i := *ind
 	curBlock := block.peek()
@@ -141,7 +139,6 @@ main:
 		var cmd *ByteCode
 		var call bool
 		lexeme := (*lexemes)[i]
-		logger := lexeme.GetLogger()
 		if !noMap {
 			if lexeme.Type == LBRACE {
 				pMap, err := getInitMap(lexemes, &i, block, false)
@@ -234,7 +231,7 @@ main:
 				continue
 			}
 
-			objInfo := prev.Value.(*ObjInfo)
+			objInfo := prev.Value.(*Object)
 			if (objInfo.Type == ObjFunc && objInfo.GetFuncInfo().CanWrite) ||
 				(objInfo.Type == ObjExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
 				setWritable(block)
@@ -247,7 +244,7 @@ main:
 					if (*lexemes)[i+2].Type != IDENTIFIER {
 						return fmt.Errorf(`must be the name of the tail`)
 					}
-					names := prev.Value.(*ObjInfo).GetFuncInfo().Tails
+					names := prev.Value.(*Object).GetFuncInfo().Tails
 					if _, ok := names[(*lexemes)[i+2].Value.(string)]; !ok {
 						if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
 							objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
@@ -274,19 +271,9 @@ main:
 			}
 			count := parcount[len(parcount)-1]
 			parcount = parcount[:len(parcount)-1]
-			if prev.Value.(*ObjInfo).Type == ObjExtFunc {
-				extFn := prev.Value.(*ObjInfo).GetExtFuncInfo()
+			if prev.Value.(*Object).Type == ObjExtFunc {
+				extFn := prev.Value.(*Object).GetExtFuncInfo()
 				wantlen := len(extFn.Params) - extFn.AutoParamsCount()
-				if extFn.Variadic {
-					wantlen--
-				}
-				if count != wantlen && (!extFn.Variadic || count < wantlen) {
-					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
-				}
-			}
-			if prev.Value.(*ObjInfo).Type == ObjFunc {
-				extFn := prev.Value.(*ObjInfo).GetFuncInfo()
-				wantlen := len(extFn.Params)
 				if extFn.Variadic {
 					wantlen--
 				}
@@ -396,8 +383,8 @@ main:
 			}
 		case IDENTIFIER:
 			noMap = true
-			objInfo, tobj := findObj(lexeme.Value.(string), block)
-			if objInfo == nil && (!extern || i > *ind || i >= len(*lexemes)-2 || (*lexemes)[i+1].Type != LPAREN) {
+			obj, owner := findObj(lexeme.Value.(string), block)
+			if obj == nil && (!extern || i > *ind || i >= len(*lexemes)-2 || (*lexemes)[i+1].Type != LPAREN) {
 				return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 			}
 			if i < len(*lexemes)-2 {
@@ -406,44 +393,42 @@ main:
 						isContract  bool
 						objContract *ContractInfo
 					)
-					if extern && objInfo == nil {
-						objInfo = &ObjInfo{Type: ObjContract}
+					if extern && obj == nil {
+						obj = &Object{Type: ObjContract}
 					}
-
-					if objInfo == nil || (objInfo.Type != ObjExtFunc && objInfo.Type != ObjFunc &&
-						objInfo.Type != ObjContract) {
-						logger.WithFields(log.Fields{"lex_value": lexeme.Value, "type": ParseError}).Error("unknown function")
+					if obj == nil || (obj.Type != ObjExtFunc && obj.Type != ObjFunc &&
+						obj.Type != ObjContract) {
 						return fmt.Errorf(`unknown %s %s`, lexeme.Type, lexeme.Value)
 					}
 
-					if objInfo.Type == ObjContract {
-						if objInfo.Value != nil {
-							objContract = objInfo.GetContractInfo()
+					if obj.Type == ObjContract {
+						if obj.Value != nil {
+							objContract = obj.GetContractInfo()
 						}
-						objInfo, tobj = findObj(`ExecContract`, block)
-						if objInfo == nil {
+						obj, owner = findObj(`ExecContract`, block)
+						if obj == nil {
 							return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 						}
 						isContract = true
 					}
 					cmd := CmdCall
-					if objInfo.GetVariadic() {
+					if obj.GetVariadic() {
 						cmd = CmdCallVariadic
 					}
 					count := 0
 					if (*lexemes)[i+2].Type != RPAREN {
 						count++
 					}
-					buffer.push(newByteCode(cmd, lexeme, objInfo))
+					buffer.push(newByteCode(cmd, lexeme, obj))
 					if isContract {
 						name := StateName(block.ParentOwner().StateID, lexeme.Value.(string))
 						for j := len(*block) - 1; j >= 0; j-- {
-							topblock := (*block)[j]
-							if topblock.Type == ObjContract {
-								if name == topblock.GetContractInfo().Name {
+							topBlock := (*block)[j]
+							if topBlock.Type == ObjContract {
+								if name == topBlock.GetContractInfo().Name {
 									return errRecursion
 								}
-								topblock.GetContractInfo().Used[name] = true
+								topBlock.GetContractInfo().Used[name] = true
 							}
 						}
 						if objContract != nil && objContract.CanWrite {
@@ -461,17 +446,17 @@ main:
 					call = true
 				}
 				if (*lexemes)[i+1].Type == LBRACK {
-					if objInfo == nil || objInfo.Type != ObjVar {
+					if obj == nil || obj.Type != ObjVar {
 						return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 					}
-					buffer.push(newByteCode(CmdGetIndex, lexeme, &IndexInfo{VarOffset: objInfo.GetVariable().Index, Owner: tobj}))
+					buffer.push(newByteCode(CmdGetIndex, lexeme, &IndexInfo{VarOffset: obj.GetVariable().Index, Owner: owner}))
 				}
 			}
 			if !call {
-				if objInfo.Type != ObjVar {
+				if obj.Type != ObjVar {
 					return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 				}
-				cmd = newByteCode(CmdVar, lexeme, &VarInfo{Obj: objInfo, Owner: tobj})
+				cmd = newByteCode(CmdVar, lexeme, &VarInfo{Obj: obj, Owner: owner})
 			}
 		case TAIL:
 			cmd = newByteCode(CmdUnwrapArr, lexeme, 0)
@@ -503,7 +488,7 @@ main:
 	return nil
 }
 
-func findObj(name string, block *CodeBlocks) (obj *ObjInfo, owner *CodeBlock) {
+func findObj(name string, block *CodeBlocks) (obj *Object, owner *CodeBlock) {
 	statename := StateName(block.ParentOwner().StateID, name)
 	for _, n := range []string{name, statename} {
 		if obj, owner = findVar(n, block); obj != nil {

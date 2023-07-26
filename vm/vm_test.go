@@ -41,16 +41,22 @@ func TestVM_Compile(t *testing.T) {
 			fmt.Println("extFn", a1, a2, a)
 			return 2323
 		},
-		"pop": 234,
+		"pop": int64(23),
+		"popFn": func(i int64) map[string]string {
+			return map[string]string{"a1ss": "b1ss"}
+		},
 	}
 	start := time.Now()
+	vm := NewVM()
+	vm.SetExtendCost(getcost)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vm := NewVM()
-			vm.SetExtendCost(getcost)
-			tt.wantErr(t, vm.Compile(tt.args, compile.NewExtendData(&compile.OwnerInfo{StateID: 1, Active: true, TableID: 1}, obj, []string{"key_id"})))
-			//func|contract|golang func
-			ret, err := vm.Call(tt.method, nil, extend)
+			build := compile.NewExtendBuilder().
+				SetInfo(&compile.OwnerInfo{StateID: 1, Active: true, TableID: 12}).
+				SetPreVar([]string{"key_id"}).
+				SetFunc(obj).SetExtern(true).Build()
+			tt.wantErr(t, vm.Compile(tt.args, build))
+			ret, err := vm.Call(tt.method, extend)
 			if err != nil {
 				t.Error(err)
 			}

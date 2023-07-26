@@ -48,8 +48,8 @@ func StateName(state uint32, name string) string {
 	return name
 }
 
-// fnDeclBlock is the function for the block declaration.
-func fnDeclBlock(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
+// fnBlockDecl is the function for the block declaration.
+func fnBlockDecl(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	var itype ObjectType
 	prev := (*buf)[len(*buf)-2]
 	fblock := buf.peek()
@@ -61,7 +61,7 @@ func fnDeclBlock(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		fblock.Info = &ContractInfo{ID: uint32(len(prev.Children) - 1), Name: name, Owner: buf.ParentOwner(), Used: make(map[string]bool)}
 	default:
 		itype = ObjFunc
-		fblock.Info = &FuncInfo{Name: name}
+		fblock.Info = &FuncInfo{ID: uint32(len(prev.Children) - 1), Name: name}
 	}
 	fblock.Type = itype
 	if obj, ok := prev.Objects[name]; ok {

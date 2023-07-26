@@ -105,8 +105,8 @@ type (
 		FuncTail FuncTail
 	}
 
-	// ObjInfo is the common object type
-	ObjInfo struct {
+	// Object is the common object type
+	Object struct {
 		Type ObjectType
 		// Types that are valid to be assigned to Value:
 		// 	*CodeBlock,included: *ContractInfo, *FuncInfo
@@ -139,7 +139,7 @@ type (
 	// VarInfo contains the variable information.
 	// including the location of the variable and the global variable
 	VarInfo struct {
-		Obj   *ObjInfo
+		Obj   *Object
 		Owner *CodeBlock // is nil if the variable is global
 	}
 
@@ -174,42 +174,42 @@ func (fi *FieldInfo) ContainsTag(tag string) bool {
 	return strings.Contains(fi.Tags, tag)
 }
 
-func NewObjInfo(t ObjectType, v isObjInfoValue) *ObjInfo {
-	return &ObjInfo{Type: t, Value: v}
+func NewObjInfo(t ObjectType, v isObjInfoValue) *Object {
+	return &Object{Type: t, Value: v}
 }
 
-func (ret *ObjInfo) GetParamsLen() int {
-	if ret.Type == ObjExtFunc {
-		return len(ret.GetExtFuncInfo().Params)
+func (obj *Object) GetParamsLen() int {
+	if obj.Type == ObjExtFunc {
+		return len(obj.GetExtFuncInfo().Params)
 	}
-	if ret.Type == ObjFunc {
-		return len(ret.GetFuncInfo().Params)
+	if obj.Type == ObjFunc {
+		return len(obj.GetFuncInfo().Params)
 	}
 	return 0
 }
 
-func (ret *ObjInfo) GetResultsLen() int {
+func (obj *Object) GetResultsLen() int {
 	var retLen int
-	if ret.Type == ObjExtFunc {
-		for _, result := range ret.GetExtFuncInfo().Results {
+	if obj.Type == ObjExtFunc {
+		for _, result := range obj.GetExtFuncInfo().Results {
 			if result.String() != "error" {
 				retLen++
 			}
 		}
 	}
-	if ret.Type == ObjFunc {
-		return len(ret.GetFuncInfo().Results)
+	if obj.Type == ObjFunc {
+		return len(obj.GetFuncInfo().Results)
 	}
 	return retLen
 }
 
-func (ret *ObjInfo) GetVariadic() bool {
-	if ret.Type == ObjExtFunc {
-		return ret.GetExtFuncInfo().Variadic
+func (obj *Object) GetVariadic() bool {
+	if obj.Type == ObjExtFunc {
+		return obj.GetExtFuncInfo().Variadic
 	}
 
-	if ret.Type == ObjFunc {
-		return ret.GetFuncInfo().Variadic
+	if obj.Type == ObjFunc {
+		return obj.GetFuncInfo().Variadic
 	}
 	return false
 }
@@ -223,50 +223,50 @@ func (*ExtFuncInfo) ObjectType() ObjectType           { return ObjExtFunc }
 func (*ObjInfoVariable) ObjectType() ObjectType       { return ObjVar }
 func (*ObjInfoExtendVariable) ObjectType() ObjectType { return ObjExtVar }
 
-func (m *ObjInfo) GetValue() isObjInfoValue {
-	if m != nil {
-		return m.Value
+func (obj *Object) GetValue() isObjInfoValue {
+	if obj != nil {
+		return obj.Value
 	}
 	return nil
 }
 
-func (m *ObjInfo) GetCodeBlock() *CodeBlock {
-	if x, ok := m.GetValue().(*CodeBlock); ok {
+func (obj *Object) GetCodeBlock() *CodeBlock {
+	if x, ok := obj.GetValue().(*CodeBlock); ok {
 		return x
 	}
 	return nil
 }
 
-func (m *ObjInfo) GetContractInfo() *ContractInfo {
-	if x, ok := m.GetCodeBlock().Info.(*ContractInfo); ok {
+func (obj *Object) GetContractInfo() *ContractInfo {
+	if x, ok := obj.GetCodeBlock().Info.(*ContractInfo); ok {
 		return x
 	}
 	return nil
 }
 
-func (m *ObjInfo) GetFuncInfo() *FuncInfo {
-	if x, ok := m.GetCodeBlock().Info.(*FuncInfo); ok {
+func (obj *Object) GetFuncInfo() *FuncInfo {
+	if x, ok := obj.GetCodeBlock().Info.(*FuncInfo); ok {
 		return x
 	}
 	return nil
 }
 
-func (m *ObjInfo) GetExtFuncInfo() *ExtFuncInfo {
-	if x, ok := m.GetValue().(*ExtFuncInfo); ok {
+func (obj *Object) GetExtFuncInfo() *ExtFuncInfo {
+	if x, ok := obj.GetValue().(*ExtFuncInfo); ok {
 		return x
 	}
 	return nil
 }
 
-func (m *ObjInfo) GetVariable() *ObjInfoVariable {
-	if x, ok := m.GetValue().(*ObjInfoVariable); ok {
+func (obj *Object) GetVariable() *ObjInfoVariable {
+	if x, ok := obj.GetValue().(*ObjInfoVariable); ok {
 		return x
 	}
 	return nil
 }
 
-func (m *ObjInfo) GetExtendVariable() *ObjInfoExtendVariable {
-	if x, ok := m.GetValue().(*ObjInfoExtendVariable); ok {
+func (obj *Object) GetExtendVariable() *ObjInfoExtendVariable {
+	if x, ok := obj.GetValue().(*ObjInfoExtendVariable); ok {
 		return x
 	}
 	return nil

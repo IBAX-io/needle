@@ -206,9 +206,9 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 
 	for _, method := range []string{`conditions`, `action`} {
 		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compile.ObjFunc {
-			rtemp := NewRuntime(rt.vm, rt.cost)
+			rtemp := NewRuntime(rt.vm, rt.extend)
 			rt.extend[ExtendParent] = parent
-			_, err = rtemp.Run(block.GetCodeBlock(), rt.extend)
+			_, err = rtemp.Run(block.GetCodeBlock())
 			rt.cost = rtemp.Cost()
 			if err != nil {
 				//logger.WithFields(log.Fields{"error": err, "method_name": method, "type": ContractError}).Error("executing contract method")

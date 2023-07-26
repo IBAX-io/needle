@@ -11,11 +11,6 @@ import (
 )
 
 const (
-	// Decimal is the constant string for decimal type
-	Decimal = `decimal.Decimal`
-	// Interface is the constant string for interface type
-	Interface = `interface`
-
 	brackets = `[]`
 )
 
@@ -64,12 +59,7 @@ func init() {
 				return
 			}
 			if code.Cmd == compile.CmdCallExtend {
-				var hasAssign bool
-				if ctx.ci+1 <= len(rt.peekBlock().Block.Code)-1 {
-					nextCode := rt.peekBlock().Block.Code[ctx.ci+1]
-					hasAssign = nextCode.Cmd == compile.CmdAssign || nextCode.Cmd == compile.CmdSetIndex
-				}
-				err = rt.extendFunc(code.Value.(string), hasAssign)
+				err = rt.extendFunc(code.Value.(string))
 				if err != nil {
 					err = fmt.Errorf(`extend function %v %s`, code.Value, err)
 				}
@@ -90,8 +80,8 @@ func init() {
 	for i := compile.CmdCall; i <= compile.CmdCallVariadic; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			var cost = int64(CostCall)
-			if code.Value.(*compile.ObjInfo).Type == compile.ObjExtFunc {
-				finfo := code.Value.(*compile.ObjInfo).GetExtFuncInfo()
+			if code.Value.(*compile.Object).Type == compile.ObjExtFunc {
+				finfo := code.Value.(*compile.Object).GetExtFuncInfo()
 				if rt.vm.ExtCost != nil {
 					cost = rt.vm.ExtCost(finfo.Name)
 					if cost < 1 {
@@ -103,13 +93,7 @@ func init() {
 				return
 			}
 
-			// false means ignore return value
-			var hasAssign bool
-			if ctx.ci+1 <= len(rt.peekBlock().Block.Code)-1 {
-				nextCode := rt.peekBlock().Block.Code[ctx.ci+1]
-				hasAssign = nextCode.Cmd == compile.CmdAssign || nextCode.Cmd == compile.CmdSetIndex
-			}
-			err = rt.callFunc(code.Value.(*compile.ObjInfo), hasAssign)
+			err = rt.callFunc(code.Value.(*compile.Object))
 			return
 		}
 	}
@@ -118,7 +102,8 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdIf] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if valueToBool(rt.stack.pop()) {
+		if valueToBool(rt.stack.peek()) {
+			rt.stack.pop()
 			return rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
@@ -153,7 +138,7 @@ func init() {
 		cut := count
 		preCode := rt.peekBlock().Block.Code[ctx.ci-1]
 		if preCode.Cmd == compile.CmdCall || preCode.Cmd == compile.CmdCallVariadic {
-			objInfo := preCode.Value.(*compile.ObjInfo)
+			objInfo := preCode.Value.(*compile.Object)
 			resultsLen := objInfo.GetResultsLen()
 			if objInfo.Type == compile.ObjExtFunc || objInfo.Type == compile.ObjFunc {
 				if count > resultsLen {
@@ -188,7 +173,7 @@ func init() {
 								return
 							}
 							rt.setVar(k, d.InexactFloat64())
-						case Decimal:
+						case "decimal.Decimal":
 							var d decimal.Decimal
 							d, err = ValueToDecimal(val)
 							if err != nil {
@@ -336,7 +321,7 @@ func init() {
 				return
 			}
 			ind := key.(int64)
-			if strings.Contains(itype, Interface) {
+			if strings.Contains(itype, "interface") {
 				slice := indextype.([]any)
 				if int(ind) >= len(slice) {
 					if ind > MaxArrayIndex {

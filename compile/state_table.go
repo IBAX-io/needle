@@ -92,8 +92,6 @@ func (tok stateType) String() string {
 	return fmt.Sprintf("%-15s", s)
 }
 
-const FlushMark = 1 << 20
-
 const (
 	// Errors of compilation
 	errUnknownCmd         = iota + 1 // unknown command
@@ -168,12 +166,12 @@ func init() {
 	}
 	stateTable[stateContract] = map[Token]compileState{
 		NEWLINE:    {fnNothing, stateContract},
-		IDENTIFIER: {fnDeclBlock, stateBlock},
+		IDENTIFIER: {fnBlockDecl, stateBlock},
 		UNKNOWN:    {fnError, errMustName},
 	}
 	stateTable[stateFunc] = map[Token]compileState{
 		NEWLINE:    {fnNothing, stateFunc},
-		IDENTIFIER: {fnDeclBlock, stateFnParams},
+		IDENTIFIER: {fnBlockDecl, stateFnParams},
 		UNKNOWN:    {fnError, errMustName},
 	}
 	stateTable[stateFnParams] = map[Token]compileState{

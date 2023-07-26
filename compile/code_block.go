@@ -28,7 +28,7 @@ nesting goes further according to nesting of bracketed. Tree nodes are structure
 
 // CodeBlock contains all information about compiled block {...} and its children
 type CodeBlock struct {
-	Objects map[string]*ObjInfo
+	Objects map[string]*Object
 	Type    ObjectType
 	//Types that are valid to be assigned to Info:
 	//*FuncInfo
@@ -48,10 +48,10 @@ func NewCodeBlock(ext *ExtendData) *CodeBlock {
 	return &CodeBlock{
 		Objects: ext.MakeExtFunc(),
 		// Reserved 256 indexes for system purposes
-		Children: make(CodeBlocks, 256, 1024),
-		Type:     ext.Info.ObjectType(),
-		Info:     ext.Info,
-		PreVar:   ext.PreVar,
+		//Children: make(CodeBlocks, 256, 1024),
+		Type:   ext.Info.ObjectType(),
+		Info:   ext.Info,
+		PreVar: ext.PreVar,
 	}
 }
 
@@ -141,7 +141,7 @@ func (bs *CodeBlocks) get(idx int) *CodeBlock {
 	return nil
 }
 
-func (bc *CodeBlock) GetObjByName(name string) (ret *ObjInfo) {
+func (bc *CodeBlock) GetObjByName(name string) (ret *Object) {
 	if bc == nil {
 		return nil
 	}
@@ -192,7 +192,7 @@ func (bc *CodeBlock) SetExtendFunc(ext []ExtendFunc) {
 			for i := 0; i < fobj.NumOut(); i++ {
 				data.Results[i] = fobj.Out(i)
 			}
-			bc.Objects[item.Name] = &ObjInfo{Type: ObjExtFunc, Value: data}
+			bc.Objects[item.Name] = &Object{Type: ObjExtFunc, Value: data}
 		}
 	}
 }
@@ -202,7 +202,7 @@ type ByteCode struct {
 	Cmd    CmdT
 	Lexeme *Lexeme
 	//FuncTailCmd
-	//*ObjInfo
+	//*Object
 	//uint16
 	//*IndexInfo
 	//[]*VarInfo
@@ -228,7 +228,7 @@ type ByteCodes []*ByteCode
 func (b ByteCodes) String() string {
 	var ret string
 	for _, code := range b {
-		ret = ret + cmdName[code.Cmd] + " "
+		ret = ret + code.Cmd.String() + " "
 		ret = ret + fmt.Sprint(code.Value) + "\n"
 	}
 	return ret
@@ -268,7 +268,7 @@ func setWritable(block *CodeBlocks) {
 	}
 }
 
-func findVar(name string, block *CodeBlocks) (*ObjInfo, *CodeBlock) {
+func findVar(name string, block *CodeBlocks) (*Object, *CodeBlock) {
 	if len(name) == 0 || block.peek() == nil {
 		return nil, nil
 	}
@@ -276,11 +276,5 @@ func findVar(name string, block *CodeBlocks) (*ObjInfo, *CodeBlock) {
 	if ok {
 		return resolve.Objects[name], resolve
 	}
-
-	//for i := len(*block) - 1; i >= 0; i-- {
-	//	if obj, ok := (*block)[i].Objects[name]; ok {
-	//		return obj, (*block)[i]
-	//	}
-	//}
 	return nil, nil
 }

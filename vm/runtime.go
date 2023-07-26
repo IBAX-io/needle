@@ -28,11 +28,13 @@ type Runtime struct {
 }
 
 // NewRuntime creates a new Runtime for the virtual machine
-func NewRuntime(vm *VM, cost int64) *Runtime {
+func NewRuntime(vm *VM, extend map[string]any) *Runtime {
+	cost, _ := extend[ExtendTxCost].(int64)
 	return &Runtime{
 		stack:   newStack(),
 		vm:      vm,
 		cost:    cost,
+		extend:  extend,
 		memVars: make(map[any]int64),
 	}
 }
@@ -59,18 +61,17 @@ func (rt *Runtime) Cost() int64 {
 }
 
 // Run executes CodeBlock with the extended variables and functions
-func (rt *Runtime) Run(block *compile.CodeBlock, extend map[string]any) (ret []any, err error) {
+func (rt *Runtime) Run(block *compile.CodeBlock) (ret []any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			//rt.vm.logger.WithFields(log.Fields{"type": PanicRecoveredError, "error_info": r, "stack": string(debug.Stack())}).Error("runtime panic error")
-			err = fmt.Errorf(`runtime panic: %v`, r)
+			err = fmt.Errorf("runtime panic: %v", r)
 		}
 	}()
 	info := block.GetFuncInfo()
 	if info == nil {
 		return nil, fmt.Errorf("the block is not a function")
 	}
-	rt.extend = extend
 	var (
 		genBlock bool
 		timer    *time.Timer
@@ -221,10 +222,6 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 			err = fmt.Errorf("not enough arguments to return")
 			return
 		}
-		if len(refRes) < len(local) {
-			err = fmt.Errorf("too many arguments to return")
-			return
-		}
 		rt.stack.resetByIdx(start)
 		ret := local[len(local)-len(refRes):]
 		for i, v := range ret {
@@ -241,7 +238,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	return
 }
 
-func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
+func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	var (
 		count, in int
 	)
@@ -304,9 +301,6 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 			rt.stack.push(imap)
 		}
 		_, err = rt.RunCode(obj.GetCodeBlock())
-		if !hasAssign && err == nil {
-			rt.stack.resetByIdx(rt.stack.size() - obj.GetResultsLen())
-		}
 		return
 	}
 
@@ -378,14 +372,14 @@ func (rt *Runtime) callFunc(obj *compile.ObjInfo, hasAssign bool) (err error) {
 				rt.errInfo = ExtFuncErr{Name: finfo.Name, Value: ret.Interface()}
 				return rt.errInfo
 			}
-		} else if hasAssign {
+		} else {
 			rt.stack.push(ret.Interface())
 		}
 	}
 	return
 }
 
-func (rt *Runtime) extendFunc(name string, hasAssign bool) error {
+func (rt *Runtime) extendFunc(name string) error {
 	f, ok := rt.extend[name]
 	foo := reflect.ValueOf(f)
 	if !ok || foo.Kind() != reflect.Func {
@@ -474,7 +468,7 @@ func (rt *Runtime) extendFunc(name string, hasAssign bool) error {
 			if ret.Interface() != nil {
 				return ret.Interface().(error)
 			}
-		} else if hasAssign {
+		} else {
 			rt.stack.push(ret.Interface())
 		}
 	}
