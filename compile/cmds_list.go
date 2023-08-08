@@ -40,6 +40,7 @@ const (
 	CmdMapInit                      // map initialization
 	CmdArrayInit                    // array initialization
 	CmdError                        // error command
+	CmdSliceColon                   // slice [:]
 )
 
 // the commands for operations in expressions are listed below
@@ -103,13 +104,14 @@ var cmdName = map[CmdT]string{
 	CmdContinue:     `CONTINUE`,
 	CmdWhile:        `WHILE`,
 	CmdBreak:        `BREAK`,
-	CmdGetIndex:     `INDEX`,
+	CmdGetIndex:     `GetIndex`,
 	CmdSetIndex:     `SETINDEX`,
 	CmdFuncTail:     `FUNCTAIL`,
 	CmdUnwrapArr:    `UNWRAPARR`,
 	CmdMapInit:      `MAPINIT`,
 	CmdArrayInit:    `ARRAYINIT`,
 	CmdError:        `ERROR`,
+	CmdSliceColon:   `SLICECOLON`,
 	CmdNot:          `!`,
 	CmdSign:         `SIGN`,
 	CmdAdd:          `+`,

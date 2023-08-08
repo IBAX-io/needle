@@ -2,8 +2,6 @@ package compile
 
 import (
 	"fmt"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
@@ -103,7 +101,6 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		}
 
 		if err := comps.fn(&blocks, nextState, lexeme); err != nil {
-			lexeme.GetLogger().WithFields(log.Fields{"type": ParseError, "nextState": nextState, "err": err, "lex_value": lexeme.Value}).Errorf("func handles")
 			return nil, fmt.Errorf("func handles: %s", err)
 		}
 		curState = nextState
@@ -159,6 +156,38 @@ main:
 		}
 		noMap = false
 		switch lexeme.Type {
+		case COLON:
+			var low, high = -1, -1
+			if (*lexemes)[i-1].Type == LBRACK {
+				low = SliceLow
+			}
+			if (*lexemes)[i+1].Type == RBRACK {
+				high = SliceHigh
+			}
+			if (*lexemes)[i-1].Type == NUMBER {
+				if (buffer.peek().Cmd == CmdSign && (*lexemes)[i-3].Type == LBRACK) || (*lexemes)[i-2].Type == LBRACK {
+					if _, ok := (*lexemes)[i-1].Value.(int64); !ok {
+						return fmt.Errorf("slice index must be integer")
+					}
+					low = SliceLowNum
+				}
+			}
+
+			if (*lexemes)[i+1].Type == NUMBER && (*lexemes)[i+2].Type == RBRACK {
+				if _, ok := (*lexemes)[i+1].Value.(int64); !ok {
+					return fmt.Errorf("slice index must be integer")
+				}
+				high = SliceHighNum
+			}
+			if ((*lexemes)[i+1].Value == Sub || (*lexemes)[i+1].Value == Add) && (*lexemes)[i+2].Type == NUMBER && (*lexemes)[i+3].Type == RBRACK {
+				if _, ok := (*lexemes)[i+2].Value.(int64); !ok {
+					return fmt.Errorf("slice index must be integer")
+				}
+				high = SliceHighNum
+			}
+			if low != -1 && high != -1 {
+				bytecode.push(newByteCode(CmdSliceColon, lexeme, &SliceItem{Index: [2]int{low, high}}))
+			}
 		case RBRACE, LBRACE:
 			i--
 			if prevLex.Type == COMMA || prevLex.Type == OPERATOR {

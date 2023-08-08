@@ -32,28 +32,28 @@ var (
 	}
 	stateRule = map[int]map[string]action{
 		stateMain: {
-			"n;":        {stateMain, NEWLINE, flagNext},
-			"()#[],{}:": {stateMain, SYSTEM, flagNext},
-			"s":         {stateMain, UNKNOWN, flagNext},
-			"q":         {stateString, UNKNOWN, flagPush | flagNext},
-			"Q":         {stateDString, UNKNOWN, flagPush | flagNext},
-			"&":         {stateAnd, UNKNOWN, flagPush | flagNext},
-			"|":         {stateOr, UNKNOWN, flagPush | flagNext},
-			"=":         {stateEq, UNKNOWN, flagPush | flagNext},
-			"/":         {stateSolidus, UNKNOWN, flagPush | flagNext},
-			"!":         {stateOpNeq, UNKNOWN, flagPush | flagNext},
-			"<":         {stateLess, UNKNOWN, flagPush | flagNext},
-			">":         {stateGreat, UNKNOWN, flagPush | flagNext},
-			"*":         {stateMul, UNKNOWN, flagPush | flagNext},
-			"^":         {stateBitXor, UNKNOWN, flagPush | flagNext},
-			"+":         {stateAdd, UNKNOWN, flagPush | flagNext},
-			"-":         {stateSub, UNKNOWN, flagPush | flagNext},
-			"01":        {stateNumber, UNKNOWN, flagPush | flagNext},
-			"a_r":       {stateIdentifier, UNKNOWN, flagPush | flagNext},
-			"@$":        {stateMustIdent, UNKNOWN, flagPush | flagNext},
-			".":         {stateDot, UNKNOWN, flagPush | flagNext},
-			"d":         {stateError, UNKNOWN, flagEnd},
-			"%":         {statePercent, UNKNOWN, flagPush | flagNext},
+			"n;":       {stateMain, NEWLINE, flagNext},
+			"()[],{}:": {stateMain, SYSTEM, flagNext},
+			"s":        {stateMain, UNKNOWN, flagNext},
+			"q":        {stateString, UNKNOWN, flagPush | flagNext},
+			"Q":        {stateDoubleString, UNKNOWN, flagPush | flagNext},
+			"&":        {stateAnd, UNKNOWN, flagPush | flagNext},
+			"|":        {stateOr, UNKNOWN, flagPush | flagNext},
+			"=":        {stateEq, UNKNOWN, flagPush | flagNext},
+			"/":        {stateSolidus, UNKNOWN, flagPush | flagNext},
+			"!":        {stateOpNeq, UNKNOWN, flagPush | flagNext},
+			"<":        {stateLess, UNKNOWN, flagPush | flagNext},
+			">":        {stateGreat, UNKNOWN, flagPush | flagNext},
+			"*":        {stateMul, UNKNOWN, flagPush | flagNext},
+			"^":        {stateBitXor, UNKNOWN, flagPush | flagNext},
+			"+":        {stateAdd, UNKNOWN, flagPush | flagNext},
+			"-":        {stateSub, UNKNOWN, flagPush | flagNext},
+			"01":       {stateNumber, UNKNOWN, flagPush | flagNext},
+			"a_r":      {stateIdentifier, UNKNOWN, flagPush | flagNext},
+			"@$":       {stateMustIdent, UNKNOWN, flagPush | flagNext},
+			".":        {stateDot, UNKNOWN, flagPush | flagNext},
+			"d":        {stateError, UNKNOWN, flagEnd},
+			"%":        {statePercent, UNKNOWN, flagPush | flagNext},
 		},
 		stateBitXor: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
@@ -84,13 +84,13 @@ var (
 			"q": {stateMain, LITERAL, flagPop | flagNext},
 			"d": {stateString, UNKNOWN, flagNext},
 		},
-		stateDString: {
+		stateDoubleString: {
 			"Q":  {stateMain, LITERAL, flagPop | flagNext},
 			`\\`: {stateDoubleSlash, UNKNOWN, flagSkip},
-			"d":  {stateDString, UNKNOWN, flagNext},
+			"d":  {stateDoubleString, UNKNOWN, flagNext},
 		},
 		stateDoubleSlash: {
-			"d": {stateDString, UNKNOWN, flagNext},
+			"d": {stateDoubleString, UNKNOWN, flagNext},
 		},
 		stateDot: {
 			".":  {stateDoubleDot, UNKNOWN, flagNext},
@@ -169,7 +169,7 @@ const (
 	stateError = iota
 	stateMain
 	stateString
-	stateDString
+	stateDoubleString
 	stateDoubleSlash
 	stateDot
 	stateDoubleDot
@@ -224,8 +224,7 @@ func buildAlphaTable() {
 		}
 	}
 	//for i, b := range alphaTable {
-	//b2 := alphabets[i]
-	//fmt.Printf("%d %c [%d,%d]\n", i, i, b, b2)
+	//	fmt.Printf("%d %c [%d]\n", i, i, b)
 	//}
 	fmt.Println()
 }

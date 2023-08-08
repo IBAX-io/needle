@@ -27,6 +27,7 @@ type instructionCtx struct {
 	ci        int
 	labels    []int
 	assignVar []*compile.VarInfo
+	slice     *compile.SliceItem
 }
 
 func newInstructionCtx() *instructionCtx {
@@ -223,14 +224,45 @@ func init() {
 		status = statusBreak
 		return
 	}
+	instructionTable[compile.CmdSliceColon] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		ctx.slice = code.Value.(*compile.SliceItem)
+		return
+	}
 	instructionTable[compile.CmdGetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if err = rt.stack.CheckDepth(2); err != nil {
+		if err = rt.stack.CheckDepth(1); err != nil {
 			return
 		}
-		ind := rt.stack.pop()
-		value := rt.stack.pop()
-		rv := reflect.ValueOf(value)
-		rkt := reflect.TypeOf(ind).String()
+		var (
+			ind, value any
+			low, high  int
+			rkt        string
+			rv         reflect.Value
+		)
+
+		if ctx.slice != nil {
+			if ctx.slice.Index[1] == compile.SliceHighNum {
+				h, ok := rt.stack.pop().(int64)
+				if !ok {
+					err = fmt.Errorf("slice high must be int64")
+					return
+				}
+				high = int(h)
+			}
+			if ctx.slice.Index[0] == compile.SliceLowNum {
+				l, ok := rt.stack.pop().(int64)
+				if !ok {
+					err = fmt.Errorf("slice low must be int64")
+					return
+				}
+				low = int(l)
+			}
+			rkt = "slice"
+		} else {
+			ind = rt.stack.pop()
+			rkt = reflect.TypeOf(ind).String()
+		}
+		value = rt.stack.pop()
+		rv = reflect.ValueOf(value)
 		rvt := reflect.TypeOf(value).String()
 		switch {
 		case rvt == `*compile.Map`:
@@ -245,20 +277,80 @@ func init() {
 				rt.stack.push(nil)
 			}
 		case rvt[:2] == brackets:
-			if rkt != `int64` {
+			if rkt != `int64` && rkt != `slice` {
 				err = fmt.Errorf(eArrIndex, rkt)
 				break
 			}
-			if rv.Len() <= int(ind.(int64)) {
-				err = fmt.Errorf("index out of range [%d] with length %d", ind, rv.Len())
-				break
+
+			var ret reflect.Value
+			if rkt == `slice` {
+				if ctx.slice.Index[1] != compile.SliceHighNum {
+					high = rv.Len()
+				}
+				if low < 0 {
+					err = fmt.Errorf("invalid slice index must be non-negative")
+					return
+				}
+				if low > high {
+					err = fmt.Errorf("invalid index values, must be low <= high")
+					return
+				}
+				if high > rv.Len() {
+					err = fmt.Errorf("index out of range [%d:%d] with length %d", low, high, rv.Len())
+					return
+				}
+				ret = rv.Slice(low, high)
+			} else {
+				if ind.(int64) < 0 {
+					err = fmt.Errorf("invalid index must be non-negative")
+					return
+				}
+				if rv.Len() <= int(ind.(int64)) {
+					err = fmt.Errorf("index out of range [%d] with length %d", ind, rv.Len())
+					return
+				}
+				ret = rv.Index(int(ind.(int64)))
 			}
-			v := rv.Index(int(ind.(int64)))
-			if v.IsValid() {
-				rt.stack.push(v.Interface())
+			if ret.IsValid() {
+				rt.stack.push(ret.Interface())
 			} else {
 				rt.stack.push(nil)
 			}
+			ctx.slice = nil
+		case rvt == "string":
+			if rkt != `int64` && rkt != `slice` {
+				err = fmt.Errorf(eArrIndex, rkt)
+				break
+			}
+			if rkt == `slice` {
+				if ctx.slice.Index[1] != compile.SliceHighNum {
+					high = rv.Len()
+				}
+				if low < 0 {
+					err = fmt.Errorf("invalid slice index must be non-negative")
+					return
+				}
+				if low > high {
+					err = fmt.Errorf("invalid index values, must be low <= high")
+					return
+				}
+				if high > rv.Len() {
+					err = fmt.Errorf("index out of range [%d:%d] with length %d", low, high, rv.Len())
+					return
+				}
+				rt.stack.push(string([]rune(rv.String())[low:high]))
+				break
+			}
+			if ind.(int64) < 0 {
+				err = fmt.Errorf("invalid index must be non-negative")
+				return
+			}
+			if rv.Len() <= int(ind.(int64)) {
+				err = fmt.Errorf("index out of range [%d] with length %d", ind, rv.Len())
+				return
+			}
+			rt.stack.push(string([]rune(rv.String())[ind.(int64)]))
+			ctx.slice = nil
 		default:
 			err = fmt.Errorf(`type %s doesn't support indexing`, rvt)
 		}

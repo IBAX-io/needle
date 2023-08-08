@@ -124,8 +124,8 @@ func NewLexer(input []rune) (Lexemes, error) {
 				val := string(input[lexOffset+1 : right-1])
 				if tk == LITERAL && skip {
 					skip = false
-					val = strings.Replace(strings.Replace(val, `\"`, `"`, -1), `\t`, "\t", -1)
-					val = strings.Replace(val, `\r`, "\r", -1)
+					val = strings.ReplaceAll(strings.ReplaceAll(val, `\"`, `"`), `\t`, "\t")
+					val = strings.ReplaceAll(val, `\r`, "\r")
 					//val = strings.Replace(strings.Replace(val, `\r`, "\r", -1), `\n`, "\n", -1)
 				}
 				//value = val
@@ -135,7 +135,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 						//offline = off + uint32(i) + 1
 					}
 				}
-				val = strings.Replace(val, `\n`, "\n", -1)
+				val = strings.ReplaceAll(val, `\n`, "\n")
 				value = val
 			case OPERATOR:
 				val := string(input[lexOffset:right])

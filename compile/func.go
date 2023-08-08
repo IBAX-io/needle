@@ -64,11 +64,8 @@ func fnBlockDecl(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		fblock.Info = &FuncInfo{ID: uint32(len(prev.Children) - 1), Name: name}
 	}
 	fblock.Type = itype
-	if obj, ok := prev.Objects[name]; ok {
-		if obj.Type == ObjContract {
-			return fmt.Errorf("%s '%s' redeclared in this code block", itype, name)
-		}
-		return fmt.Errorf("%s '%s' redeclared in this contract '%s'", itype, name, prev.GetContractInfo().Name)
+	if _, ok := prev.Objects[name]; ok {
+		return fmt.Errorf("%s '%s' redeclared in this code block", itype, name)
 	}
 	prev.Objects[name] = NewObjInfo(itype, fblock)
 	return nil
