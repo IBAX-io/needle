@@ -12,52 +12,54 @@ import (
 
 // Runtime is needed for the execution of the byte-code
 type Runtime struct {
-	stack     *Stack
-	blocks    []*blockStack
-	vars      []any
-	extend    map[string]any
-	vm        *VM
-	cost      int64 //cost remaining
-	err       error
-	unwrap    bool
-	timeLimit bool
-	callDepth uint16
-	mem       int64
-	memVars   map[any]int64
-	errInfo   ExtFuncErr
+	stack      *Stack
+	blocks     []*blockStack
+	vars       []any
+	extend     map[string]any
+	vm         *VM
+	costRemain int64
+	costLimit  int64
+	err        error
+	unwrap     bool
+	timeLimit  bool
+	callDepth  uint16
+	mem        int64
+	memVars    map[any]int64
+	errInfo    ExtFuncErr
 }
 
 // NewRuntime creates a new Runtime for the virtual machine
 func NewRuntime(vm *VM, extend map[string]any) *Runtime {
 	cost, _ := extend[ExtendTxCost].(int64)
 	return &Runtime{
-		stack:   newStack(),
-		vm:      vm,
-		cost:    cost,
-		extend:  extend,
-		memVars: make(map[any]int64),
+		stack:      newStack(),
+		vm:         vm,
+		costRemain: cost,
+		costLimit:  cost,
+		extend:     extend,
+		memVars:    make(map[any]int64),
 	}
 }
 
 // SetCost sets the max cost of the execution.
 func (rt *Runtime) SetCost(cost int64) {
-	rt.cost = cost
+	rt.costRemain = cost
 }
 
 // SubCost subtracts the cost of the execution.
 func (rt *Runtime) SubCost(cost int64) error {
 	if cost > 0 {
-		rt.cost -= cost
+		rt.costRemain -= cost
 	}
-	if rt.cost < 0 {
+	if rt.costRemain < 0 {
 		return fmt.Errorf("runtime cost limit overflow")
 	}
 	return nil
 }
 
-// Cost return the remain cost of the execution.
-func (rt *Runtime) Cost() int64 {
-	return rt.cost
+// CostRemain return the remain cost of the execution.
+func (rt *Runtime) CostRemain() int64 {
+	return rt.costRemain
 }
 
 // Run executes CodeBlock with the extended variables and functions
@@ -111,7 +113,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	var cmd *compile.ByteCode
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Errorf(`runtime panic: %v`, r)
+			err = errors.Errorf(`runcode panic: %v`, r)
 		}
 
 		if err != nil && !errors.As(err, &VMError{}) {
@@ -168,15 +170,20 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		}
 	}
 	start := rt.stack.size()
-	if block.Type == compile.ObjFunc {
-		start -= len(block.GetFuncInfo().Params)
-	}
+
 	if err = rt.SubCost(int64(len(block.Vars))); err != nil {
 		return
 	}
 	rt.addVarBy(block)
 	err = rt.setVarBy(block, names)
 	if err != nil {
+		return
+	}
+	if block.Type == compile.ObjFunc {
+		start -= len(block.GetFuncInfo().Params)
+	}
+	if start < 0 {
+		err = fmt.Errorf("not enough arguments in call to")
 		return
 	}
 
@@ -201,6 +208,10 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		}
 		status, err = instruction(rt, cmd, ctx)
 		if err != nil {
+			break
+		}
+		if block.Type != compile.ObjDefault && (status == statusContinue || status == statusBreak) {
+			err = fmt.Errorf(`%s is outside of loop block`, cmd.Cmd)
 			break
 		}
 		if status == statusReturn || status == statusContinue || status == statusBreak {
@@ -294,7 +305,7 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 				rt.stack.set(offset, val)
 			}
 			if reflect.TypeOf(stack) != v {
-				return fmt.Errorf("func '%s' param '%v' (type %T) cannot be represented by the type %s", finfo.Name, stack, stack, v)
+				return fmt.Errorf("func '%s' param: Cannot use '%v' (type %T) as the type %s", finfo.Name, stack, stack, v)
 			}
 		}
 		if finfo.HasTails() {
@@ -383,7 +394,7 @@ func (rt *Runtime) extendFunc(name string) error {
 	f, ok := rt.extend[name]
 	foo := reflect.ValueOf(f)
 	if !ok || foo.Kind() != reflect.Func {
-		return fmt.Errorf(`unknown function %s`, name)
+		return fmt.Errorf(`unknown extend function %s`, name)
 	}
 	variadic := foo.Type().IsVariadic()
 	count := foo.Type().NumIn()

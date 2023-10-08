@@ -14,7 +14,7 @@ type Token uint
 // represents the lexical token type of the program.
 const (
 	UNKNOWN    Token = iota
-	SYSTEM           // Delimiters
+	DELIMITER        // Delimiters
 	OPERATOR         // Operators
 	NUMBER           // integer or float
 	IDENTIFIER       // IDENTIFIER, including KEYWORD, TYPENAME, EXTEND
@@ -27,20 +27,9 @@ const (
 	EXTEND   // Referring to an external variable of IDENTIFIER
 )
 
-const Error = 0xff
-
-// flags of lexical states
+// Delimiters for Delimiter.
 const (
-	flagEnd  = 0
-	flagNext = 1
-	flagPush = 2
-	flagPop  = 4
-	flagSkip = 8
-)
-
-// Delimiters for SYSTEM.
-const (
-	LPAREN = SYSTEM | ((iota + 1) << 8)
+	LPAREN = DELIMITER | ((iota + 1) << 8)
 	RPAREN
 	COMMA
 	DOT
@@ -52,7 +41,7 @@ const (
 	RBRACE
 )
 
-var system2Token = map[rune]Token{
+var delimiter2Token = map[rune]Token{
 	'(': LPAREN,
 	')': RPAREN,
 	',': COMMA,
@@ -277,7 +266,7 @@ func SupportedType(fieldType reflect.Type) bool {
 var tokenToString = map[Token]string{
 	UNKNOWN: `UNKNOWN`,
 	//basic token
-	SYSTEM:     `SYSTEM`,
+	DELIMITER:  `DELIMITER`,
 	OPERATOR:   `OPERATOR`,
 	NUMBER:     `NUMBER`,
 	IDENTIFIER: `IDENTIFIER`,

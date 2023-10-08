@@ -36,27 +36,30 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 
 	for i := 0; i < len(lexemes); i++ {
 		lexeme := lexemes[i]
-		comps, ok := stateTable[curState][lexeme.Type]
+		st, found := stateTable[curState]
+		if !found {
+			st = stateTable[stateRoot]
+		}
+		comps, ok := st[lexeme.Type]
 		if !ok {
-			comps = stateTable[curState][0]
+			comps = st[UNKNOWN]
 		}
 
 		nextState := comps.next & 0xff
-		if comps.hasState(stateFork) {
+		if comps.hasState(stateFlagFork) {
 			fork = i
 		}
-		if comps.hasState(stateToFork) {
-			i = fork
-			fork = 0
+		if comps.hasState(stateFlagToFork) {
+			i, fork = fork, 0
 			lexeme = lexemes[i]
 		}
-		if comps.hasState(stateStay) {
+		if comps.hasState(stateFlagStay) {
 			curState = nextState
 			i--
 			continue
 		}
 		if nextState == stateEval {
-			if comps.hasState(stateLabel) {
+			if comps.hasState(stateFlagLabel) {
 				blocks.peek().Code.push(newByteCode(CmdLabel, lexeme, 0))
 			}
 
@@ -64,13 +67,13 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			if err := parserEval(&lexemes, &i, &blocks, ext.Extern); err != nil {
 				return nil, fmt.Errorf("parser eval: %s", err)
 			}
-			if (comps.next&stateMustEval) > 0 && curlen == len(blocks.peek().Code) {
+			if comps.hasState(stateFlagMustEval) && curlen == len(blocks.peek().Code) {
 				return nil, fmt.Errorf("there is not eval expression")
 			}
 
 			nextState = curState
 		}
-		if comps.hasState(statePush) {
+		if comps.hasState(stateFlagPush) {
 			stateStack = append(stateStack, curState)
 			parent := blocks.peek()
 			block := &CodeBlock{Objects: make(map[string]*Object), Parent: parent}
@@ -78,7 +81,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			blocks.push(block)
 		}
 
-		if comps.hasState(statePop) {
+		if comps.hasState(stateFlagPop) {
 			if len(stateStack) == 0 {
 				return nil, fnError(&blocks, errMustLBRACE, lexeme)
 			}
@@ -93,15 +96,15 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			}
 			blocks = blocks[:len(blocks)-1]
 		}
-		if comps.hasState(stateToBlock) {
+		if comps.hasState(stateFlagToBlock) {
 			nextState = stateBlock
 		}
-		if comps.hasState(stateToBody) {
+		if comps.hasState(stateFlagToBody) {
 			nextState = stateBody
 		}
 
 		if err := comps.fn(&blocks, nextState, lexeme); err != nil {
-			return nil, fmt.Errorf("func handles: %s", err)
+			return nil, fmt.Errorf("func handles: %s[%s]", err, lexeme.Position())
 		}
 		curState = nextState
 	}
@@ -306,7 +309,7 @@ main:
 				if extFn.Variadic {
 					wantlen--
 				}
-				if count != wantlen && (!extFn.Variadic || count < wantlen) {
+				if count != wantlen && (!extFn.Variadic || count < wantlen) && !extern {
 					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
 				}
 			}
@@ -349,7 +352,7 @@ main:
 				return errMultiIndex
 			}
 		case OPERATOR:
-			op, ok := operator[lexeme.Value.(Token)]
+			op, ok := operatorPriority[lexeme.Value.(Token)]
 			if !ok {
 				return fmt.Errorf(`unknown operator %v`, lexeme.Value)
 			}
@@ -471,6 +474,10 @@ main:
 						}
 						count++
 					}
+					if lexeme.Value.(string) == "CallContract" {
+						count++
+						bytecode.push(newByteCode(CmdPush, lexeme, block.ParentOwner().StateID))
+					}
 					parcount = append(parcount, count)
 					call = true
 				}
@@ -590,12 +597,12 @@ main:
 		switch state {
 		case MustComma:
 			if lexeme.Type != COMMA {
-				return nil, errUnexpComma
+				return nil, fmt.Errorf(`%w[%s]`, errUnexpComma, lexeme.Position())
 			}
 			state = MustKey
 		case MustColon:
 			if lexeme.Type != COLON {
-				return nil, errUnexpColon
+				return nil, fmt.Errorf(`%w[%s]`, errUnexpColon, lexeme.Position())
 			}
 			state = MustValue
 		case MustKey:
@@ -606,7 +613,7 @@ main:
 				key = `$` + lexeme.Value.(string)
 			case KEYWORD:
 				for ikey, v := range KeywordValue {
-					if fmt.Sprint(v) == fmt.Sprint(lexeme.Value) {
+					if Keyword2Str(v) == fmt.Sprint(lexeme.Value) {
 						key = ikey
 						if v == FUNC && i < len(*lexemes)-1 && (*lexemes)[i+1].Type&0xff == IDENTIFIER {
 							continue main
@@ -615,8 +622,9 @@ main:
 					}
 				}
 			default:
-				return nil, errUnexpKey
+				return nil, fmt.Errorf(`%w[%s]`, errUnexpKey, lexeme.Position())
 			}
+
 			state = MustColon
 		case MustValue:
 			mapi, err := getInitValue(lexemes, &i, block)
@@ -627,7 +635,7 @@ main:
 			state = MustComma
 		}
 	}
-	if ret.IsEmpty() && state == MustKey {
+	if ret.IsEmpty() && (state == MustKey) {
 		return nil, errUnexpKey
 	}
 	if i == len(*lexemes) {

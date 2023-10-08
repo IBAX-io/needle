@@ -46,6 +46,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 		pair  int
 		stop  bool
 	}
+
 	var (
 		curState, offline,
 		flag, start, off int
@@ -68,8 +69,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 		} else {
 			todo(input[off])
 		}
-
-		if curState == Error {
+		if curState == stateError {
 			return nil, fmt.Errorf("unknown lexeme '%s' [%d:%d]",
 				string(input[off:off+1]), line, off-offline+1)
 		}
@@ -100,14 +100,15 @@ func NewLexer(input []rune) (Lexemes, error) {
 			}
 			var value any
 			switch tk {
+			default:
 			case NEWLINE:
 				if input[lexOffset] == rune(0x0a) {
 					line++
 					offline = off
 				}
-			case SYSTEM:
+			case DELIMITER:
 				ch := input[lexOffset]
-				tk = system2Token[ch]
+				tk = delimiter2Token[ch]
 				value = string(ch)
 				if len(ifbuf) > 0 {
 					if ch == '{' {
@@ -124,18 +125,21 @@ func NewLexer(input []rune) (Lexemes, error) {
 				val := string(input[lexOffset+1 : right-1])
 				if tk == LITERAL && skip {
 					skip = false
-					val = strings.ReplaceAll(strings.ReplaceAll(val, `\"`, `"`), `\t`, "\t")
-					val = strings.ReplaceAll(val, `\r`, "\r")
-					//val = strings.Replace(strings.Replace(val, `\r`, "\r", -1), `\n`, "\n", -1)
+					if input[lexOffset] == '"' && input[right-1] == '"' {
+						val = strings.ReplaceAll(val, `\"`, `"`)
+						val = strings.ReplaceAll(val, `\t`, "\t")
+						val = strings.ReplaceAll(val, `\r`, "\r")
+					}
 				}
-				//value = val
 				for _, ch := range val {
 					if ch == 0x0a {
 						line++
 						//offline = off + uint32(i) + 1
 					}
 				}
-				val = strings.ReplaceAll(val, `\n`, "\n")
+				if input[lexOffset] == '"' && input[right-1] == '"' {
+					val = strings.ReplaceAll(val, `\n`, "\n")
+				}
 				value = val
 			case OPERATOR:
 				val := string(input[lexOffset:right])
@@ -162,6 +166,9 @@ func NewLexer(input []rune) (Lexemes, error) {
 				if name[0] == '$' {
 					tk = EXTEND
 					value = name[1:]
+					if err := canIdent(name[1:]); err != nil {
+						return nil, err
+					}
 				} else if keyID, ok := KeywordValue[name]; ok {
 					switch keyID {
 					case ELIF:
@@ -178,7 +185,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 							return nil, fmt.Errorf(`'%s' can't be the first statement [%d:%d]`, name, line, lexOffset-offline+1)
 						}
 						lexf := lexemes[len(lexemes)-1]
-						if lexf.Type&0xff != KEYWORD || lexf.Value.(Token) != FUNC {
+						if lexf.Type&0xff != KEYWORD || lexf.Value.(string) != Keyword2Str(FUNC) {
 							lexemes = append(lexemes, NewLexeme(FUNC, Keyword2Str(FUNC), line, lexOffset-offline+1))
 						}
 						value = name

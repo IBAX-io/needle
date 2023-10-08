@@ -9,7 +9,7 @@ type opPriority struct {
 
 var (
 	// Array of Operator operations and their priority
-	operator = map[Token]opPriority{
+	operatorPriority = map[Token]opPriority{
 		Assign: {CmdAssign, 5},
 		SubEq:  {CmdAssignSub, 5},
 		AddEq:  {CmdAssignAdd, 5},

@@ -1,8 +1,6 @@
 package compile
 
 import (
-	"fmt"
-	"os"
 	"sort"
 )
 
@@ -23,7 +21,8 @@ var (
 	lexTable   [][alphaRuleSize]int
 	alphaTable [alphaSize]byte
 	alphaRule  = [alphaRuleSize]byte{
-		0x01, 0x0A, ' ', '`', '"', ';', '(', ')', '[', ']',
+		0x01, 0x0A, ' ', '`', '"',
+		';', '(', ')', '[', ']',
 		'{', '}', '&', '|', '#', '.', ',', '<', '>', '=',
 		'!', '*', '$', '@', ':', '+', '-', '/', '\\',
 		'0', '1', 'a', '_',
@@ -33,7 +32,7 @@ var (
 	stateRule = map[int]map[string]action{
 		stateMain: {
 			"n;":       {stateMain, NEWLINE, flagNext},
-			"()[],{}:": {stateMain, SYSTEM, flagNext},
+			"()[],{}:": {stateMain, DELIMITER, flagNext},
 			"s":        {stateMain, UNKNOWN, flagNext},
 			"q":        {stateString, UNKNOWN, flagPush | flagNext},
 			"Q":        {stateDoubleString, UNKNOWN, flagPush | flagNext},
@@ -95,7 +94,7 @@ var (
 		stateDot: {
 			".":  {stateDoubleDot, UNKNOWN, flagNext},
 			"01": {stateNumber, UNKNOWN, flagNext},
-			"d":  {stateMain, SYSTEM, flagPop},
+			"d":  {stateMain, DELIMITER, flagPop},
 		},
 		stateDoubleDot: {
 			".": {stateMain, IDENTIFIER, flagPop | flagNext},
@@ -111,11 +110,11 @@ var (
 		},
 		stateEq: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
-			"d": {stateMain, SYSTEM, flagPop},
+			"d": {stateMain, DELIMITER, flagPop},
 		},
 		stateSolidus: {
 			"=": {stateMain, OPERATOR, flagPop | flagNext},
-			"/": {stateComLine, UNKNOWN, flagPop | flagNext},
+			"/": {stateCommentLine, UNKNOWN, flagPop | flagNext},
 			"*": {stateComment, UNKNOWN, flagNext},
 			"d": {stateMain, OPERATOR, flagPop},
 		},
@@ -151,23 +150,23 @@ var (
 			"d":     {stateError, UNKNOWN, flagEnd},
 		},
 		stateComment: {
-			"*": {stateComStop, UNKNOWN, flagNext},
+			"*": {stateCommentStop, UNKNOWN, flagNext},
 			"d": {stateComment, UNKNOWN, flagNext},
 		},
-		stateComStop: {
+		stateCommentStop: {
 			"/": {stateMain, COMMENT, flagPop | flagNext},
 			"d": {stateComment, UNKNOWN, flagNext},
 		},
-		stateComLine: {
+		stateCommentLine: {
 			"n": {stateMain, UNKNOWN, flagEnd},
-			"d": {stateComLine, UNKNOWN, flagNext},
+			"d": {stateCommentLine, UNKNOWN, flagNext},
 		},
 	}
 )
 
 const (
-	stateError = iota
-	stateMain
+	stateError = 0xff
+	stateMain  = iota
 	stateString
 	stateDoubleString
 	stateDoubleSlash
@@ -182,8 +181,8 @@ const (
 	stateIdentifier
 	stateMustIdent
 	stateComment
-	stateComStop
-	stateComLine
+	stateCommentStop
+	stateCommentLine
 	statePercent
 	stateLess
 	stateGreat
@@ -193,6 +192,15 @@ const (
 	stateSub
 	stateMul
 	stateBitXor
+)
+
+// flags of lexical states
+const (
+	flagEnd  = 0
+	flagNext = 1
+	flagPush = 2
+	flagPop  = 4
+	flagSkip = 8
 )
 
 func init() {
@@ -226,7 +234,6 @@ func buildAlphaTable() {
 	//for i, b := range alphaTable {
 	//	fmt.Printf("%d %c [%d]\n", i, i, b)
 	//}
-	fmt.Println()
 }
 
 func charToAlpha(ch rune) byte {
@@ -249,13 +256,12 @@ func buildLexTable() {
 			lexTable[curState][i] = 0xFE << 16
 		}
 		for key, v := range action {
-			var val = 0xFF << 16
+			var val = v.state << 16
 			if v.state != stateError {
 				val = (arr[v.state-1] - 1) << 16
 			}
 			val |= int(v.token << 8)
 			val |= v.flag
-			//fmt.Println(curState, key, v.State, v.Lexeme, v.Flag, val)
 			for _, ch := range []byte(key) {
 				var ind int
 				switch ch {
@@ -289,19 +295,5 @@ func buildLexTable() {
 				}
 			}
 		}
-	}
-	return
-	out := "package lex\n\nvar lexTable2 = [][" + fmt.Sprint(alphaRuleSize) + "]uint32{\n"
-	for _, line := range lexTable {
-		out += "\t{"
-		for _, ival := range line {
-			out += fmt.Sprintf("0x%x, ", ival)
-		}
-		out += "},\n"
-	}
-	out += "}\n"
-	err := os.WriteFile("./lex_table.go", []byte(out), 0644)
-	if err != nil {
-		fmt.Println(err.Error())
 	}
 }

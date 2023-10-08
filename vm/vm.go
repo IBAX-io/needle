@@ -56,6 +56,9 @@ func NewVM() *VM {
 		},
 		},
 		{Name: "Sprintf", Func: fmt.Sprintf},
+		{Name: "Bytes", Func: func(data any) []byte {
+			return []byte(fmt.Sprintf("%v", data.(interface{})))
+		}},
 	}
 	var v []string
 	for p := range sysVars {
@@ -98,19 +101,23 @@ func (vm *VM) Call(name string, extend map[string]any) (ret []any, err error) {
 	if extend == nil {
 		extend = make(map[string]any)
 	}
+	var block *compile.CodeBlock
+	rt := NewRuntime(vm, extend)
 	switch obj.Type {
 	case compile.ObjContract:
-		rt := NewRuntime(vm, extend)
-		ret, err = rt.Run(obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock())
-		extend[ExtendTxCost] = rt.Cost()
+		block = obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock()
 	case compile.ObjFunc:
-		rt := NewRuntime(vm, extend)
-		ret, err = rt.Run(obj.GetCodeBlock())
-		extend[ExtendTxCost] = rt.Cost()
+		block = obj.GetCodeBlock()
 	default:
 		return nil, fmt.Errorf(`unknown object %s for call`, name)
 	}
+	ret, err = rt.Run(block)
+	extend[ExtendTxCost] = rt.CostRemain()
 	return ret, err
+}
+
+func (rt *Runtime) CostUsed() int64 {
+	return rt.costLimit - rt.costRemain
 }
 
 func RollbackSmartVMObjects() {
@@ -237,7 +244,7 @@ func Run(vm *VM, block *compile.CodeBlock, extend map[string]any) (ret []any, er
 	}
 	rt := NewRuntime(vm, extend)
 	ret, err = rt.Run(block)
-	extend[ExtendTxCost] = rt.Cost()
+	extend[ExtendTxCost] = rt.CostRemain()
 	if err != nil {
 		vm.logger.WithFields(log.Fields{"type": VMErr, "error": err, "original_contract": extend[ExtendOriginalContract], "this_contract": extend[ExtendThisContract], "ecosystem_id": extend[ExtendEcosystemId]}).Error("running block in smart vm")
 		return nil, err
@@ -281,6 +288,10 @@ func (vm *VM) ExtendData(ext *compile.ExtendData) *compile.ExtendData {
 	}
 	ext.PreVar = append(vm.PreVar, ext.PreVar...)
 	return ext
+}
+
+func (vm *VM) CompileStr(input string, ext *compile.ExtendData) error {
+	return vm.Compile([]rune(input), ext)
 }
 
 // Compile compiles a source code and loads the byte-code into the virtual machine,

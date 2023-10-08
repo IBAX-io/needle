@@ -35,15 +35,15 @@ const (
 
 const (
 	// The list of state flags
-	statePush = 1 << (8 + iota)
-	statePop
-	stateStay
-	stateToBlock
-	stateToBody
-	stateFork
-	stateToFork
-	stateLabel
-	stateMustEval
+	stateFlagPush     = 1 << (8 + iota) // push a new block and add it to the parent block
+	stateFlagPop                        // end the current block and return to the parent block
+	stateFlagStay                       // keep the current state unchanged when switching to a new state
+	stateFlagToBlock                    // move to stateBlock state
+	stateFlagToBody                     // move to stateBody state
+	stateFlagFork                       // save the position of the lexical token, when the expression starts with the name of the identifier or $
+	stateFlagToFork                     // get the lexical token based on the position of stateFlagFork and pass the lexical token to the process function
+	stateFlagLabel                      // used to insert cmdLabel instruction, while structure needs this flag
+	stateFlagMustEval                   // check the availability of the condition expression in the if and while structures
 )
 
 var stateType2Str = map[stateType]string{
@@ -70,15 +70,15 @@ var stateType2Str = map[stateType]string{
 	stateFields:       "Fields",
 	stateEval:         "Eval",
 
-	statePush:     "Push",
-	statePop:      "Pop",
-	stateStay:     "Stay",
-	stateToBlock:  "ToBlock",
-	stateToBody:   "ToBody",
-	stateFork:     "Fork",
-	stateToFork:   "ToFork",
-	stateLabel:    "Label",
-	stateMustEval: "MustEval",
+	stateFlagPush:     "Push",
+	stateFlagPop:      "Pop",
+	stateFlagStay:     "Stay",
+	stateFlagToBlock:  "ToBlock",
+	stateFlagToBody:   "ToBody",
+	stateFlagFork:     "Fork",
+	stateFlagToFork:   "ToFork",
+	stateFlagLabel:    "Label",
+	stateFlagMustEval: "MustEval",
 }
 
 func (tok stateType) String() string {
@@ -135,28 +135,28 @@ var stateTable = make(map[stateType]map[Token]compileState)
 func init() {
 	stateTable[stateRoot] = map[Token]compileState{
 		NEWLINE:  {fnNothing, stateRoot},
-		CONTRACT: {fnNothing, stateContract | statePush},
-		FUNC:     {fnNothing, stateFunc | statePush},
+		CONTRACT: {fnNothing, stateContract | stateFlagPush},
+		FUNC:     {fnNothing, stateFunc | stateFlagPush},
 		UNKNOWN:  {fnError, errUnknownCmd},
 	}
 	stateTable[stateBody] = map[Token]compileState{
 		NEWLINE:    {fnNothing, stateBody},
-		FUNC:       {fnNothing, stateFunc | statePush},
+		FUNC:       {fnNothing, stateFunc | stateFlagPush},
 		RETURN:     {fnReturn, stateEval},
 		CONTINUE:   {fnContinue, stateBody},
 		BREAK:      {fnBreak, stateBody},
-		IF:         {fnIf, stateEval | statePush | stateToBlock | stateMustEval},
-		WHILE:      {fnWhile, stateEval | statePush | stateToBlock | stateLabel | stateMustEval},
-		ELSE:       {fnElse, stateBlock | statePush},
+		IF:         {fnIf, stateEval | stateFlagPush | stateFlagToBlock | stateFlagMustEval},
+		WHILE:      {fnWhile, stateEval | stateFlagPush | stateFlagToBlock | stateFlagLabel | stateFlagMustEval},
+		ELSE:       {fnElse, stateBlock | stateFlagPush},
 		VAR:        {fnNothing, stateVar},
 		TX:         {fnTx, stateTX},
 		SETTINGS:   {fnSettings, stateSettings},
 		ERROR:      {fnCmdError, stateEval},
 		ERRWARNING: {fnCmdError, stateEval},
 		ERRINFO:    {fnCmdError, stateEval},
-		IDENTIFIER: {fnNothing, stateAssignEval | stateFork},
-		EXTEND:     {fnNothing, stateAssignEval | stateFork},
-		RBRACE:     {fnNothing, statePop},
+		IDENTIFIER: {fnNothing, stateAssignEval | stateFlagFork},
+		EXTEND:     {fnNothing, stateAssignEval | stateFlagFork},
+		RBRACE:     {fnNothing, stateFlagPop},
 		UNKNOWN:    {fnError, errMustRBRACE},
 	}
 	stateTable[stateBlock] = map[Token]compileState{
@@ -177,7 +177,7 @@ func init() {
 	stateTable[stateFnParams] = map[Token]compileState{
 		NEWLINE: {fnNothing, stateFnParams},
 		LPAREN:  {fnNothing, stateFnParam},
-		UNKNOWN: {fnNothing, stateFnResult | stateStay},
+		UNKNOWN: {fnNothing, stateFnResult | stateFlagStay},
 	}
 	stateTable[stateFnParam] = map[Token]compileState{
 		NEWLINE:    {fnNothing, stateFnParam},
@@ -203,7 +203,7 @@ func init() {
 		DOT:      {fnNothing, stateFnDot},
 		TYPENAME: {fnFuncResult, stateFnResult},
 		COMMA:    {fnNothing, stateFnResult},
-		UNKNOWN:  {fnNothing, stateBlock | stateStay},
+		UNKNOWN:  {fnNothing, stateBlock | stateFlagStay},
 	}
 	stateTable[stateFnDot] = map[Token]compileState{
 		NEWLINE:    {fnNothing, stateFnDot},
@@ -213,7 +213,7 @@ func init() {
 	stateTable[stateVar] = map[Token]compileState{
 		NEWLINE:    {fnNothing, stateBody},
 		IDENTIFIER: {fnParamName, stateVarType},
-		RBRACE:     {fnNothing, stateBody | stateStay},
+		RBRACE:     {fnNothing, stateBody | stateFlagStay},
 		COMMA:      {fnNothing, stateVar},
 		UNKNOWN:    {fnError, errVars},
 	}
@@ -224,16 +224,16 @@ func init() {
 		UNKNOWN:    {fnError, errVarType},
 	}
 	stateTable[stateAssignEval] = map[Token]compileState{
-		LPAREN:  {fnNothing, stateEval | stateToFork | stateToBody},
-		LBRACK:  {fnNothing, stateEval | stateToFork | stateToBody},
-		UNKNOWN: {fnNothing, stateAssign | stateToFork | stateStay},
+		LPAREN:  {fnNothing, stateEval | stateFlagToFork | stateFlagToBody},
+		LBRACK:  {fnNothing, stateEval | stateFlagToFork | stateFlagToBody},
+		UNKNOWN: {fnNothing, stateAssign | stateFlagToFork | stateFlagStay},
 	}
 	stateTable[stateAssign] = map[Token]compileState{
 		COMMA:      {fnNothing, stateAssign},
 		IDENTIFIER: {fnAssignVar, stateAssign},
 		EXTEND:     {fnAssignVar, stateAssign},
-		EQ:         {fnAssign, stateEval | stateToBody},
-		OPERATOR:   {fnAssign, stateEval | stateToBody},
+		EQ:         {fnAssign, stateEval | stateFlagToBody},
+		OPERATOR:   {fnAssign, stateEval | stateFlagToBody},
 		UNKNOWN:    {fnError, errAssign},
 	}
 	stateTable[stateTX] = map[Token]compileState{
@@ -252,7 +252,7 @@ func init() {
 		NEWLINE:    {fnNothing, stateConsts},
 		COMMA:      {fnNothing, stateConsts},
 		IDENTIFIER: {fnConstName, stateConstsAssign},
-		RBRACE:     {fnNothing, stateToBody},
+		RBRACE:     {fnNothing, stateFlagToBody},
 		UNKNOWN:    {fnError, errMustRBRACE},
 	}
 	stateTable[stateConstsAssign] = map[Token]compileState{
@@ -270,7 +270,7 @@ func init() {
 		IDENTIFIER: {fnField, stateFields},
 		TYPENAME:   {fnFieldType, stateFields},
 		LITERAL:    {fnFieldTag, stateFields},
-		RBRACE:     {fnFields, stateToBody},
+		RBRACE:     {fnFields, stateFlagToBody},
 		UNKNOWN:    {fnError, errMustRBRACE},
 	}
 }

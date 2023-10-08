@@ -209,7 +209,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 			rtemp := NewRuntime(rt.vm, rt.extend)
 			rt.extend[ExtendParent] = parent
 			_, err = rtemp.Run(block.GetCodeBlock())
-			rt.cost = rtemp.Cost()
+			rt.costRemain = rtemp.CostRemain()
 			if err != nil {
 				//logger.WithFields(log.Fields{"error": err, "method_name": method, "type": ContractError}).Error("executing contract method")
 				break
@@ -239,8 +239,8 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 }
 
 // CallContract executes the name contract in the state with specified parameters
-func CallContract(rt *Runtime, name string, params *compile.Map) (any, error) {
-	name = StateName(rt.vm.GetOwnerInfo().StateID, name)
+func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (any, error) {
+	name = StateName(uint32(state), name)
 	_, ok := rt.vm.Objects[name]
 	if !ok {
 		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")

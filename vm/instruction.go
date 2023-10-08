@@ -49,30 +49,31 @@ func (c *instructionCtx) popLabel() int {
 var instructionTable = make(map[compile.CmdT]instruction)
 
 func init() {
-	for i := compile.CmdExtend; i <= compile.CmdCallExtend; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-			if err = rt.SubCost(CostExtend); err != nil {
-				return
-			}
-			val, ok := rt.extend[code.Value.(string)]
-			if !ok {
-				err = fmt.Errorf(`unknown extend identifier %v`, code.Value)
-				return
-			}
-			if code.Cmd == compile.CmdCallExtend {
-				err = rt.extendFunc(code.Value.(string))
-				if err != nil {
-					err = fmt.Errorf(`extend function %v %s`, code.Value, err)
-				}
-				return
-			}
-			switch varVal := val.(type) {
-			case int:
-				val = int64(varVal)
-			}
-			rt.stack.push(val)
+	instructionTable[compile.CmdCallExtend] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		if err = rt.SubCost(CostCall); err != nil {
 			return
 		}
+		err = rt.extendFunc(code.Value.(string))
+		if err != nil {
+			err = fmt.Errorf("extendFunc err:%v", err)
+		}
+		return
+	}
+	instructionTable[compile.CmdExtend] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
+		if err = rt.SubCost(CostExtend); err != nil {
+			return
+		}
+		val, ok := rt.extend[code.Value.(string)]
+		if !ok {
+			err = fmt.Errorf(`unknown extend identifier %v`, code.Value)
+			return
+		}
+		switch varVal := val.(type) {
+		case int:
+			val = int64(varVal)
+		}
+		rt.stack.push(val)
+		return
 	}
 	instructionTable[compile.CmdPushStr] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		rt.stack.push(code.Value.(string))
@@ -104,7 +105,6 @@ func init() {
 	}
 	instructionTable[compile.CmdIf] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if valueToBool(rt.stack.peek()) {
-			rt.stack.pop()
 			return rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
@@ -133,7 +133,7 @@ func init() {
 	instructionTable[compile.CmdAssign] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		count := len(ctx.assignVar)
 		if count > rt.stack.size() {
-			err = fmt.Errorf("not enough values to assign")
+			err = fmt.Errorf("assignment count mismatch")
 			return
 		}
 		cut := count
@@ -503,9 +503,9 @@ func init() {
 	}
 	instructionTable[compile.CmdError] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		eType := "error"
-		if code.Value.(compile.Token) == compile.ERRWARNING {
+		if code.Value.(string) == compile.Keyword2Str(compile.ERRWARNING) {
 			eType = "warning"
-		} else if code.Value.(compile.Token) == compile.ERRINFO {
+		} else if code.Value.(string) == compile.Keyword2Str(compile.ERRINFO) {
 			eType = "info"
 		}
 		err = VMError{Type: eType, Err: rt.stack.pop()}
