@@ -21,5 +21,7 @@
 go.work
 docs/
 needle
-grammar/
+grammar/*
+!grammar/NeedleLexer.g4
+!grammar/NeedleParser.g4
 gen/
