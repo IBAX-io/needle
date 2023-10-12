@@ -2,15 +2,15 @@ lexer grammar NeedleLexer;
 
 // delimiters
 LPAREN: '(';
-RPAREN: ')'; //-> mode(NLSEMI);
+RPAREN: ')';
 COMMA: ',';
 DOT: '.';
 COLON: ':';
 EQ: '=';
 LBRACK: '[';
-RBRACK: ']'; //-> mode(NLSEMI);
+RBRACK: ']';
 LBRACE: '{';
-RBRACE: '}'; //-> mode(NLSEMI);
+RBRACE: '}';
 SEMI: ';';
 
 // Operators
@@ -43,13 +43,13 @@ RSHIFT_EQ: '>>=';
 BIT_AND_EQ: '&=';
 BIT_OR_EQ: '|=';
 BIT_XOR_EQ: '^=';
-INC: '++'; //-> mode(NLSEMI);
-DEC: '--'; //-> mode(NLSEMI);
+INC: '++';
+DEC: '--';
 
 // Keywords
 CONTRACT: 'contract';
 FUNC: 'func';
-RETURN: 'return'; //-> mode(NLSEMI);
+RETURN: 'return';
 IF: 'if';
 ELIF: 'elif';
 ELSE: 'else';
@@ -59,11 +59,11 @@ FALSE: 'false';
 VAR: 'var';
 DATA: 'data';
 SETTINGS: 'settings';
-BREAK: 'break'; //-> mode(NLSEMI);
-CONTINUE: 'continue'; //-> mode(NLSEMI);
+BREAK: 'break';
+CONTINUE: 'continue';
 ERRWARNING: 'warning';
 ERRINFO: 'info';
-NIL: 'nil'; //-> mode(NLSEMI);
+NIL: 'nil';
 ACTION: 'action';
 CONDITIONS: 'conditions';
 TAIL: '...';
@@ -83,37 +83,30 @@ FILE: 'file';
 
 Question: '?';
 
-Identifier:
-	UnicodeLiteral (Literal | UnicodeDigits)*; //-> mode(NLSEMI);
+Identifier: UnicodeLiteral (Literal | UnicodeDigits)*;
 
 DollarIdentifier: '$' Identifier;
 
 AtIdentifier: '@' UnicodeDigits* (UnicodeLiteral Literal*)+;
 
+StringLiteral: InterpretedStringLiteral | RawStringLiteral;
+
+InterpretedStringLiteral: '"' DoubleQuotedStringCharacter* '"';
+
+RawStringLiteral: '`' ~'`'* '`';
+
 DecimalNumber: (
 		DecimalDigits
 		| (DecimalDigits? '.' DecimalDigits)
-	)
-//	ExponentPart?
-	;
+	) ExponentPart?;
 
-StringLiteral: InterpretedStringLiteral | RawStringLiteral;
+HexLiteral: '0' [xX] ('_'? HexDigits)+;
 
-InterpretedStringLiteral:
-	'"' DoubleQuotedStringCharacter* '"'; //-> mode(NLSEMI);
+OctalLiteral: '0' [oO] ('_'? OctalDigits)+;
 
-RawStringLiteral: '`' ~'`'* '`'; //-> mode(NLSEMI);
+BinaryLiteral: '0' [bB] ('_'? BinDigits)+;
 
-RuneLiteral:
-	'\'' (UnicodeValue | BytesValue) '\''; //-> mode(NLSEMI);
-
-HexLiteral: '0' [xX] ('_'? HexDigits)+; //-> mode(NLSEMI);
-
-OctalLiteral: '0' [oO] ('_'? OctalDigits)+; //-> mode(NLSEMI);
-
-BinaryLiteral: '0' [bB] ('_'? BinDigits)+; //-> mode(NLSEMI);
-
-DecimalLiteral: DecimalDigits;
+RuneLiteral: '\'' (UnicodeValue | BytesValue) '\'';
 
 HexByteValue: '\\' 'x' HexDigits HexDigits;
 
@@ -121,7 +114,7 @@ OctalByteValue: '\\' OctalDigits OctalDigits OctalDigits;
 
 BytesValue: HexByteValue | OctalByteValue;
 
-LiteralUValue: '\\' 'u' HexDigits HexDigits HexDigits HexDigits;
+LittleUValue: '\\' 'u' HexDigits HexDigits HexDigits HexDigits;
 
 BigUValue:
 	'\\' 'U' HexDigits HexDigits HexDigits HexDigits HexDigits HexDigits HexDigits HexDigits;
@@ -146,18 +139,13 @@ fragment UnicodeDigits: [\p{Nd}];
 
 fragment UnicodeValue:
 	~[\r\n']
-	| LiteralUValue
+	| LittleUValue
 	| BigUValue
 	| EscapedChar;
 
 fragment Literal: UnicodeLiteral | '_';
 
-fragment EscapedChar:
-	LiteralUValue
-	| BigUValue
-	| OctalByteValue
-	| HexByteValue
-	| '\\' [abfnrtv\\'"];
+fragment EscapedChar: '\\' [abfnrtv\\'"];
 
 fragment DoubleQuotedStringCharacter: ~["\r\n\\] | ('\\' .);
 
@@ -168,7 +156,3 @@ COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 LINE_COMMENT: '//' ~[\r\n]* -> channel(HIDDEN);
 TERMINATOR: [\r\n]+ -> channel(HIDDEN);
 EOS: ([\r\n]+ | ';' | '/*' .*? '*/' | EOF) -> channel(HIDDEN);
-
-//mode NLSEMI; WS_NLSEMI : [ \t]+ -> channel(HIDDEN); COMMENT_NLSEMI : '/*' ~[\r\n]*? '*/' ->
-// channel(HIDDEN); LINE_COMMENT_NLSEMI : '//' ~[\r\n]* -> channel(HIDDEN); EOS: ([\r\n]+ | ';' |
-// '/*' .*? '*/' | EOF) -> mode(DEFAULT_MODE); OTHER: -> mode(DEFAULT_MODE), channel(HIDDEN);

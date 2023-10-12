@@ -392,7 +392,7 @@ func fnFieldType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	for i, field := range *tx {
 		if field.Type == reflect.TypeOf(nil) {
 			(*tx)[i].Type = lexeme.Value.(reflect.Type)
-			(*tx)[i].Original = lexeme.Type
+			(*tx)[i].Original = TypeReflect2Token((*tx)[i].Type)
 		}
 	}
 	return nil

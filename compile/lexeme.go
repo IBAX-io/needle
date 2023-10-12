@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -150,17 +151,11 @@ func NewLexer(input []rune) (Lexemes, error) {
 				}
 			case NUMBER:
 				name := string(input[lexOffset:right])
-				if strings.ContainsAny(name, `.`) {
-					val, err := strconv.ParseFloat(name, 64)
-					if err != nil {
-						return nil, fmt.Errorf(`%v [%d:%d]`, err, line, off-offline+1)
-					}
-					value = val
-				} else if val, err := strconv.ParseInt(name, 10, 64); err == nil {
-					value = val
-				} else {
-					return nil, fmt.Errorf(`%v %s [%d:%d]`, err, name, line, off-offline+1)
+				val, err := string2Number(name)
+				if err != nil {
+					return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, line, off-offline+1)
 				}
+				value = val
 			case IDENTIFIER:
 				name := string(input[lexOffset:right])
 				if name[0] == '$' {
@@ -236,4 +231,63 @@ func hasPop(flag int) bool {
 
 func hasSkip(flag int) bool {
 	return (flag & flagSkip) != 0
+}
+
+var (
+	hexRegex     = regexp.MustCompile("^0[xX][0-9a-fA-F]+$")
+	octalRegex   = regexp.MustCompile("^0[oO][0-7]+$")
+	binaryRegex  = regexp.MustCompile("^0[bB][01]+$")
+	decimalRegex = regexp.MustCompile("^[0-9]+$")
+	floatRegex   = regexp.MustCompile("^([0-9]+([.][0-9]+)?|[.][0-9]+)([eE][+-]?[0-9]+)?$")
+)
+
+func isHex(s string) bool     { return hexRegex.MatchString(s) }
+func isOctal(s string) bool   { return octalRegex.MatchString(s) }
+func isBinary(s string) bool  { return binaryRegex.MatchString(s) }
+func isDecimal(s string) bool { return decimalRegex.MatchString(s) }
+func isFloat(s string) bool   { return floatRegex.MatchString(s) }
+
+// string2Number convert number string literal to int64 or float64, include '._+-bBoOxXeE', support decimal_lit | binary_lit | octal_lit | hex_lit | float_lit.
+func string2Number(s string) (interface{}, error) {
+	for i, ch := range s {
+		if ch == '_' {
+			if i == 0 || s[i-1] == '_' || i == len(s)-1 {
+				return nil, fmt.Errorf("underscore '%s' ", s)
+			}
+		}
+	}
+	s = strings.ReplaceAll(s, `_`, ``)
+	if isHex(s) {
+		if strings.HasPrefix(s, "0x") ||
+			strings.HasPrefix(s, "0X") {
+			s = s[2:]
+		}
+		return strconv.ParseInt(s, 16, 64)
+	}
+
+	if isOctal(s) {
+		if strings.HasPrefix(s, "0o") ||
+			strings.HasPrefix(s, "0O") {
+			s = s[2:]
+		}
+		return strconv.ParseInt(s, 8, 64)
+	}
+
+	if isBinary(s) {
+		if strings.HasPrefix(s, "0b") ||
+			strings.HasPrefix(s, "0B") {
+			s = s[2:]
+		}
+		return strconv.ParseInt(s, 2, 64)
+	}
+
+	if isDecimal(s) {
+		return strconv.ParseInt(s, 10, 64)
+	}
+
+	if isFloat(s) {
+		return strconv.ParseFloat(s, 64)
+	}
+
+	return nil, fmt.Errorf("unsupported to convert '%s' to number", s)
 }

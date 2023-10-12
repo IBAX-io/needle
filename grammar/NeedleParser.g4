@@ -20,7 +20,7 @@ dataTag: StringLiteral;
 settingsDef:
 	SETTINGS LBRACE (Identifier EQ settingsValue eos)* RBRACE;
 
-settingsValue: (numberLiteral | booleanLiteral | stringLiteral);
+settingsValue: (numberLiteral | booleanLiteral | StringLiteral);
 
 funcDef: (innerFuncDef | defaultFuncDef) (
 		DOT Identifier signature
@@ -102,11 +102,11 @@ objectStatement: LBRACE pairList? RBRACE;
 
 pairList: pair (COMMA pair)* COMMA?;
 
-pair: (stringLiteral | identifierVar) COLON pairValue+;
+pair: (StringLiteral | identifierVar) COLON pairValue+;
 
 pairValue:
 	identifierVar
-	| stringLiteral
+	| StringLiteral
 	| numberLiteral
 	| arrayStatement
 	| objectStatement
@@ -146,7 +146,7 @@ primaryExpression:
 operand:
 	identifierFull
 	| numberLiteral
-	| stringLiteral
+	| StringLiteral
 	| booleanLiteral
 	| LPAREN expression RPAREN
 	| NIL;
@@ -194,16 +194,12 @@ identifierList: Identifier (COMMA? Identifier)*;
 
 numberLiteral:
 	DecimalNumber
-//	| BinaryLiteral
-//	| OctalLiteral
-//	| HexLiteral
+	| BinaryLiteral
+	| OctalLiteral
+	| HexLiteral
 //	| RuneLiteral
 	;
 
-stringLiteral: StringLiteral;
-
 booleanLiteral: TRUE | FALSE;
-
-runeLiteral: RuneLiteral;
 
 eos: SEMI | EOF | EOS | {p.closingBracket()}?;

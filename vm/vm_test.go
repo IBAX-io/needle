@@ -16,6 +16,7 @@ func TestVM_Compile(t *testing.T) {
 	expr, _ := os.ReadFile("../examples/expr.sim")
 	stack, _ := os.ReadFile("../examples/stack.sim")
 	callfn, _ := os.ReadFile("../examples/callfn.sim")
+
 	tests := []struct {
 		name    string
 		method  string
@@ -31,6 +32,33 @@ func TestVM_Compile(t *testing.T) {
 		{"case_expr_bit", "operand_bit", []rune(string(expr)), assert.NoError},
 		{"case_expr_comparison", "operand_comparison", []rune(string(expr)), assert.NoError},
 		{"case_callfn", "@1ABC.conditions", []rune(string(callfn)), assert.NoError},
+		{"case_number_literal", "number_literal", []rune(`
+func intLit(){
+	var i, i1, i2, i3, i4, i5, i6, i7, i8, i9 int
+	i = 42
+	i1 = 4_2_2
+	i2 = 0600
+	i3 = 0_600
+	i4 = 0o600
+	i5 = -0xBadFace
+	i6 = 0x_67_7a_2f_cc_40_c6
+	i7 = 0b1101_0011_1101_0000
+}
+func floatLit(){
+	var f, f1, f2, f3, f4, f5, f6, f7 float
+	f = .2
+	f1 = 72.40
+	f2 = 072.40
+	f3 = 2.71828
+	f4 = 6.67428e-11
+	f5 = 1E6
+	f6 = .12345E5
+	f7 = 0.15e+0_2
+}
+func number_literal(){
+	intLit()
+	floatLit()
+}`), assert.NoError},
 		{"case_newline", "newline", []rune(`
 func newline(){
 	var a b c int;b=2;c=3;Println(a,b,c)

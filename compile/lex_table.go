@@ -137,9 +137,14 @@ var (
 			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateNumber: {
-			"01.": {stateNumber, UNKNOWN, flagNext},
-			"a_r": {stateError, UNKNOWN, flagEnd},
-			"d":   {stateMain, NUMBER, flagPop},
+			"01.a+-": {stateNumber, UNKNOWN, flagNext},
+			"r":      {stateError, UNKNOWN, flagEnd},
+			"_":      {stateUnderscore, UNKNOWN, flagNext},
+			"d":      {stateMain, NUMBER, flagPop},
+		},
+		stateUnderscore: {
+			"01a": {stateNumber, UNKNOWN, flagNext},
+			"d":   {stateError, UNKNOWN, flagEnd},
 		},
 		stateIdentifier: {
 			"01a_r": {stateIdentifier, UNKNOWN, flagNext},
@@ -192,6 +197,8 @@ const (
 	stateSub
 	stateMul
 	stateBitXor
+	stateUnderscore
+	stateQuote
 )
 
 // flags of lexical states
