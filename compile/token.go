@@ -254,18 +254,9 @@ func GetFieldDefaultValue(fieldType Token) any {
 	return defaultValue
 }
 
-func TypeReflect2Token(fieldType reflect.Type) Token {
-	for s, t := range TypeNameReflect {
-		if fieldType == t {
-			return s
-		}
-	}
-	return UNKNOWN
-}
-
-func TypeName2String(token Token) string {
+func (tk Token) TypeName() string {
 	for s, t := range TypeNameValue {
-		if token == t {
+		if tk == t {
 			return s
 		}
 	}

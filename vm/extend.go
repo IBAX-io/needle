@@ -156,7 +156,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 		prevExtend[key] = item
 		delete(rt.extend, key)
 	}
-	extVars, err := genExtVars(obj.GetContractInfo(), txs, params...)
+	extVars, err := genExtVars(obj.GetContractInfo(), txs, params)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (
 	if params == nil {
 		params = compile.NewMap()
 	}
-	return ExecContract(rt, name, strings.Join(params.Keys(), `,`), params.Values())
+	return ExecContract(rt, name, strings.Join(params.Keys(), `,`), params.Values()...)
 }
 
 // GetSettings returns the value of the parameter of contract
@@ -272,7 +272,7 @@ func MemoryUsage(rt *Runtime) int64 {
 	return rt.mem
 }
 
-func genExtVars(contract *compile.ContractInfo, txs string, params ...any) (map[string]any, error) {
+func genExtVars(contract *compile.ContractInfo, txs string, params []any) (map[string]any, error) {
 	pars := strings.Split(txs, `,`)
 	param := make(map[string]struct{})
 	for _, par := range pars {
@@ -284,6 +284,7 @@ func genExtVars(contract *compile.ContractInfo, txs string, params ...any) (map[
 	if len(pars) != len(params) {
 		return nil, fmt.Errorf("wrong number of parameters, expected %d, got %d", len(pars), len(params))
 	}
+
 	extVars := make(map[string]any)
 	txMap := contract.TxMap()
 

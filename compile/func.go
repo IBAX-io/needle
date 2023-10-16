@@ -73,7 +73,7 @@ func fnBlockDecl(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 
 func fnFuncResult(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	fn := buf.peek().GetFuncInfo()
-	(*fn).Results = append((*fn).Results, lexeme.Value.(reflect.Type))
+	(*fn).Results = append((*fn).Results, TypeNameReflect[lexeme.Value.(Token)])
 	return nil
 }
 
@@ -129,7 +129,7 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 // fnParamType sets the type of the function parameter or variable.
 func fnParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	block := buf.peek()
-	rtp := lexeme.Value.(reflect.Type)
+	rtp := TypeNameReflect[lexeme.Value.(Token)]
 	for i, v := range block.Vars {
 		if v == reflect.TypeOf(nil) {
 			block.Vars[i] = rtp
@@ -391,8 +391,8 @@ func fnFieldType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	}
 	for i, field := range *tx {
 		if field.Type == reflect.TypeOf(nil) {
-			(*tx)[i].Type = lexeme.Value.(reflect.Type)
-			(*tx)[i].Original = TypeReflect2Token((*tx)[i].Type)
+			(*tx)[i].Type = TypeNameReflect[lexeme.Value.(Token)]
+			(*tx)[i].Original = lexeme.Value.(Token)
 		}
 	}
 	return nil

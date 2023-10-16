@@ -196,7 +196,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 						}
 						tk, value = keyID, Keyword2Str(keyID)
 					}
-				} else if tInfo, ok := TypeNameReflect[TypeNameValue[name]]; ok {
+				} else if tInfo, ok := TypeNameValue[name]; ok {
 					tk, value = TYPENAME, tInfo
 				} else {
 					value = name

@@ -95,10 +95,13 @@ InterpretedStringLiteral: '"' DoubleQuotedStringCharacter* '"';
 
 RawStringLiteral: '`' ~'`'* '`';
 
-DecimalNumber: (
-		DecimalDigits
-		| (DecimalDigits? '.' DecimalDigits)
-	) ExponentPart?;
+DecimalLiteral: DecimalDigits+;
+
+FloatLiteral:
+    (DecimalDigits ExponentPart)
+    | (DecimalDigits '.' DecimalDigits ExponentPart?)
+    | ('.' DecimalDigits ExponentPart?)
+    | (DecimalDigits '.' DecimalDigits);
 
 HexLiteral: '0' [xX] ('_'? HexDigits)+;
 

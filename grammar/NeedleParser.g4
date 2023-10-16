@@ -193,10 +193,11 @@ identifierVar: Identifier | DollarIdentifier;
 identifierList: Identifier (COMMA? Identifier)*;
 
 numberLiteral:
-	DecimalNumber
+	DecimalLiteral
 	| BinaryLiteral
 	| OctalLiteral
 	| HexLiteral
+	| FloatLiteral
 //	| RuneLiteral
 	;
 

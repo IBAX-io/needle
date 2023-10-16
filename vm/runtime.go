@@ -350,11 +350,13 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 			pars[count-i] = reflect.Zero(reflect.TypeOf(``))
 		}
 	}
-	if i > 0 && size-i >= 0 {
-		pars[in-1] = reflect.ValueOf(rt.stack.peekFromTo(size-i, size))
-	} else {
-		if !pars[in-1].IsValid() {
-			pars[in-1] = reflect.Zero(finfo.Params[in-1])
+	if i > 0 {
+		if size-i >= 0 {
+			pars[in-1] = reflect.ValueOf(rt.stack.peekFromTo(size-i, size))
+		} else {
+			if !pars[in-1].IsValid() {
+				pars[in-1] = reflect.Zero(finfo.Params[in-1])
+			}
 		}
 	}
 	if finfo.Variadic {
