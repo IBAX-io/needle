@@ -10,91 +10,34 @@ import (
 )
 
 const (
-	ExtendEcosystemId      = `ecosystem_id`
-	ExtendParent           = `parent`
-	ExtendTxCost           = `txcost`
-	ExtendResult           = `result`
-	ExtendSc               = `sc`
+	ExtendParentContract   = `parent_contract`
 	ExtendOriginalContract = `original_contract`
 	ExtendThisContract     = `this_contract`
-	ExtendGenBlock         = `gen_block`
 	ExtendTimeLimit        = `time_limit`
+	ExtendGenBlock         = `gen_block`
+	ExtendTxCost           = `txcost`
+	ExtendStack            = `stack`
+	ExtendSc               = `sc`
+	ExtendRt               = `rt`
 
-	ExtendRt    = `rt`
-	ExtendStack = `stack`
-	ExtendLoop  = `loop_`
-)
-
-const (
-	//system variable cannot be changed
-	sysVars_block               = `block`
-	sysVars_block_key_id        = `block_key_id`
-	sysVars_block_time          = `block_time`
-	sysVars_data                = `data`
-	sysVars_ecosystem_id        = `ecosystem_id`
-	sysVars_key_id              = `key_id`
-	sysVars_account_id          = `account_id`
-	sysVars_node_position       = `node_position`
-	sysVars_parent              = `parent`
-	sysVars_original_contract   = `original_contract`
-	sysVars_sc                  = `sc`
-	sysVars_contract            = `contract`
-	sysVars_stack               = `stack`
-	sysVars_this_contract       = `this_contract`
-	sysVars_time                = `time`
-	sysVars_type                = `type`
-	sysVars_txcost              = `txcost`
-	sysVars_txhash              = `txhash`
-	sysVars_guest_key           = `guest_key`
-	sysVars_guest_account       = `guest_account`
-	sysVars_black_hole_key      = `black_hole_key`
-	sysVars_white_hole_key      = `white_hole_key`
-	sysVars_black_hole_account  = `black_hole_account`
-	sysVars_white_hole_account  = `white_hole_account`
-	sysVars_gen_block           = `gen_block`
-	sysVars_time_limit          = `time_limit`
-	sysVars_pre_block_data_hash = `pre_block_data_hash`
+	ExtendResult = `result`
 )
 
 const (
 	TagOptional = "optional"
 )
 
+// system variable cannot be changed through the contract
 var sysVars = map[string]struct{}{
-	sysVars_block:               {},
-	sysVars_block_key_id:        {},
-	sysVars_block_time:          {},
-	sysVars_data:                {},
-	sysVars_ecosystem_id:        {},
-	sysVars_key_id:              {},
-	sysVars_account_id:          {},
-	sysVars_node_position:       {},
-	sysVars_parent:              {},
-	sysVars_original_contract:   {},
-	sysVars_sc:                  {},
-	sysVars_contract:            {},
-	sysVars_stack:               {},
-	sysVars_this_contract:       {},
-	sysVars_time:                {},
-	sysVars_type:                {},
-	sysVars_txcost:              {},
-	sysVars_txhash:              {},
-	sysVars_guest_key:           {},
-	sysVars_guest_account:       {},
-	sysVars_black_hole_key:      {},
-	sysVars_black_hole_account:  {},
-	sysVars_white_hole_key:      {},
-	sysVars_white_hole_account:  {},
-	sysVars_gen_block:           {},
-	sysVars_time_limit:          {},
-	sysVars_pre_block_data_hash: {},
-}
-
-func isSysVar(name string) bool {
-	if _, ok := sysVars[name]; ok || strings.HasPrefix(name, ExtendLoop) {
-		return true
-	}
-	return false
+	ExtendParentContract:   {},
+	ExtendOriginalContract: {},
+	ExtendThisContract:     {},
+	ExtendTimeLimit:        {},
+	ExtendGenBlock:         {},
+	ExtendTxCost:           {},
+	ExtendStack:            {},
+	ExtendRt:               {},
+	ExtendSc:               {},
 }
 
 type extendInfo struct {
@@ -132,21 +75,21 @@ func (rt *Runtime) loadExtendBy(key string) *extendInfo {
 // ExecContract runs the name contract where txs contains the list of parameters and
 // params are the values of parameters
 func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
+	if err := rt.SubCost(CostContract); err != nil {
+		return nil, err
+	}
+
 	obj, ok := rt.vm.Objects[name]
 	if !ok || obj.Type != compile.ObjContract {
-		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
-	logger := log.WithFields(log.Fields{"contract_name": name, "type": ContractError})
 
 	//check if there is loop in contract
-	if _, ok := rt.extend[ExtendLoop+name]; ok {
-		logger.WithFields(log.Fields{"type": ContractError, "contract_name": name}).Error("there is loop in contract")
+	if _, ok := rt.used[name]; ok {
 		return nil, fmt.Errorf(eContractLoop, name)
 	}
-	rt.extend[ExtendLoop+name] = true
-	defer delete(rt.extend, ExtendLoop+name)
-
+	rt.used[name] = struct{}{}
+	defer delete(rt.used, name)
 	//save previous extend variables of current contract
 	prevExtend := make(map[string]any)
 	for key, item := range rt.extend {
@@ -170,7 +113,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	_, nameContract := ParseName(name)
 	rt.extend[ExtendThisContract] = nameContract
 
-	prevparent := rt.extend[ExtendParent]
+	prevparent := rt.extend[ExtendParentContract]
 	parent := ``
 	for i := len(rt.blocks) - 1; i >= 0; i-- {
 		var b = rt.blocks[i].Block
@@ -191,10 +134,6 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 		}
 	}
 
-	if err := rt.SubCost(CostContract); err != nil {
-		return nil, err
-	}
-
 	var (
 		stack Stacker
 	)
@@ -203,15 +142,14 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 			return nil, err
 		}
 	}
-
 	for _, method := range []string{`conditions`, `action`} {
 		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compile.ObjFunc {
-			rtemp := NewRuntime(rt.vm, rt.extend)
-			rt.extend[ExtendParent] = parent
+			rtemp := NewRuntime(rt.vm, rt.extend, rt.costRemain)
+			rt.extend[ExtendParentContract] = parent
+			rtemp.used = rt.used
 			_, err = rtemp.Run(block.GetCodeBlock())
 			rt.costRemain = rtemp.CostRemain()
 			if err != nil {
-				//logger.WithFields(log.Fields{"error": err, "method_name": method, "type": ContractError}).Error("executing contract method")
 				break
 			}
 		}
@@ -222,7 +160,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	rt.extend[ExtendParent] = prevparent
+	rt.extend[ExtendParentContract] = prevparent
 	rt.extend[ExtendThisContract] = prevthis
 	result := rt.extend[ExtendResult]
 	for key := range rt.extend {
@@ -294,7 +232,7 @@ func genExtVars(contract *compile.ContractInfo, txs string, params []any) (map[s
 		}
 		_, ok := txMap[par]
 		if !ok {
-			return nil, fmt.Errorf("'%s' parameter is not required", par)
+			continue
 		}
 		if len(par) > 0 {
 			extVars[par] = params[i]

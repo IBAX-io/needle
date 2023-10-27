@@ -19,7 +19,7 @@ type Runtime struct {
 	vm         *VM
 	costRemain int64
 	costLimit  int64
-	err        error
+	used       map[string]struct{}
 	unwrap     bool
 	timeLimit  bool
 	callDepth  uint16
@@ -29,8 +29,7 @@ type Runtime struct {
 }
 
 // NewRuntime creates a new Runtime for the virtual machine
-func NewRuntime(vm *VM, extend map[string]any) *Runtime {
-	cost, _ := extend[ExtendTxCost].(int64)
+func NewRuntime(vm *VM, extend map[string]any, cost int64) *Runtime {
 	return &Runtime{
 		stack:      newStack(),
 		vm:         vm,
@@ -38,7 +37,14 @@ func NewRuntime(vm *VM, extend map[string]any) *Runtime {
 		costLimit:  cost,
 		extend:     extend,
 		memVars:    make(map[any]int64),
+		used:       make(map[string]struct{}),
 	}
+}
+
+// Stacker represents interface for working with call stack
+type Stacker interface {
+	AppendStack(fn string) error
+	PopStack(fn string)
 }
 
 // SetCost sets the max cost of the execution.
@@ -46,7 +52,6 @@ func (rt *Runtime) SetCost(cost int64) {
 	rt.costRemain = cost
 }
 
-// SubCost subtracts the cost of the execution.
 func (rt *Runtime) SubCost(cost int64) error {
 	if cost > 0 {
 		rt.costRemain -= cost
@@ -60,6 +65,10 @@ func (rt *Runtime) SubCost(cost int64) error {
 // CostRemain return the remain cost of the execution.
 func (rt *Runtime) CostRemain() int64 {
 	return rt.costRemain
+}
+
+func (rt *Runtime) CostUsed() int64 {
+	return rt.costLimit - rt.costRemain
 }
 
 // Run executes CodeBlock with the extended variables and functions
@@ -116,48 +125,52 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 			err = errors.Errorf(`runcode panic: %v`, r)
 		}
 
-		if err != nil && !errors.As(err, &VMError{}) {
-			var name, line string
-			if block.Parent != nil && block.Parent.Type == compile.ObjFunc {
-				name = block.Parent.GetFuncInfo().Name
-			}
-			if block.Type == compile.ObjFunc {
-				name = block.GetFuncInfo().Name
-			}
-			if block.IsParentContract() {
-				stack := block.Parent.GetContractInfo()
-				name = stack.Name
-			}
-
-			if stack, ok := rt.extend[ExtendStack].([]any); ok {
-				name = stack[len(stack)-1].(string)
-			}
-
-			line = "]"
-			if cmd != nil && cmd.Lexeme != nil {
-				line = fmt.Sprintf(":%d", cmd.Lexeme.Line)
-				if cmd.Lexeme.Column != 0 {
-					//line += fmt.Sprintf(":%d", cmd.Lexeme.Column)
+		if err != nil {
+			if !errors.As(err, &VMError{}) {
+				var name, line string
+				if block.Parent != nil && block.Parent.Type == compile.ObjFunc {
+					name = block.Parent.GetFuncInfo().Name
 				}
-				line += "]"
-			}
+				if block.Type == compile.ObjFunc {
+					name = block.GetFuncInfo().Name
+				}
+				if block.IsParentContract() {
+					stack := block.Parent.GetContractInfo()
+					name = stack.Name
+				}
 
-			if len(rt.errInfo.Name) > 0 && rt.errInfo.Name != `ExecContract` {
-				err = fmt.Errorf("%s [%s %s%s", err, rt.errInfo.Name, name, line)
-				rt.errInfo.Name = ``
-			} else {
-				out := err.Error()
-				if strings.HasSuffix(out, `]`) {
-					prev := strings.LastIndexByte(out, ' ')
-					if strings.HasPrefix(out[prev+1:], name+`:`) {
-						out = out[:prev+1]
-					} else {
-						out = out[:len(out)-1] + ` `
+				if stack, ok := rt.extend[ExtendStack].([]any); ok {
+					name = stack[len(stack)-1].(string)
+				}
+
+				line = "]"
+				if cmd != nil && cmd.Lexeme != nil {
+					line = fmt.Sprintf(":%d", cmd.Lexeme.Line)
+					if cmd.Lexeme.Column != 0 {
+						//line += fmt.Sprintf(":%d", cmd.Lexeme.Column)
 					}
-				} else {
-					out += ` [`
+					line += "]"
 				}
-				err = fmt.Errorf(`%s%s%s`, out, name, line)
+
+				if len(rt.errInfo.Name) > 0 && rt.errInfo.Name != `ExecContract` {
+					err = fmt.Errorf("%s [%s %s%s", err, rt.errInfo.Name, name, line)
+					rt.errInfo.Name = ``
+				} else {
+					out := err.Error()
+					if strings.HasSuffix(out, `]`) {
+						prev := strings.LastIndexByte(out, ' ')
+						if strings.HasPrefix(out[prev+1:], name+`:`) {
+							out = out[:prev+1]
+						} else {
+							out = out[:len(out)-1] + ` `
+						}
+					} else {
+						out += ` [`
+					}
+					err = fmt.Errorf(`%s%s%s`, out, name, line)
+				}
+			} else {
+				fmt.Println("vm err:", err)
 			}
 		}
 	}()
@@ -360,6 +373,9 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 		}
 	}
 	if finfo.Variadic {
+		if i == 0 {
+			pars = []reflect.Value{reflect.Zero(finfo.Params[in-1])}
+		}
 		result = foo.CallSlice(pars)
 	} else {
 		result = foo.Call(pars)
@@ -396,7 +412,7 @@ func (rt *Runtime) extendFunc(name string) error {
 	f, ok := rt.extend[name]
 	foo := reflect.ValueOf(f)
 	if !ok || foo.Kind() != reflect.Func {
-		return fmt.Errorf(`unknown extend function %s`, name)
+		return fmt.Errorf(`unknown extend function $%s`, name)
 	}
 	variadic := foo.Type().IsVariadic()
 	count := foo.Type().NumIn()
@@ -406,11 +422,11 @@ func (rt *Runtime) extendFunc(name string) error {
 	if variadic {
 		last--
 		if size < last {
-			return fmt.Errorf("expected at least %d, got %d", last, size)
+			return fmt.Errorf("parameter expected at least %d, got %d", last, size)
 		}
 	} else {
 		if size != count {
-			return fmt.Errorf("expected %d, got %d", count, size)
+			return fmt.Errorf("parameter expected %d, got %d", count, size)
 		}
 	}
 	var result []reflect.Value
@@ -525,7 +541,7 @@ func (rt *Runtime) getResultValue(item compile.MapItem) (value any, err error) {
 		var ok bool
 		value, ok = rt.extend[item.Value.(string)]
 		if !ok {
-			err = fmt.Errorf(`unknown extend identifier %s`, item.Value)
+			err = fmt.Errorf(`unknown extend identifier '$%s'`, item.Value)
 		}
 	case compile.MapVar:
 		ivar := item.Value.(*compile.VarInfo)

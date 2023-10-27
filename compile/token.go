@@ -263,15 +263,6 @@ func (tk Token) TypeName() string {
 	return ""
 }
 
-func SupportedType(fieldType reflect.Type) bool {
-	for _, t := range TypeNameReflect {
-		if t == fieldType {
-			return true
-		}
-	}
-	return false
-}
-
 var tokenToString = map[Token]string{
 	UNKNOWN: `UNKNOWN`,
 	//basic token

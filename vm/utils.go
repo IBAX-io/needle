@@ -3,12 +3,13 @@ package vm
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/IBAX-io/needle/compile"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/IBAX-io/needle/compile"
 
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"

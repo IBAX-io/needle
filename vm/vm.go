@@ -36,12 +36,6 @@ type VM struct {
 	logger        *log.Entry
 }
 
-// Stacker represents interface for working with call stack
-type Stacker interface {
-	AppendStack(fn string) error
-	PopStack(fn string)
-}
-
 // NewVM creates a new virtual machine
 func NewVM() *VM {
 	auto := map[string]string{"*vm.Runtime": "rt"}
@@ -53,8 +47,7 @@ func NewVM() *VM {
 		{Name: "Println", Func: func(a ...any) (int64, error) {
 			n, err := fmt.Println(a...)
 			return int64(n), err
-		},
-		},
+		}},
 		{Name: "Sprintf", Func: fmt.Sprintf},
 		{Name: "Bytes", Func: func(data any) []byte {
 			return []byte(fmt.Sprintf("%v", data.(interface{})))
@@ -65,7 +58,10 @@ func NewVM() *VM {
 		v = append(v, p)
 	}
 	vm := &VM{
-		CodeBlock:   compile.NewCodeBlock(compile.NewExtendBuilder().SetFunc(fn).SetPreVar(v).Build()),
+		CodeBlock: compile.NewCodeBlock(&compile.ExtendData{
+			Func:   fn,
+			PreVar: v,
+		}),
 		Extern:      true,
 		FuncCallsDB: make(map[string]struct{}),
 		logger:      log.WithFields(log.Fields{"type": VMErr, "extern": true}),
@@ -102,7 +98,7 @@ func (vm *VM) Call(name string, extend map[string]any) (ret []any, err error) {
 		extend = make(map[string]any)
 	}
 	var block *compile.CodeBlock
-	rt := NewRuntime(vm, extend)
+	rt := NewRuntime(vm, extend, extend[ExtendTxCost].(int64))
 	switch obj.Type {
 	case compile.ObjContract:
 		block = obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock()
@@ -113,11 +109,8 @@ func (vm *VM) Call(name string, extend map[string]any) (ret []any, err error) {
 	}
 	ret, err = rt.Run(block)
 	extend[ExtendTxCost] = rt.CostRemain()
+	fmt.Println("gas:", rt.CostUsed())
 	return ret, err
-}
-
-func (rt *Runtime) CostUsed() int64 {
-	return rt.costLimit - rt.costRemain
 }
 
 func RollbackSmartVMObjects() {
@@ -242,11 +235,11 @@ func Run(vm *VM, block *compile.CodeBlock, extend map[string]any) (ret []any, er
 	if block == nil {
 		return nil, fmt.Errorf(`code block is nil`)
 	}
-	rt := NewRuntime(vm, extend)
+	rt := NewRuntime(vm, extend, extend[ExtendTxCost].(int64))
 	ret, err = rt.Run(block)
 	extend[ExtendTxCost] = rt.CostRemain()
 	if err != nil {
-		vm.logger.WithFields(log.Fields{"type": VMErr, "error": err, "original_contract": extend[ExtendOriginalContract], "this_contract": extend[ExtendThisContract], "ecosystem_id": extend[ExtendEcosystemId]}).Error("running block in smart vm")
+		vm.logger.WithFields(log.Fields{"type": VMErr, "error": err, "original_contract": extend[ExtendOriginalContract], "this_contract": extend[ExtendThisContract]}).Error("running block in smart vm")
 		return nil, err
 	}
 	return
@@ -270,6 +263,11 @@ func (vm *VM) SetFuncCallsDB(funcCallsDB map[string]struct{}) *VM {
 	return vm
 }
 
+func (vm *VM) SetPreVar(preVar []string) *VM {
+	vm.PreVar = preVar
+	return vm
+}
+
 // FlushExtern switches off the extern mode of the compilation
 func (vm *VM) FlushExtern() {
 	vm.Extern = false
@@ -280,8 +278,11 @@ func (vm *VM) ExtendData(ext *compile.ExtendData) *compile.ExtendData {
 	if ext == nil {
 		ext = &compile.ExtendData{
 			Objects: make(map[string]*compile.Object),
-			Info:    &compile.OwnerInfo{StateID: 1},
+			Owner:   &compile.OwnerInfo{StateID: 1},
 		}
+	}
+	if ext.Objects == nil {
+		ext.Objects = make(map[string]*compile.Object)
 	}
 	for s, info := range vm.Objects {
 		ext.Objects[s] = info
@@ -313,9 +314,9 @@ func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 		if cur, ok := vm.Objects[key]; ok {
 			switch item.Type {
 			case compile.ObjContract:
-				item.GetContractInfo().ID = cur.GetContractInfo().ID //+ flushMark
+				item.GetContractInfo().ID = cur.GetContractInfo().ID + flushMark
 			case compile.ObjFunc:
-				item.GetFuncInfo().ID = cur.GetFuncInfo().ID //+ flushMark
+				item.GetFuncInfo().ID = cur.GetFuncInfo().ID + flushMark
 				vm.Objects[key].Value = item.Value
 			}
 		}
@@ -327,22 +328,22 @@ func (vm *VM) FlushBlock(root *compile.CodeBlock) {
 		}
 		switch item.Type {
 		case compile.ObjContract:
-			//if item.GetContractInfo().ID > flushMark {
-			//	item.GetContractInfo().ID -= flushMark
-			//	vm.Children[item.GetContractInfo().ID] = item
-			//	shift--
-			//	continue
-			//}
+			if item.GetContractInfo().ID > flushMark {
+				item.GetContractInfo().ID -= flushMark
+				vm.Children[item.GetContractInfo().ID] = item
+				shift--
+				continue
+			}
 
 			item.Parent = vm.CodeBlock
 			item.GetContractInfo().ID += uint32(shift)
 		case compile.ObjFunc:
-			//if item.GetFuncInfo().ID > flushMark {
-			//	item.GetFuncInfo().ID -= flushMark
-			//	vm.Children[item.GetFuncInfo().ID] = item
-			//	shift--
-			//	continue
-			//}
+			if item.GetFuncInfo().ID > flushMark {
+				item.GetFuncInfo().ID -= flushMark
+				vm.Children[item.GetFuncInfo().ID] = item
+				shift--
+				continue
+			}
 			item.Parent = vm.CodeBlock
 			item.GetFuncInfo().ID += uint32(shift)
 		}

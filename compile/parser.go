@@ -4,38 +4,61 @@ import (
 	"fmt"
 )
 
-func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
-	if ext == nil {
-		ext = &ExtendData{
+type Parser struct {
+	Parent  *CodeBlock
+	root    *CodeBlock
+	lexemes Lexemes
+	ext     *ExtendData
+	Debug   bool
+	Extern  bool //true if ignore not found identifiers object
+}
+
+func NewParser(lexemes Lexemes, ext *ExtendData) *Parser {
+	var p = &Parser{
+		lexemes: lexemes,
+		ext:     ext,
+	}
+	p.init()
+	return p
+}
+
+func (p *Parser) init() {
+	if p.ext == nil {
+		p.ext = &ExtendData{
 			Func:   make([]ExtendFunc, 0),
 			PreVar: make([]string, 0),
-			Info:   &OwnerInfo{StateID: 1},
+			Owner:  &OwnerInfo{StateID: 1},
 		}
 	}
-	root := &CodeBlock{
+	p.root = &CodeBlock{
 		Objects: make(map[string]*Object),
-		Type:    ext.Info.ObjectType(),
-		Info:    ext.Info,
-		PreVar:  ext.PreVar,
+		Type:    p.ext.Owner.ObjectType(),
+		Info:    p.ext.Owner,
+		PreVar:  p.ext.PreVar,
 	}
-	for s, info := range ext.Objects {
-		root.Objects[s] = info
+	p.Parent = &CodeBlock{
+		Objects: make(map[string]*Object),
 	}
-	for s, info := range ext.MakeExtFunc() {
-		root.Objects[s] = info
+	for s, info := range p.ext.Objects {
+		p.Parent.Objects[s] = info
 	}
-	if len(lexemes) == 0 {
-		return root, nil
+	for s, info := range p.ext.MakeExtFunc() {
+		p.root.Objects[s] = info
 	}
+}
 
+func (p *Parser) ParserCodeBlock() (*CodeBlock, error) {
+	if len(p.lexemes) == 0 {
+		return p.root, nil
+	}
 	curState := stateRoot
 	stateStack := make([]stateType, 0)
 	blocks := make(CodeBlocks, 1)
-	blocks[0] = root
+	blocks[0] = p.root
 	fork := 0
 
-	for i := 0; i < len(lexemes); i++ {
-		lexeme := lexemes[i]
+	for i := 0; i < len(p.lexemes); i++ {
+		lexeme := p.lexemes[i]
 		st, found := stateTable[curState]
 		if !found {
 			st = stateTable[stateRoot]
@@ -51,7 +74,7 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		}
 		if comps.hasState(stateFlagToFork) {
 			i, fork = fork, 0
-			lexeme = lexemes[i]
+			lexeme = p.lexemes[i]
 		}
 		if comps.hasState(stateFlagStay) {
 			curState = nextState
@@ -64,11 +87,11 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 			}
 
 			curlen := len(blocks.peek().Code)
-			if err := parserEval(&lexemes, &i, &blocks, ext.Extern); err != nil {
+			if err := p.parserEval(&i, &blocks); err != nil {
 				return nil, fmt.Errorf("parser eval: %s", err)
 			}
 			if comps.hasState(stateFlagMustEval) && curlen == len(blocks.peek().Code) {
-				return nil, fmt.Errorf("there is not eval expression")
+				return nil, fmt.Errorf("there is not eval expression in %s", lexeme.Position())
 			}
 
 			nextState = curState
@@ -109,21 +132,21 @@ func NewParser(lexemes Lexemes, ext *ExtendData) (*CodeBlock, error) {
 		curState = nextState
 	}
 	if len(stateStack) > 0 {
-		return nil, fnError(&blocks, errMustRBRACE, lexemes[len(lexemes)-1])
+		return nil, fnError(&blocks, errMustRBRACE, p.lexemes[len(p.lexemes)-1])
 	}
-	for _, item := range root.Objects {
+	for _, item := range p.root.Objects {
 		if item.Type == ObjContract {
 			if cond, ok := item.GetCodeBlock().Objects[`conditions`]; ok {
-				if cond.Type == ObjFunc && cond.GetFuncInfo().CanWrite {
-					return nil, errCondWrite
+				if cond.Type == ObjFunc && cond.GetFuncInfo().CanWrite && !p.ext.Extern {
+					return nil, fmt.Errorf("%s %w", item.GetContractInfo().Name, errCondWrite)
 				}
 			}
 		}
 	}
-	return root, nil
+	return p.root, nil
 }
 
-func parserEval(lexemes *Lexemes, ind *int, block *CodeBlocks, extern bool) error {
+func (p *Parser) parserEval(ind *int, block *CodeBlocks) error {
 	var indexInfo *IndexInfo
 	i := *ind
 	curBlock := block.peek()
@@ -135,13 +158,13 @@ func parserEval(lexemes *Lexemes, ind *int, block *CodeBlocks, extern bool) erro
 	noMap := false
 	prevLex := &Lexeme{}
 main:
-	for ; i < len(*lexemes); i++ {
+	for ; i < len(p.lexemes); i++ {
 		var cmd *ByteCode
 		var call bool
-		lexeme := (*lexemes)[i]
+		lexeme := p.lexemes[i]
 		if !noMap {
 			if lexeme.Type == LBRACE {
-				pMap, err := getInitMap(lexemes, &i, block, false)
+				pMap, err := p.getInitMap(&i, block, false)
 				if err != nil {
 					return err
 				}
@@ -149,7 +172,7 @@ main:
 				continue
 			}
 			if lexeme.Type == LBRACK {
-				pArray, err := getInitArray(lexemes, &i, block)
+				pArray, err := p.getInitArray(&i, block)
 				if err != nil {
 					return err
 				}
@@ -161,29 +184,29 @@ main:
 		switch lexeme.Type {
 		case COLON:
 			var low, high = -1, -1
-			if (*lexemes)[i-1].Type == LBRACK {
+			if p.lexemes[i-1].Type == LBRACK {
 				low = SliceLow
 			}
-			if (*lexemes)[i+1].Type == RBRACK {
+			if p.lexemes[i+1].Type == RBRACK {
 				high = SliceHigh
 			}
-			if (*lexemes)[i-1].Type == NUMBER {
-				if (buffer.peek().Cmd == CmdSign && (*lexemes)[i-3].Type == LBRACK) || (*lexemes)[i-2].Type == LBRACK {
-					if _, ok := (*lexemes)[i-1].Value.(int64); !ok {
+			if p.lexemes[i-1].Type == NUMBER {
+				if (buffer.peek().Cmd == CmdSign && p.lexemes[i-3].Type == LBRACK) || p.lexemes[i-2].Type == LBRACK {
+					if _, ok := p.lexemes[i-1].Value.(int64); !ok {
 						return fmt.Errorf("slice index must be integer")
 					}
 					low = SliceLowNum
 				}
 			}
 
-			if (*lexemes)[i+1].Type == NUMBER && (*lexemes)[i+2].Type == RBRACK {
-				if _, ok := (*lexemes)[i+1].Value.(int64); !ok {
+			if p.lexemes[i+1].Type == NUMBER && p.lexemes[i+2].Type == RBRACK {
+				if _, ok := p.lexemes[i+1].Value.(int64); !ok {
 					return fmt.Errorf("slice index must be integer")
 				}
 				high = SliceHighNum
 			}
-			if ((*lexemes)[i+1].Value == Sub || (*lexemes)[i+1].Value == Add) && (*lexemes)[i+2].Type == NUMBER && (*lexemes)[i+3].Type == RBRACK {
-				if _, ok := (*lexemes)[i+2].Value.(int64); !ok {
+			if (p.lexemes[i+1].Value == Sub || p.lexemes[i+1].Value == Add) && p.lexemes[i+2].Type == NUMBER && p.lexemes[i+3].Type == RBRACK {
+				if _, ok := p.lexemes[i+2].Value.(int64); !ok {
 					return fmt.Errorf("slice index must be integer")
 				}
 				high = SliceHighNum
@@ -198,7 +221,7 @@ main:
 			}
 			break main
 		case NEWLINE:
-			if i > 0 && ((*lexemes)[i-1].Type == COMMA || (*lexemes)[i-1].Type == OPERATOR && ((*lexemes)[i-1].Value != Inc && (*lexemes)[i-1].Value != Dec)) {
+			if i > 0 && (p.lexemes[i-1].Type == COMMA || p.lexemes[i-1].Type == OPERATOR && (p.lexemes[i-1].Value != Inc && p.lexemes[i-1].Value != Dec)) {
 				continue main
 			}
 			for k := len(buffer) - 1; k >= 0; k-- {
@@ -272,27 +295,27 @@ main:
 				if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncTail {
 					bytecode.push(newByteCode(CmdPush, lexeme, make(map[string][]any)))
 				}
-				if i < len(*lexemes)-4 && (*lexemes)[i+1].Type == DOT {
-					if (*lexemes)[i+2].Type != IDENTIFIER {
+				if i < len(p.lexemes)-4 && p.lexemes[i+1].Type == DOT {
+					if p.lexemes[i+2].Type != IDENTIFIER {
 						return fmt.Errorf(`must be the name of the tail`)
 					}
 					names := prev.Value.(*Object).GetFuncInfo().Tails
-					if _, ok := names[(*lexemes)[i+2].Value.(string)]; !ok {
-						if i < len(*lexemes)-5 && (*lexemes)[i+3].Type == LPAREN {
-							objInfo, _ := findObj((*lexemes)[i+2].Value.(string), block)
+					if _, ok := names[p.lexemes[i+2].Value.(string)]; !ok {
+						if i < len(p.lexemes)-5 && p.lexemes[i+3].Type == LPAREN {
+							objInfo, _ := p.findObj(p.lexemes[i+2].Value.(string), block)
 							if objInfo != nil && (objInfo.Type == ObjFunc || objInfo.Type == ObjExtFunc) {
 								tail = newByteCode(CmdCall, lexeme, objInfo)
 							}
 						}
 						if tail == nil {
-							return fmt.Errorf(`unknown function tail '%v'`, (*lexemes)[i+2].Value)
+							return fmt.Errorf(`unknown function tail '%v'`, p.lexemes[i+2].Value)
 						}
 					}
 					if tail == nil {
-						v, _ := names[(*lexemes)[i+2].Value.(string)]
+						v, _ := names[p.lexemes[i+2].Value.(string)]
 						buffer.push(newByteCode(CmdFuncTail, lexeme, FuncTailCmd{FuncTail: v}))
 						count := 0
-						if (*lexemes)[i+4].Type != RPAREN {
+						if p.lexemes[i+4].Type != RPAREN {
 							count++
 						}
 						parcount = append(parcount, count)
@@ -309,7 +332,7 @@ main:
 				if extFn.Variadic {
 					wantlen--
 				}
-				if count != wantlen && (!extFn.Variadic || count < wantlen) && !extern {
+				if count != wantlen && (!extFn.Variadic || count < wantlen) && !p.ext.Extern {
 					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
 				}
 			}
@@ -338,7 +361,7 @@ main:
 			if len(buffer) > 0 {
 				if prev := buffer.peek(); prev.Cmd == CmdGetIndex {
 					buffer = buffer[:len(buffer)-1]
-					if i < len(*lexemes)-1 && (*lexemes)[i+1].Type == EQ {
+					if i < len(p.lexemes)-1 && p.lexemes[i+1].Type == EQ {
 						i++
 						setIndex = true
 						indexInfo = prev.Value.(*IndexInfo)
@@ -348,7 +371,7 @@ main:
 					bytecode.push(prev)
 				}
 			}
-			if (*lexemes)[i+1].Type == LBRACK {
+			if p.lexemes[i+1].Type == LBRACK {
 				return errMultiIndex
 			}
 		case OPERATOR:
@@ -358,7 +381,7 @@ main:
 			}
 			var prevType Token
 			if i > 0 {
-				prevType = (*lexemes)[i-1].Type
+				prevType = p.lexemes[i-1].Type
 			}
 			if (op.Cmd == CmdSub || op.Cmd == CmdAdd) && (i == 0 || (prevType != NUMBER && prevType != IDENTIFIER &&
 				prevType != EXTEND && prevType != LITERAL && prevType != RBRACE &&
@@ -396,10 +419,10 @@ main:
 			cmd = newByteCode(CmdPush, lexeme, lexeme.Value)
 		case EXTEND:
 			noMap = true
-			if i < len(*lexemes)-2 {
-				if (*lexemes)[i+1].Type == LPAREN {
+			if i < len(p.lexemes)-2 {
+				if p.lexemes[i+1].Type == LPAREN {
 					count := 0
-					if (*lexemes)[i+2].Type != RPAREN {
+					if p.lexemes[i+2].Type != RPAREN {
 						count++
 					}
 					parcount = append(parcount, count)
@@ -409,23 +432,23 @@ main:
 			}
 			if !call {
 				cmd = newByteCode(CmdExtend, lexeme, lexeme.Value.(string))
-				if i < len(*lexemes)-1 && (*lexemes)[i+1].Type == LBRACK {
+				if i < len(p.lexemes)-1 && p.lexemes[i+1].Type == LBRACK {
 					buffer.push(newByteCode(CmdGetIndex, lexeme, &IndexInfo{Extend: lexeme.Value.(string)}))
 				}
 			}
 		case IDENTIFIER:
 			noMap = true
-			obj, owner := findObj(lexeme.Value.(string), block)
-			if obj == nil && (!extern || i > *ind || i >= len(*lexemes)-2 || (*lexemes)[i+1].Type != LPAREN) {
+			obj, owner := p.findObj(lexeme.Value.(string), block)
+			if obj == nil && (!p.ext.Extern || i > *ind || i >= len(p.lexemes)-2 || p.lexemes[i+1].Type != LPAREN) {
 				return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 			}
-			if i < len(*lexemes)-2 {
-				if (*lexemes)[i+1].Type == LPAREN {
+			if i < len(p.lexemes)-2 {
+				if p.lexemes[i+1].Type == LPAREN {
 					var (
 						isContract  bool
 						objContract *ContractInfo
 					)
-					if extern && obj == nil {
+					if p.ext.Extern && obj == nil {
 						obj = &Object{Type: ObjContract}
 					}
 					if obj == nil || (obj.Type != ObjExtFunc && obj.Type != ObjFunc &&
@@ -437,7 +460,7 @@ main:
 						if obj.Value != nil {
 							objContract = obj.GetContractInfo()
 						}
-						obj, owner = findObj(`ExecContract`, block)
+						obj, owner = p.findObj(`ExecContract`, block)
 						if obj == nil {
 							return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 						}
@@ -448,7 +471,7 @@ main:
 						cmd = CmdCallVariadic
 					}
 					count := 0
-					if (*lexemes)[i+2].Type != RPAREN {
+					if p.lexemes[i+2].Type != RPAREN {
 						count++
 					}
 					buffer.push(newByteCode(cmd, lexeme, obj))
@@ -472,6 +495,7 @@ main:
 							bytecode.push(newByteCode(CmdPush, lexeme, ""))
 							bytecode.push(newByteCode(CmdPush, lexeme, ""))
 						}
+
 						count++
 					}
 					if lexeme.Value.(string) == "CallContract" {
@@ -481,7 +505,7 @@ main:
 					parcount = append(parcount, count)
 					call = true
 				}
-				if (*lexemes)[i+1].Type == LBRACK {
+				if p.lexemes[i+1].Type == LBRACK {
 					if obj == nil || obj.Type != ObjVar {
 						return fmt.Errorf(`unknown variable %v`, lexeme.Value)
 					}
@@ -524,39 +548,46 @@ main:
 	return nil
 }
 
-func findObj(name string, block *CodeBlocks) (obj *Object, owner *CodeBlock) {
+func (p *Parser) findObj(name string, block *CodeBlocks) (obj *Object, owner *CodeBlock) {
 	statename := StateName(block.ParentOwner().StateID, name)
 	for _, n := range []string{name, statename} {
 		if obj, owner = findVar(n, block); obj != nil {
 			return
 		}
 	}
+	for _, n := range []string{name, statename} {
+		ret, ok := p.Parent.Objects[n]
+		if !ok {
+			continue
+		}
+		return ret, p.Parent
+	}
 	return
 }
 
-func getInitValue(lexemes *Lexemes, ind *int, block *CodeBlocks) (value MapItem, err error) {
+func (p *Parser) getInitValue(ind *int, block *CodeBlocks) (value MapItem, err error) {
 	var (
 		subArr []MapItem
 		subMap *Map
 	)
 	i := *ind
-	lexeme := (*lexemes)[i]
+	lexeme := p.lexemes[i]
 
 	switch lexeme.Type {
 	case LBRACK:
-		subArr, err = getInitArray(lexemes, &i, block)
+		subArr, err = p.getInitArray(&i, block)
 		if err == nil {
 			value = MapItem{Type: MapArray, Value: subArr}
 		}
 	case LBRACE:
-		subMap, err = getInitMap(lexemes, &i, block, false)
+		subMap, err = p.getInitMap(&i, block, false)
 		if err == nil {
 			value = MapItem{Type: MapMap, Value: subMap}
 		}
 	case EXTEND:
 		value = MapItem{Type: MapExtend, Value: lexeme.Value}
 	case IDENTIFIER:
-		objInfo, tobj := findObj(lexeme.Value.(string), block)
+		objInfo, tobj := p.findObj(lexeme.Value.(string), block)
 		if objInfo == nil {
 			err = fmt.Errorf(eUnknownIdent, lexeme.Value)
 		} else {
@@ -571,7 +602,7 @@ func getInitValue(lexemes *Lexemes, ind *int, block *CodeBlocks) (value MapItem,
 	return
 }
 
-func getInitMap(lexemes *Lexemes, ind *int, block *CodeBlocks, oneItem bool) (*Map, error) {
+func (p *Parser) getInitMap(ind *int, block *CodeBlocks, oneItem bool) (*Map, error) {
 	var next int
 	if !oneItem {
 		next = 1
@@ -581,8 +612,8 @@ func getInitMap(lexemes *Lexemes, ind *int, block *CodeBlocks, oneItem bool) (*M
 	ret := NewMap()
 	state := MustKey
 main:
-	for ; i < len(*lexemes); i++ {
-		lexeme := (*lexemes)[i]
+	for ; i < len(p.lexemes); i++ {
+		lexeme := p.lexemes[i]
 		switch lexeme.Type {
 		case NEWLINE:
 			continue
@@ -615,7 +646,7 @@ main:
 				for ikey, v := range KeywordValue {
 					if Keyword2Str(v) == fmt.Sprint(lexeme.Value) {
 						key = ikey
-						if v == FUNC && i < len(*lexemes)-1 && (*lexemes)[i+1].Type&0xff == IDENTIFIER {
+						if v == FUNC && i < len(p.lexemes)-1 && p.lexemes[i+1].Type&0xff == IDENTIFIER {
 							continue main
 						}
 						break
@@ -627,7 +658,7 @@ main:
 
 			state = MustColon
 		case MustValue:
-			mapi, err := getInitValue(lexemes, &i, block)
+			mapi, err := p.getInitValue(&i, block)
 			if err != nil {
 				return nil, err
 			}
@@ -638,20 +669,20 @@ main:
 	if ret.IsEmpty() && (state == MustKey) {
 		return nil, errUnexpKey
 	}
-	if i == len(*lexemes) {
+	if i == len(p.lexemes) {
 		return nil, errUnclosedMap
 	}
 	*ind = i
 	return ret, nil
 }
 
-func getInitArray(lexemes *Lexemes, ind *int, block *CodeBlocks) ([]MapItem, error) {
+func (p *Parser) getInitArray(ind *int, block *CodeBlocks) ([]MapItem, error) {
 	i := *ind + 1
 	ret := make([]MapItem, 0)
 	state := MustValue
 main:
-	for ; i < len(*lexemes); i++ {
-		lexeme := (*lexemes)[i]
+	for ; i < len(p.lexemes); i++ {
+		lexeme := p.lexemes[i]
 		switch lexeme.Type {
 		case NEWLINE:
 			continue
@@ -665,14 +696,14 @@ main:
 			}
 			state = MustValue
 		case MustValue:
-			if i+1 < len(*lexemes) && (*lexemes)[i+1].Type == COLON {
-				subMap, err := getInitMap(lexemes, &i, block, true)
+			if i+1 < len(p.lexemes) && p.lexemes[i+1].Type == COLON {
+				subMap, err := p.getInitMap(&i, block, true)
 				if err != nil {
 					return nil, err
 				}
 				ret = append(ret, MapItem{Type: MapMap, Value: subMap})
 			} else {
-				arri, err := getInitValue(lexemes, &i, block)
+				arri, err := p.getInitValue(&i, block)
 				if err != nil {
 					return nil, err
 				}
@@ -684,7 +715,7 @@ main:
 	if len(ret) > 0 && state == MustValue {
 		return nil, errUnexpValue
 	}
-	if i == len(*lexemes) {
+	if i == len(p.lexemes) {
 		return nil, errUnclosedArray
 	}
 	*ind = i

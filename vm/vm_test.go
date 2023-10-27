@@ -294,13 +294,42 @@ contract Name {
 Println(.23)
     }
 }`), assert.NoError},
-	}
+		{"case_ifstmt", "@1ifstmt.action", []rune(`
+contract ifstmt {
+	action{
+ 		if "" {
+			Println("if")
+		}
+		elif ""{
+			Println("elif")
+		}
+		else {
+			Println("else")
+		}
 
+		if 0x123 {
+			var d bool
+			if !d{
+				Println("double==")
+			}
+			if ""{
+				Println("if2")
+			}else{
+				Println("else2")
+			}
+		}
+	}
+} 
+`), assert.NoError},
+	}
 	limit := int64(2700)
 	extend := map[string]any{
-		ExtendTxCost:    limit,
-		ExtendGenBlock:  true,
-		ExtendTimeLimit: int64(1000),
+		ExtendTxCost:           limit,
+		ExtendGenBlock:         true,
+		ExtendTimeLimit:        int64(1000),
+		ExtendParentContract:   ``,
+		ExtendOriginalContract: ``,
+		ExtendThisContract:     ``,
 		"extFn": func(a1, a2 int64, a ...int64) int64 {
 			fmt.Println("extFn", a1, a2, a)
 			return 2323
@@ -308,17 +337,22 @@ Println(.23)
 		"pop":    int64(23),
 		"Param1": int64(22223),
 		"popFn": func(i int64) map[string]string {
+			fmt.Println(i, "23")
 			return map[string]string{"a1ss": "b1ss"}
 		},
 	}
 	start := time.Now()
 	vm := NewVM()
 	vm.SetExtendCost(getcost)
-	build := compile.NewExtendBuilder().SetInfo(&compile.OwnerInfo{StateID: 1}).
-		SetPreVar([]string{"key_id"}).SetFunc(obj)
+	build := &compile.ExtendData{
+		Owner:  &compile.OwnerInfo{StateID: 1},
+		PreVar: []string{"key_id"},
+		Func:   obj,
+		Extern: true,
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if !tt.wantErr(t, vm.Compile(tt.args, build.SetExtern(true).Build())) {
+			if !tt.wantErr(t, vm.Compile(tt.args, build)) {
 				return
 			}
 			ret, err := vm.Call(tt.method, extend)
@@ -329,10 +363,7 @@ Println(.23)
 			t.Log(ret)
 		})
 	}
-	bf := func() []byte {
-		return []byte{}
-	}
-	fmt.Println("time used:", valueToBool(bf()), time.Since(start), "gas:", limit-extend[ExtendTxCost].(int64))
+	fmt.Println("time used:", time.Since(start), "gas:", limit-extend[ExtendTxCost].(int64))
 }
 
 func getcost(name string) int64 {

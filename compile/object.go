@@ -27,7 +27,7 @@ const (
 )
 
 var ObjectType_name = map[int32]string{
-	0: "Unknown",
+	0: "Default",
 	1: "Contract",
 	2: "Func",
 	3: "ExtFunc",
@@ -312,7 +312,7 @@ func (e *FuncInfo) ParamsCount() int {
 }
 
 func (e *FuncInfo) HasTails() bool {
-	return e.Tails != nil
+	return e != nil && e.Tails != nil
 }
 
 func (f FuncTail) IsParamEmpty(i int) bool {

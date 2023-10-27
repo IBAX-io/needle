@@ -28,6 +28,7 @@ type instructionCtx struct {
 	labels    []int
 	assignVar []*compile.VarInfo
 	slice     *compile.SliceItem
+	ifCond    bool
 }
 
 func newInstructionCtx() *instructionCtx {
@@ -50,12 +51,12 @@ var instructionTable = make(map[compile.CmdT]instruction)
 
 func init() {
 	instructionTable[compile.CmdCallExtend] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if err = rt.SubCost(CostCall); err != nil {
+		if err = rt.SubCost(CostExtend); err != nil {
 			return
 		}
 		err = rt.extendFunc(code.Value.(string))
 		if err != nil {
-			err = fmt.Errorf("extendFunc err:%v", err)
+			err = fmt.Errorf("extend function '$%s' err: %v", code.Value.(string), err)
 		}
 		return
 	}
@@ -65,7 +66,7 @@ func init() {
 		}
 		val, ok := rt.extend[code.Value.(string)]
 		if !ok {
-			err = fmt.Errorf(`unknown extend identifier %v`, code.Value)
+			err = fmt.Errorf(`unknown extend identifier '$%v'`, code.Value)
 			return
 		}
 		switch varVal := val.(type) {
@@ -86,7 +87,7 @@ func init() {
 				finfo := code.Value.(*compile.Object).GetExtFuncInfo()
 				if rt.vm.ExtCost != nil {
 					cost = rt.vm.ExtCost(finfo.Name)
-					if cost < 1 {
+					if cost == -1 {
 						cost = CostCall
 					}
 				}
@@ -104,13 +105,33 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdIf] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if valueToBool(rt.stack.peek()) {
-			return rt.RunCode(code.Value.(*compile.CodeBlock))
+		if err = rt.stack.CheckDepth(1); err != nil {
+			return
 		}
-		return
+		ret := rt.stack.pop()
+		if !valueToBool(ret) {
+			if ctx.ifCond {
+				ctx.ifCond = false
+			}
+			if len(rt.peekBlock().Block.Code) > ctx.ci+1 &&
+				rt.peekBlock().Block.Code[ctx.ci+1].Cmd == compile.CmdElse {
+				rt.stack.push(ret)
+			}
+			return
+		}
+		ctx.ifCond = true
+		return rt.RunCode(code.Value.(*compile.CodeBlock))
 	}
 	instructionTable[compile.CmdElse] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if !valueToBool(rt.stack.pop()) {
+		if ctx.ifCond {
+			ctx.ifCond = false
+			return
+		}
+		if err = rt.stack.CheckDepth(1); err != nil {
+			return
+		}
+		ret := rt.stack.pop()
+		if !valueToBool(ret) {
 			return rt.RunCode(code.Value.(*compile.CodeBlock))
 		}
 		return
@@ -145,6 +166,11 @@ func init() {
 				if count > resultsLen {
 					err = fmt.Errorf("assignments count mismatch: %d = %d", count, resultsLen)
 					return
+				}
+				if objInfo.Type == compile.ObjExtFunc {
+					if _, ok := rt.vm.FuncCallsDB[objInfo.GetExtFuncInfo().Name]; ok {
+						resultsLen--
+					}
 				}
 				cut = resultsLen
 			}
@@ -373,7 +399,7 @@ func init() {
 
 	instructionTable[compile.CmdSetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if err = rt.stack.CheckDepth(3); err != nil {
-			return 0, err
+			return
 		}
 
 		value := rt.stack.pop()

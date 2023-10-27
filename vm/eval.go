@@ -27,7 +27,7 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 		}`
 	}
 
-	block, err := compile.CompileBlock([]rune(source), vm.ExtendData(compile.NewExtendBuilder().SetInfo(&compile.OwnerInfo{StateID: state}).Build()))
+	block, err := compile.CompileBlock([]rune(source), vm.ExtendData(&compile.ExtendData{Owner: &compile.OwnerInfo{StateID: state}}))
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (vm *VM) EvalIf(input string, state uint32, extend map[string]any) (bool, e
 			return false, err
 		}
 	}
-	ret, err := NewRuntime(vm, extend).Run(evals[crc].Code.Children[0])
+	ret, err := NewRuntime(vm, extend, extend[ExtendTxCost].(int64)).Run(evals[crc].Code.Children[0])
 	if err == nil {
 		if len(ret) == 0 {
 			return false, nil

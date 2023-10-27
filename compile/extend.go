@@ -6,11 +6,11 @@ import (
 
 // ExtendData is used for the definition of the extended functions and variables
 type ExtendData struct {
-	Info    *OwnerInfo
+	Owner   *OwnerInfo
 	Func    []ExtendFunc
 	PreVar  []string
 	Objects map[string]*Object
-	Extern  bool
+	Extern  bool // true if ignore not found identifiers object
 }
 
 type ExtendFunc struct {
@@ -20,43 +20,10 @@ type ExtendFunc struct {
 	AutoPars map[string]string
 }
 
-type ExtendBuilder struct {
-	data ExtendData
-}
-
-func NewExtendBuilder() *ExtendBuilder {
-	return &ExtendBuilder{}
-}
-
-func (b *ExtendBuilder) SetInfo(info *OwnerInfo) *ExtendBuilder {
-	b.data.Info = info
-	return b
-}
-
-func (b *ExtendBuilder) SetPreVar(vars []string) *ExtendBuilder {
-	b.data.PreVar = vars
-	return b
-}
-
-func (b *ExtendBuilder) SetFunc(fns []ExtendFunc) *ExtendBuilder {
-	b.data.Func = fns
-	return b
-}
-
-func (b *ExtendBuilder) SetExtern(extern bool) *ExtendBuilder {
-	b.data.Extern = extern
-	return b
-}
-
-func (b *ExtendBuilder) Build() *ExtendData {
-	b.data.Objects = make(map[string]*Object)
-	return &b.data
-}
-
 func (ext *ExtendData) MakeExtFunc() map[string]*Object {
 	objects := make(map[string]*Object)
 	for _, item := range ext.Func {
-		obj := item.MakeObj()
+		obj := item.MakeObject()
 		if obj != nil {
 			objects[item.Name] = obj
 		}
@@ -64,8 +31,14 @@ func (ext *ExtendData) MakeExtFunc() map[string]*Object {
 	return objects
 }
 
-func (item *ExtendFunc) MakeObj() *Object {
-	var obj *Object
+func (item *ExtendFunc) MakeObject() *Object {
+	if item.ExtFuncInfo() != nil {
+		return &Object{Type: ObjExtFunc, Value: item.ExtFuncInfo()}
+	}
+	return nil
+}
+
+func (item *ExtendFunc) ExtFuncInfo() *ExtFuncInfo {
 	f := reflect.ValueOf(item.Func).Type()
 	switch f.Kind() {
 	case reflect.Func:
@@ -90,8 +63,7 @@ func (item *ExtendFunc) MakeObj() *Object {
 		for i := 0; i < f.NumOut(); i++ {
 			data.Results[i] = f.Out(i)
 		}
-		obj = NewObjInfo(ObjExtFunc, data)
+		return data
 	}
-
-	return obj
+	return nil
 }

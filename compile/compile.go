@@ -1,16 +1,23 @@
 package compile
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func CompileBlock(input []rune, ext *ExtendData) (*CodeBlock, error) {
 	lexer, err := NewLexer(input)
 	if err != nil {
 		return nil, fmt.Errorf("lexer: %w", err)
 	}
-	return NewParser(lexer, ext)
+	parser := NewParser(lexer, ext)
+	block, err := parser.ParserCodeBlock()
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }
 
-// ContractsList returns list of contracts names from source of code
+// ContractsList returns list of contracts names and functions names from source of code
 func ContractsList(value string) ([]string, error) {
 	names := make([]string, 0)
 	lexemes, err := NewLexer([]rune(value))
