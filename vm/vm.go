@@ -31,8 +31,8 @@ type VM struct {
 	*compile.CodeBlock
 	ExtCost       func(string) int64 // the cost of executing an extend function
 	FuncCallsDB   map[string]struct{}
-	Extern        bool  // extern mode of compilation
-	ShiftContract int64 // id of the first contract
+	Extern        compile.IgnoreLevel // extern mode of compilation
+	ShiftContract int64               // id of the first contract
 	logger        *log.Entry
 }
 
@@ -58,11 +58,11 @@ func NewVM() *VM {
 		v = append(v, p)
 	}
 	vm := &VM{
-		CodeBlock: compile.NewCodeBlock(&compile.ExtendData{
+		CodeBlock: compile.NewCodeBlock(&compile.CompConfig{
 			Func:   fn,
 			PreVar: v,
 		}),
-		Extern:      true,
+		Extern:      compile.IgnoreIdent,
 		FuncCallsDB: make(map[string]struct{}),
 		logger:      log.WithFields(log.Fields{"type": VMErr, "extern": true}),
 	}
@@ -264,40 +264,49 @@ func (vm *VM) SetFuncCallsDB(funcCallsDB map[string]struct{}) *VM {
 }
 
 func (vm *VM) SetPreVar(preVar []string) *VM {
-	vm.PreVar = preVar
+	vm.PreVar = append(vm.PreVar, preVar...)
 	return vm
 }
 
 // FlushExtern switches off the extern mode of the compilation
 func (vm *VM) FlushExtern() {
-	vm.Extern = false
+	vm.Extern = compile.IgnoreNone
 	return
 }
 
-func (vm *VM) ExtendData(ext *compile.ExtendData) *compile.ExtendData {
-	if ext == nil {
-		ext = &compile.ExtendData{
+func (vm *VM) MakeCompConfig(conf *compile.CompConfig) *compile.CompConfig {
+	if conf == nil {
+		conf = &compile.CompConfig{
 			Objects: make(map[string]*compile.Object),
 			Owner:   &compile.OwnerInfo{StateID: 1},
 		}
 	}
-	if ext.Objects == nil {
-		ext.Objects = make(map[string]*compile.Object)
+	if conf.Objects == nil {
+		conf.Objects = make(map[string]*compile.Object)
 	}
 	for s, info := range vm.Objects {
-		ext.Objects[s] = info
+		conf.Objects[s] = info
 	}
-	ext.PreVar = append(vm.PreVar, ext.PreVar...)
-	return ext
-}
+	var m = make(map[string]struct{})
 
-func (vm *VM) CompileStr(input string, ext *compile.ExtendData) error {
-	return vm.Compile([]rune(input), ext)
+	for _, s := range vm.PreVar {
+		m[s] = struct{}{}
+	}
+	for _, s := range conf.PreVar {
+		m[s] = struct{}{}
+	}
+	var preVar []string
+	for s := range m {
+		preVar = append(preVar, s)
+	}
+	conf.PreVar = preVar
+	vm.PreVar = preVar
+	return conf
 }
 
 // Compile compiles a source code and loads the byte-code into the virtual machine,
-func (vm *VM) Compile(input []rune, ext *compile.ExtendData) error {
-	root, err := compile.CompileBlock(input, vm.ExtendData(ext))
+func (vm *VM) Compile(input []rune, conf *compile.CompConfig) error {
+	root, err := compile.CompileBlock(input, vm.MakeCompConfig(conf))
 	if err != nil {
 		return err
 	}

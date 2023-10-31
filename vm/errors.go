@@ -54,8 +54,10 @@ func (e ExtFuncErr) Error() string {
 
 // VMError represents error of VM
 type VMError struct {
-	Type string `json:"type"`
-	Err  any    `json:"error"`
+	Type   string `json:"type"`
+	Err    any    `json:"error"`
+	Line   int    `json:"line"`
+	Column int    `json:"column"`
 }
 
 func (e VMError) Error() string {
@@ -63,7 +65,7 @@ func (e VMError) Error() string {
 	if len(errText) > MaxErrLen {
 		errText = errText[:MaxErrLen] + `...`
 	}
-	out, err := json.Marshal(&VMError{Type: e.Type, Err: errText})
+	out, err := json.Marshal(&VMError{Type: e.Type, Err: errText, Line: e.Line, Column: e.Column})
 	if err != nil {
 		out = []byte(`{"type": "panic", "error": "marshalling VMError"}`)
 	}

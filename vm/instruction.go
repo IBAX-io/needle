@@ -528,13 +528,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdError] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		eType := "error"
-		if code.Value.(string) == compile.Keyword2Str(compile.ERRWARNING) {
-			eType = "warning"
-		} else if code.Value.(string) == compile.Keyword2Str(compile.ERRINFO) {
-			eType = "info"
-		}
-		err = VMError{Type: eType, Err: rt.stack.pop()}
+		err = VMError{Type: code.Value.(string), Err: rt.stack.pop(), Line: code.Lexeme.Line, Column: code.Lexeme.Column}
 		return
 	}
 	instructionTable[compile.CmdNot] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {

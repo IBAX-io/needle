@@ -169,8 +169,6 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 					}
 					err = fmt.Errorf(`%s%s%s`, out, name, line)
 				}
-			} else {
-				fmt.Println("vm err:", err)
 			}
 		}
 	}()
@@ -318,7 +316,7 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 				rt.stack.set(offset, val)
 			}
 			if reflect.TypeOf(stack) != v {
-				return fmt.Errorf("func '%s' param: Cannot use '%v' (type %T) as the type %s", finfo.Name, stack, stack, v)
+				return fmt.Errorf("func '%s' param: cannot use (type %T) as the type %s", finfo.Name, stack, v)
 			}
 		}
 		if finfo.HasTails() {
@@ -329,15 +327,14 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	}
 
 	var (
-		stack  Stacker
-		ok     bool
 		result []reflect.Value
-		limit  = 0
+		limit  int
 		finfo  = obj.GetExtFuncInfo()
 		foo    = reflect.ValueOf(finfo.Func)
 		pars   = make([]reflect.Value, in)
 	)
-	if stack, ok = rt.extend[ExtendSc].(Stacker); ok {
+	stack, ok := rt.extend[ExtendSc].(Stacker)
+	if ok {
 		if err := stack.AppendStack(finfo.Name); err != nil {
 			return err
 		}
@@ -353,14 +350,19 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	}
 	i := count
 	for ; i > limit; i-- {
-		if len(finfo.Auto[count-i]) > 0 {
-			pars[count-i] = reflect.ValueOf(rt.extend[finfo.Auto[count-i]])
+		index := count - i
+		if len(finfo.Auto[index]) > 0 {
+			value, ok := rt.extend[finfo.Auto[index]]
+			if !ok {
+				return fmt.Errorf("func %q auto param %q not found", finfo.Name, finfo.Auto[index])
+			}
+			pars[index] = reflect.ValueOf(value)
 			auto--
 		} else {
-			pars[count-i] = reflect.ValueOf(rt.stack.get(size - i + auto))
+			pars[index] = reflect.ValueOf(rt.stack.get(size - i + auto))
 		}
-		if !pars[count-i].IsValid() {
-			pars[count-i] = reflect.Zero(reflect.TypeOf(``))
+		if !pars[index].IsValid() {
+			pars[index] = reflect.Zero(finfo.Params[index])
 		}
 	}
 	if i > 0 {
@@ -391,6 +393,10 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	for i, ret := range result {
 		// first return value of every extend function that makes queries to DB is cost
 		if _, ok := rt.vm.FuncCallsDB[finfo.Name]; ok && i == 0 {
+			if !ret.CanInt() {
+				err = fmt.Errorf("invalid type of first return parameter")
+				return
+			}
 			if err = rt.SubCost(ret.Int()); err != nil {
 				return
 			}
@@ -616,11 +622,11 @@ func (rt *Runtime) setVarBy(block *compile.CodeBlock, names map[string][]any) er
 				value = append(rt.vars[ind].([]any), value)
 			} else {
 				ind = varoff + params.Offset[i]
-				refx := reflect.TypeOf(value)
-				refy := reflect.TypeOf(rt.vars[ind])
-				if refx != refy {
-					return fmt.Errorf("func %s cannot use (type %s) as the type %s", key, refx, refy)
-				}
+				//refx := reflect.TypeOf(value)
+				//refy := reflect.TypeOf(rt.vars[ind])
+				//if refx != refy {
+				//	return fmt.Errorf("func tail '%s' param: cannot use (type %s) as the type %s", key, refx, refy)
+				//}
 			}
 			rt.setVar(ind, value)
 		}

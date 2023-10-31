@@ -27,7 +27,7 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 		}`
 	}
 
-	block, err := compile.CompileBlock([]rune(source), vm.ExtendData(&compile.ExtendData{Owner: &compile.OwnerInfo{StateID: state}}))
+	block, err := compile.CompileBlock([]rune(source), vm.MakeCompConfig(&compile.CompConfig{Owner: &compile.OwnerInfo{StateID: state}}))
 	if err != nil {
 		return err
 	}

@@ -4,25 +4,34 @@ import (
 	"reflect"
 )
 
-// ExtendData is used for the definition of the extended functions and variables
-type ExtendData struct {
-	Owner   *OwnerInfo
-	Func    []ExtendFunc
-	PreVar  []string
-	Objects map[string]*Object
-	Extern  bool // true if ignore not found identifiers object
+type IgnoreLevel int
+
+const (
+	IgnoreNone IgnoreLevel = iota
+	//IgnoreIdent ignore not found identifiers object
+	IgnoreIdent
+)
+
+// CompConfig is used for the definition of the extended functions and variables
+type CompConfig struct {
+	Owner     *OwnerInfo
+	Func      []ExtendFunc
+	PreVar    []string
+	Objects   map[string]*Object
+	IgnoreObj IgnoreLevel
 }
 
 type ExtendFunc struct {
-	Name     string
+	Name string
+	// Func is the function to be called, it must be a function type
 	Func     any
 	CanWrite bool
 	AutoPars map[string]string
 }
 
-func (ext *ExtendData) MakeExtFunc() map[string]*Object {
+func (cfg *CompConfig) MakeExtFunc() map[string]*Object {
 	objects := make(map[string]*Object)
-	for _, item := range ext.Func {
+	for _, item := range cfg.Func {
 		obj := item.MakeObject()
 		if obj != nil {
 			objects[item.Name] = obj

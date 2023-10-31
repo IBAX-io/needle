@@ -5,26 +5,24 @@ import (
 )
 
 type Parser struct {
-	Parent  *CodeBlock
-	root    *CodeBlock
-	lexemes Lexemes
-	ext     *ExtendData
-	Debug   bool
-	Extern  bool //true if ignore not found identifiers object
+	parent, root *CodeBlock
+	lexemes      Lexemes
+	conf         *CompConfig
+	Debug        bool
 }
 
-func NewParser(lexemes Lexemes, ext *ExtendData) *Parser {
+func NewParser(lexemes Lexemes, conf *CompConfig) *Parser {
 	var p = &Parser{
 		lexemes: lexemes,
-		ext:     ext,
+		conf:    conf,
 	}
 	p.init()
 	return p
 }
 
 func (p *Parser) init() {
-	if p.ext == nil {
-		p.ext = &ExtendData{
+	if p.conf == nil {
+		p.conf = &CompConfig{
 			Func:   make([]ExtendFunc, 0),
 			PreVar: make([]string, 0),
 			Owner:  &OwnerInfo{StateID: 1},
@@ -32,17 +30,17 @@ func (p *Parser) init() {
 	}
 	p.root = &CodeBlock{
 		Objects: make(map[string]*Object),
-		Type:    p.ext.Owner.ObjectType(),
-		Info:    p.ext.Owner,
-		PreVar:  p.ext.PreVar,
+		Type:    p.conf.Owner.ObjectType(),
+		Info:    p.conf.Owner,
+		PreVar:  p.conf.PreVar,
 	}
-	p.Parent = &CodeBlock{
+	p.parent = &CodeBlock{
 		Objects: make(map[string]*Object),
 	}
-	for s, info := range p.ext.Objects {
-		p.Parent.Objects[s] = info
+	for s, info := range p.conf.Objects {
+		p.parent.Objects[s] = info
 	}
-	for s, info := range p.ext.MakeExtFunc() {
+	for s, info := range p.conf.MakeExtFunc() {
 		p.root.Objects[s] = info
 	}
 }
@@ -137,7 +135,7 @@ func (p *Parser) ParserCodeBlock() (*CodeBlock, error) {
 	for _, item := range p.root.Objects {
 		if item.Type == ObjContract {
 			if cond, ok := item.GetCodeBlock().Objects[`conditions`]; ok {
-				if cond.Type == ObjFunc && cond.GetFuncInfo().CanWrite && !p.ext.Extern {
+				if cond.Type == ObjFunc && cond.GetFuncInfo().CanWrite && p.conf.IgnoreObj != IgnoreIdent {
 					return nil, fmt.Errorf("%s %w", item.GetContractInfo().Name, errCondWrite)
 				}
 			}
@@ -332,7 +330,7 @@ main:
 				if extFn.Variadic {
 					wantlen--
 				}
-				if count != wantlen && (!extFn.Variadic || count < wantlen) && !p.ext.Extern {
+				if count != wantlen && (!extFn.Variadic || count < wantlen) && p.conf.IgnoreObj != IgnoreIdent {
 					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
 				}
 			}
@@ -439,7 +437,7 @@ main:
 		case IDENTIFIER:
 			noMap = true
 			obj, owner := p.findObj(lexeme.Value.(string), block)
-			if obj == nil && (!p.ext.Extern || i > *ind || i >= len(p.lexemes)-2 || p.lexemes[i+1].Type != LPAREN) {
+			if obj == nil && (p.conf.IgnoreObj != IgnoreIdent || i > *ind || i >= len(p.lexemes)-2 || p.lexemes[i+1].Type != LPAREN) {
 				return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 			}
 			if i < len(p.lexemes)-2 {
@@ -448,7 +446,7 @@ main:
 						isContract  bool
 						objContract *ContractInfo
 					)
-					if p.ext.Extern && obj == nil {
+					if p.conf.IgnoreObj == IgnoreIdent && obj == nil {
 						obj = &Object{Type: ObjContract}
 					}
 					if obj == nil || (obj.Type != ObjExtFunc && obj.Type != ObjFunc &&
@@ -556,11 +554,11 @@ func (p *Parser) findObj(name string, block *CodeBlocks) (obj *Object, owner *Co
 		}
 	}
 	for _, n := range []string{name, statename} {
-		ret, ok := p.Parent.Objects[n]
+		ret, ok := p.parent.Objects[n]
 		if !ok {
 			continue
 		}
-		return ret, p.Parent
+		return ret, p.parent
 	}
 	return
 }

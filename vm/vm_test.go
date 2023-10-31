@@ -280,7 +280,8 @@ contract error_test {
 		{"case_exec", "@1Name.action", []rune(`
 contract contractName {
     data {
-		paramName1 int paramName2 string ""
+ 		paramName1 int 
+		paramName2 string 
     }
     func action() {
         $result = $paramName1 + Int($paramName2)
@@ -291,12 +292,11 @@ contract Name {
     func action() {
         var a int s map
         a = ExecContract("@1contractName", "paramName1,paramName2", 123, "456")
-Println(.23)
+		Println(.23)
     }
 }`), assert.NoError},
 		{"case_ifstmt", "@1ifstmt.action", []rune(`
 contract ifstmt {
-	action{
  		if "" {
 			Println("if")
 		}
@@ -311,7 +311,6 @@ contract ifstmt {
 			var d bool
 			if !d{
 				Println("double==")
-			}
 			if ""{
 				Println("if2")
 			}else{
@@ -344,12 +343,13 @@ contract ifstmt {
 	start := time.Now()
 	vm := NewVM()
 	vm.SetExtendCost(getcost)
-	build := &compile.ExtendData{
-		Owner:  &compile.OwnerInfo{StateID: 1},
-		PreVar: []string{"key_id"},
-		Func:   obj,
-		Extern: true,
+	build := &compile.CompConfig{
+		Owner:     &compile.OwnerInfo{StateID: 1},
+		PreVar:    []string{"key_id"},
+		Func:      obj,
+		IgnoreObj: compile.IgnoreIdent,
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if !tt.wantErr(t, vm.Compile(tt.args, build)) {

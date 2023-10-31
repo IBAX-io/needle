@@ -4,12 +4,12 @@ import (
 	"fmt"
 )
 
-func CompileBlock(input []rune, ext *ExtendData) (*CodeBlock, error) {
+func CompileBlock(input []rune, conf *CompConfig) (*CodeBlock, error) {
 	lexer, err := NewLexer(input)
 	if err != nil {
 		return nil, fmt.Errorf("lexer: %w", err)
 	}
-	parser := NewParser(lexer, ext)
+	parser := NewParser(lexer, conf)
 	block, err := parser.ParserCodeBlock()
 	if err != nil {
 		return nil, err

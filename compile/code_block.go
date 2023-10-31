@@ -44,14 +44,14 @@ type CodeBlock struct {
 	Children CodeBlocks
 }
 
-func NewCodeBlock(ext *ExtendData) *CodeBlock {
+func NewCodeBlock(conf *CompConfig) *CodeBlock {
 	return &CodeBlock{
-		Objects: ext.MakeExtFunc(),
+		Objects: conf.MakeExtFunc(),
 		// Reserved 256 indexes for system purposes
 		Children: make(CodeBlocks, 256, 1024),
-		Type:     ext.Owner.ObjectType(),
-		Info:     ext.Owner,
-		PreVar:   ext.PreVar,
+		Type:     conf.Owner.ObjectType(),
+		Info:     conf.Owner,
+		PreVar:   conf.PreVar,
 	}
 }
 
