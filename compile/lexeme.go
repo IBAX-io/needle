@@ -65,21 +65,27 @@ func NewLexer(input []rune) (Lexemes, error) {
 		flag = val & 0xff
 	}
 	for off < length {
+		var end bool
 		if off == length-1 {
 			todo(' ')
+			end = true
 		} else {
 			todo(input[off])
 		}
 		if curState == stateError {
+			l, h := off, off+1
+			if end || off != length-1 {
+				l, h = start, off
+			}
 			return nil, fmt.Errorf("unknown lexeme '%s' [%d:%d]",
-				string(input[off:off+1]), line, off-offline+1)
+				string(input[l:h]), line, off-offline+1)
 		}
 		if hasSkip(flag) {
 			off++
 			skip = true
 			continue
 		}
-		if tk > 0 {
+		if tk > UNKNOWN {
 			lexOffset := off
 			if hasPop(flag) {
 				lexOffset = start
@@ -213,7 +219,6 @@ func NewLexer(input []rune) (Lexemes, error) {
 			off++
 		}
 	}
-
 	return lexemes, nil
 }
 
