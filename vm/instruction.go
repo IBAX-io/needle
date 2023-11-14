@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/IBAX-io/needle/compile"
-
 	"github.com/shopspring/decimal"
+
+	"github.com/IBAX-io/needle/compile"
 )
 
 const (
@@ -194,12 +194,12 @@ func init() {
 						k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
 						switch v := rt.blocks[i].Block.Vars[item.Obj.GetVariable().Index]; v.String() {
 						case "float64":
-							var d decimal.Decimal
-							d, err = ValueToDecimal(val)
+							var d float64
+							d, err = ValueToFloat(val)
 							if err != nil {
 								return
 							}
-							rt.setVar(k, d.InexactFloat64())
+							rt.setVar(k, d)
 						case "decimal.Decimal":
 							var d decimal.Decimal
 							d, err = ValueToDecimal(val)
@@ -209,7 +209,8 @@ func init() {
 							rt.setVar(k, d)
 						default:
 							if val != nil && v != reflect.TypeOf(val) {
-								err = fmt.Errorf("variable '%v' (type %v) cannot be represented by the type %s", item.Obj.GetVariable().Name, reflect.TypeOf(val), v)
+								err = fmt.Errorf("variable '%v' (type %v) cannot be represented by the type %s",
+									item.Obj.GetVariable().Name, reflect.TypeOf(val), v)
 								return
 							}
 							rt.setVar(k, val)

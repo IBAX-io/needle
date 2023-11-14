@@ -21,7 +21,7 @@ var (
 	lexTable   [][alphaRuleSize]int
 	alphaTable [alphaSize]byte
 	alphaRule  = [alphaRuleSize]byte{
-		0x01, 0x0A, ' ', '`', '"',
+		0x01, 0x0A, 0x20, '`', '"',
 		';', '(', ')', '[', ']',
 		'{', '}', '&', '|', '#', '.', ',', '<', '>', '=',
 		'!', '*', '$', '@', ':', '+', '-', '/', '\\',
@@ -137,14 +137,21 @@ var (
 			"d": {stateMain, OPERATOR, flagPop},
 		},
 		stateNumber: {
-			"01.a+-": {stateNumber, UNKNOWN, flagNext},
-			"r":      {stateError, UNKNOWN, flagEnd},
-			"_":      {stateUnderscore, UNKNOWN, flagNext},
-			"d":      {stateMain, NUMBER, flagPop},
+			"01": {stateNumber, UNKNOWN, flagNext},
+			".":  {stateDot, UNKNOWN, flagNext},
+			"a":  {stateExponentPart, UNKNOWN, flagNext},
+			"_":  {stateUnderscore, UNKNOWN, flagNext},
+			"d":  {stateMain, NUMBER, flagPop},
+			"r":  {stateError, UNKNOWN, flagEnd},
+		},
+		stateExponentPart: {
+			"+-": {stateExponentPart, UNKNOWN, flagNext},
+			"01": {stateNumber, UNKNOWN, flagNext},
+			"d":  {stateError, UNKNOWN, flagEnd},
 		},
 		stateUnderscore: {
-			"01a": {stateNumber, UNKNOWN, flagNext},
-			"d":   {stateError, UNKNOWN, flagEnd},
+			"01": {stateNumber, UNKNOWN, flagNext},
+			"d":  {stateError, UNKNOWN, flagEnd},
 		},
 		stateIdentifier: {
 			"01a_r": {stateIdentifier, UNKNOWN, flagNext},
@@ -198,7 +205,7 @@ const (
 	stateMul
 	stateBitXor
 	stateUnderscore
-	stateQuote
+	stateExponentPart
 )
 
 // flags of lexical states

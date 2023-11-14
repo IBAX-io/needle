@@ -98,10 +98,8 @@ RawStringLiteral: '`' ~'`'* '`';
 DecimalLiteral: DecimalDigits+;
 
 FloatLiteral:
-    (DecimalDigits ExponentPart)
-    | (DecimalDigits '.' DecimalDigits ExponentPart?)
-    | ('.' DecimalDigits ExponentPart?)
-    | (DecimalDigits '.' DecimalDigits);
+    DecimalDigits ('.' DecimalDigits)? ExponentPart?
+    | '.' DecimalDigits ExponentPart?;
 
 HexLiteral: '0' [xX] ('_'? HexDigits)+;
 

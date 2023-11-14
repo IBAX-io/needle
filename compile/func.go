@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// identifierRegexp = letter { letter | unicode_digit }
+// identifierRegexp = unicode_letter { letter | unicode_digit }
 // letter        = unicode_letter | "_" .
 // unicode_letter = /* a Unicode code point classified as "Letter" */
 // unicode_digit  = /* a Unicode code point categorized as "Number, decimal digit" */

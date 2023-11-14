@@ -82,8 +82,7 @@ func ValueToInt(v any) (ret int64, err error) {
 }
 
 // ValueToFloat converts interface (string, float64 or int64) to float64
-func ValueToFloat(v any) (ret float64) {
-	var err error
+func ValueToFloat(v any) (ret float64, err error) {
 	switch val := v.(type) {
 	case float64:
 		ret = val
@@ -91,9 +90,6 @@ func ValueToFloat(v any) (ret float64) {
 		ret = float64(val)
 	case string:
 		ret, err = strconv.ParseFloat(val, 64)
-		if err != nil {
-			log.WithFields(log.Fields{"type": ConversionError, "error": err, "value": val}).Error("converting value from string to float")
-		}
 	case decimal.Decimal:
 		ret = val.InexactFloat64()
 	}
