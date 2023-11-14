@@ -45,7 +45,7 @@ func (p *Parser) init() {
 	}
 }
 
-func (p *Parser) ParserCodeBlock() (*CodeBlock, error) {
+func (p *Parser) Parse() (*CodeBlock, error) {
 	if len(p.lexemes) == 0 {
 		return p.root, nil
 	}
@@ -437,7 +437,7 @@ main:
 		case IDENTIFIER:
 			noMap = true
 			obj, owner := p.findObj(lexeme.Value.(string), block)
-			if obj == nil && (p.conf.IgnoreObj != IgnoreIdent || i > *ind || i >= len(p.lexemes)-2 || p.lexemes[i+1].Type != LPAREN) {
+			if obj == nil && (p.conf.IgnoreObj != IgnoreIdent || i >= len(p.lexemes)-2 || p.lexemes[i+1].Type != LPAREN) {
 				return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lexeme.Value, lexeme.Position()))
 			}
 			if i < len(p.lexemes)-2 {
