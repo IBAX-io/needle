@@ -29,6 +29,34 @@ type ExtendFunc struct {
 	AutoPars map[string]string
 }
 
+func setDefault(conf *CompConfig) {
+	if conf == nil {
+		conf = &CompConfig{
+			Objects: make(map[string]*Object),
+			Owner:   &OwnerInfo{StateID: 1},
+			PreVar:  make([]string, 0),
+			Func:    make([]ExtendFunc, 0),
+		}
+	}
+	if conf.Objects == nil {
+		conf.Objects = make(map[string]*Object)
+	}
+	if conf.Owner == nil {
+		conf.Owner = &OwnerInfo{StateID: 1}
+	}
+	if conf.PreVar == nil {
+		conf.PreVar = make([]string, 0)
+	}
+	if conf.Func == nil {
+		conf.Func = make([]ExtendFunc, 0)
+	}
+}
+
+func (cfg *CompConfig) MakeConfig() *CompConfig {
+	setDefault(cfg)
+	return cfg
+}
+
 func (cfg *CompConfig) MakeExtFunc() map[string]*Object {
 	objects := make(map[string]*Object)
 	for _, item := range cfg.Func {
@@ -41,8 +69,8 @@ func (cfg *CompConfig) MakeExtFunc() map[string]*Object {
 }
 
 func (item *ExtendFunc) MakeObject() *Object {
-	if item.ExtFuncInfo() != nil {
-		return &Object{Type: ObjExtFunc, Value: item.ExtFuncInfo()}
+	if v := item.ExtFuncInfo(); v != nil {
+		return &Object{Type: ObjExtFunc, Value: v}
 	}
 	return nil
 }

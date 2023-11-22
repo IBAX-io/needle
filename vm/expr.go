@@ -48,7 +48,7 @@ func evaluateCmd(x, y any, op compile.CmdT) (any, error) {
 	if f, ok := ops[op.String()]; ok {
 		z, err := f(x, y)
 		if err != nil {
-			return nil, fmt.Errorf("error evaluating: %v", err)
+			return nil, fmt.Errorf("evaluating error: %v", err)
 		}
 		return z, nil
 	}

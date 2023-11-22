@@ -69,10 +69,6 @@ func init() {
 			err = fmt.Errorf(`unknown extend identifier '$%v'`, code.Value)
 			return
 		}
-		switch varVal := val.(type) {
-		case int:
-			val = int64(varVal)
-		}
 		rt.stack.push(val)
 		return
 	}

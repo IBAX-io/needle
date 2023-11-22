@@ -54,16 +54,11 @@ func ValueToInt(v any) (ret int64, err error) {
 		if len(val) == 0 {
 			return 0, nil
 		}
-		ret, err = strconv.ParseInt(val, 10, 64)
+		fromString, err := decimal.NewFromString(val)
 		if err != nil {
-			errText := err.Error()
-			if strings.Contains(errText, `:`) {
-				errText = errText[strings.LastIndexByte(errText, ':'):]
-			} else {
-				errText = ``
-			}
-			err = fmt.Errorf(`%s is not a valid integer %s`, val, errText)
+			return 0, err
 		}
+		ret = fromString.IntPart()
 	case decimal.Decimal:
 		ret = val.IntPart()
 	case json.Number:

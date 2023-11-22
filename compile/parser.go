@@ -162,9 +162,12 @@ main:
 		lexeme := p.lexemes[i]
 		if !noMap {
 			if lexeme.Type == LBRACE {
+				if prevLex.Type == IF {
+					return fmt.Errorf("if must be followed by a condition")
+				}
 				pMap, err := p.getInitMap(&i, block, false)
 				if err != nil {
-					return err
+					return fmt.Errorf("get init map: %w", err)
 				}
 				bytecode.push(newByteCode(CmdMapInit, lexeme, pMap))
 				continue
@@ -172,7 +175,7 @@ main:
 			if lexeme.Type == LBRACK {
 				pArray, err := p.getInitArray(&i, block)
 				if err != nil {
-					return err
+					return fmt.Errorf("get init array: %w", err)
 				}
 				bytecode.push(newByteCode(CmdArrayInit, lexeme, pArray))
 				continue
@@ -181,36 +184,9 @@ main:
 		noMap = false
 		switch lexeme.Type {
 		case COLON:
-			var low, high = -1, -1
-			if p.lexemes[i-1].Type == LBRACK {
-				low = SliceLow
-			}
-			if p.lexemes[i+1].Type == RBRACK {
-				high = SliceHigh
-			}
-			if p.lexemes[i-1].Type == NUMBER {
-				if (buffer.peek().Cmd == CmdSign && p.lexemes[i-3].Type == LBRACK) || p.lexemes[i-2].Type == LBRACK {
-					if _, ok := p.lexemes[i-1].Value.(int64); !ok {
-						return fmt.Errorf("slice index must be integer")
-					}
-					low = SliceLowNum
-				}
-			}
-
-			if p.lexemes[i+1].Type == NUMBER && p.lexemes[i+2].Type == RBRACK {
-				if _, ok := p.lexemes[i+1].Value.(int64); !ok {
-					return fmt.Errorf("slice index must be integer")
-				}
-				high = SliceHighNum
-			}
-			if (p.lexemes[i+1].Value == Sub || p.lexemes[i+1].Value == Add) && p.lexemes[i+2].Type == NUMBER && p.lexemes[i+3].Type == RBRACK {
-				if _, ok := p.lexemes[i+2].Value.(int64); !ok {
-					return fmt.Errorf("slice index must be integer")
-				}
-				high = SliceHighNum
-			}
-			if low != -1 && high != -1 {
-				bytecode.push(newByteCode(CmdSliceColon, lexeme, &SliceItem{Index: [2]int{low, high}}))
+			err := p.sliceStmt(i, buffer, bytecode)
+			if err != nil {
+				return err
 			}
 		case RBRACE, LBRACE:
 			i--
@@ -546,6 +522,42 @@ main:
 	return nil
 }
 
+func (p *Parser) sliceStmt(i int, buffer, bytecode ByteCodes) error {
+	lexeme := p.lexemes[i]
+	var low, high = -1, -1
+	if p.lexemes[i-1].Type == LBRACK {
+		low = SliceLow
+	}
+	if p.lexemes[i+1].Type == RBRACK {
+		high = SliceHigh
+	}
+	if p.lexemes[i-1].Type == NUMBER {
+		if (buffer.peek().Cmd == CmdSign && p.lexemes[i-3].Type == LBRACK) || p.lexemes[i-2].Type == LBRACK {
+			if _, ok := p.lexemes[i-1].Value.(int64); !ok {
+				return fmt.Errorf("slice index must be integer")
+			}
+			low = SliceLowNum
+		}
+	}
+
+	if p.lexemes[i+1].Type == NUMBER && p.lexemes[i+2].Type == RBRACK {
+		if _, ok := p.lexemes[i+1].Value.(int64); !ok {
+			return fmt.Errorf("slice index must be integer")
+		}
+		high = SliceHighNum
+	}
+	if (p.lexemes[i+1].Value == Sub || p.lexemes[i+1].Value == Add) && p.lexemes[i+2].Type == NUMBER && p.lexemes[i+3].Type == RBRACK {
+		if _, ok := p.lexemes[i+2].Value.(int64); !ok {
+			return fmt.Errorf("slice index must be integer")
+		}
+		high = SliceHighNum
+	}
+	if low != -1 && high != -1 {
+		bytecode.push(newByteCode(CmdSliceColon, lexeme, &SliceItem{Index: [2]int{low, high}}))
+	}
+	return nil
+}
+
 func (p *Parser) findObj(name string, block *CodeBlocks) (obj *Object, owner *CodeBlock) {
 	statename := StateName(block.ParentOwner().StateID, name)
 	for _, n := range []string{name, statename} {
@@ -616,6 +628,15 @@ main:
 		case NEWLINE:
 			continue
 		case RBRACE:
+			if state == MustColon {
+				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lexeme.Position())
+			}
+			if state == MustValue {
+				return nil, fmt.Errorf("%w[%s]", errUnexpValue, lexeme.Position())
+			}
+			if state == MustKey {
+				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lexeme.Position())
+			}
 			break main
 		case COMMA, RBRACK:
 			if oneItem {
@@ -626,12 +647,12 @@ main:
 		switch state {
 		case MustComma:
 			if lexeme.Type != COMMA {
-				return nil, fmt.Errorf(`%w[%s]`, errUnexpComma, lexeme.Position())
+				return nil, fmt.Errorf("%w[%s]", errUnexpComma, lexeme.Position())
 			}
 			state = MustKey
 		case MustColon:
 			if lexeme.Type != COLON {
-				return nil, fmt.Errorf(`%w[%s]`, errUnexpColon, lexeme.Position())
+				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lexeme.Position())
 			}
 			state = MustValue
 		case MustKey:
@@ -639,7 +660,7 @@ main:
 			case IDENTIFIER, LITERAL:
 				key = lexeme.Value.(string)
 			case EXTEND:
-				key = `$` + lexeme.Value.(string)
+				key = "$" + lexeme.Value.(string)
 			case KEYWORD:
 				for ikey, v := range KeywordValue {
 					if Keyword2Str(v) == fmt.Sprint(lexeme.Value) {
@@ -651,7 +672,7 @@ main:
 					}
 				}
 			default:
-				return nil, fmt.Errorf(`%w[%s]`, errUnexpKey, lexeme.Position())
+				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lexeme.Position())
 			}
 
 			state = MustColon
@@ -665,7 +686,7 @@ main:
 		}
 	}
 	if ret.IsEmpty() && (state == MustKey) {
-		return nil, errUnexpKey
+		return nil, fmt.Errorf("%w[%s]", errUnexpKey, p.lexemes[i].Position())
 	}
 	if i == len(p.lexemes) {
 		return nil, errUnclosedMap

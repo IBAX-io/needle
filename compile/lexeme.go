@@ -41,185 +41,206 @@ func (l *Lexeme) Position() string {
 
 type Lexemes []*Lexeme
 
-func NewLexer(input []rune) (Lexemes, error) {
-	type ifBuf struct {
+type contextLexer struct {
+	input                     []rune
+	position                  int
+	action                    *action
+	skip                      bool
+	startPos, endPos, offline int
+	line, column              int
+	lexemes                   Lexemes
+	ifBuf                     []struct {
 		count int
 		pair  int
 		stop  bool
 	}
+}
 
-	var (
-		curState, offline,
-		flag, start, off int
-		tk      Token
-		line    = 1
-		skip    bool
-		length  = len(input) + 1
-		lexemes = make(Lexemes, 0, len(input)/4)
-		ifbuf   = make([]ifBuf, 0)
-	)
-	todo := func(r rune) {
-		val := lexTable[curState][charToAlpha(r)]
-		curState = (val >> 16) & 0xffff
-		tk = Token(val>>8) & 0xff
-		flag = val & 0xff
+func newContextLexer(input []rune) *contextLexer {
+	return &contextLexer{input: input,
+		position: 0, line: 1, column: 0,
+		ifBuf: make([]struct {
+			count, pair int
+			stop        bool
+		}, 0),
+		lexemes: make(Lexemes, 0),
+		action:  &action{},
 	}
-	for off < length {
-		var end bool
-		if off == length-1 {
-			todo(' ')
-			end = true
-		} else {
-			todo(input[off])
+}
+
+func (c *contextLexer) getNextAction() {
+	if c.position > len(c.input) {
+		c.action.state = stateError
+		return
+	}
+	var val int
+	if c.position == len(c.input) {
+		val = lexTable[c.action.state][charToAlpha(' ')]
+	} else {
+		val = lexTable[c.action.state][charToAlpha(c.input[c.position])]
+	}
+	c.action.state = (val >> 16) & 0xffff
+	c.action.token = Token(val>>8) & 0xff
+	c.action.flag = val & 0xff
+}
+
+func NewLexer(input []rune) (Lexemes, error) {
+	c := newContextLexer(input)
+	for {
+		if c.position > len(c.input) {
+			break
 		}
-		if curState == stateError {
-			l, h := off, off+1
-			if end || off != length-1 {
-				l, h = start, off
-			}
+		c.getNextAction()
+		a := c.action
+		if a.state == stateError {
 			return nil, fmt.Errorf("unknown lexeme '%s' [%d:%d]",
-				string(input[l:h]), line, off-offline+1)
+				string(c.input[c.startPos:c.position]), c.line, c.position-c.offline+1)
 		}
-		if hasSkip(flag) {
-			off++
-			skip = true
+		if hasSkip(a.flag) {
+			c.position++
+			c.skip = true
 			continue
 		}
-		if tk > UNKNOWN {
-			lexOffset := off
-			if hasPop(flag) {
-				lexOffset = start
+		if a.token > UNKNOWN {
+			startPos := c.position
+			if hasPop(a.flag) {
+				startPos = c.startPos
 			}
-			right := off
-			if hasNext(flag) {
-				right++
+			endPos := c.position
+			if hasNext(a.flag) {
+				endPos++
 			}
-			if len(ifbuf) > 0 && ifbuf[len(ifbuf)-1].stop && tk != NEWLINE {
-				name := string(input[lexOffset:right])
-				if name != `else` && name != `elif` {
-					for i := 0; i < ifbuf[len(ifbuf)-1].count; i++ {
-						lexemes = append(lexemes, NewLexeme(RBRACE, RBRACE, line, lexOffset-offline+1))
-					}
-					ifbuf = ifbuf[:len(ifbuf)-1]
-				} else {
-					ifbuf[len(ifbuf)-1].stop = false
-				}
+			lexeme, err := c.getLexeme(startPos, endPos)
+			if err != nil {
+				return nil, err
 			}
-			var value any
-			switch tk {
-			default:
-			case NEWLINE:
-				if input[lexOffset] == rune(0x0a) {
-					line++
-					offline = off
-				}
-			case DELIMITER:
-				ch := input[lexOffset]
-				tk = delimiter2Token[ch]
-				value = string(ch)
-				if len(ifbuf) > 0 {
-					if ch == '{' {
-						ifbuf[len(ifbuf)-1].pair++
-					}
-					if ch == '}' {
-						ifbuf[len(ifbuf)-1].pair--
-						if ifbuf[len(ifbuf)-1].pair == 0 {
-							ifbuf[len(ifbuf)-1].stop = true
-						}
-					}
-				}
-			case LITERAL, COMMENT:
-				val := string(input[lexOffset+1 : right-1])
-				if tk == LITERAL && skip {
-					skip = false
-					if input[lexOffset] == '"' && input[right-1] == '"' {
-						val = strings.ReplaceAll(val, `\"`, `"`)
-						val = strings.ReplaceAll(val, `\t`, "\t")
-						val = strings.ReplaceAll(val, `\r`, "\r")
-					}
-				}
-				for _, ch := range val {
-					if ch == 0x0a {
-						line++
-						//offline = off + uint32(i) + 1
-					}
-				}
-				if input[lexOffset] == '"' && input[right-1] == '"' {
-					val = strings.ReplaceAll(val, `\n`, "\n")
-				}
-				value = val
-			case OPERATOR:
-				val := string(input[lexOffset:right])
-				var ok bool
-				value, ok = op2Token[val]
-				if !ok {
-					return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, line, off-offline+1)
-				}
-			case NUMBER:
-				name := string(input[lexOffset:right])
-				val, err := string2Number(name)
-				if err != nil {
-					return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, line, off-offline+1)
-				}
-				value = val
-			case IDENTIFIER:
-				name := string(input[lexOffset:right])
-				if name[0] == '$' {
-					tk = EXTEND
-					value = name[1:]
-					if err := canIdent(name[1:]); err != nil {
-						return nil, err
-					}
-				} else if keyID, ok := KeywordValue[name]; ok {
-					switch keyID {
-					case ELIF:
-						if len(ifbuf) == 0 {
-							return nil, fmt.Errorf(`expected statement, found '%s' [%d:%d]`, name, line, lexOffset-offline+1)
-						}
-						lexemes = append(lexemes,
-							NewLexeme(ELSE, Keyword2Str(ELSE), line, lexOffset-offline+1),
-							NewLexeme(LBRACE, Keyword2Str(LBRACE), line, lexOffset-offline+1))
-						tk, value = IF, Keyword2Str(IF)
-						ifbuf[len(ifbuf)-1].count++
-					case ACTION, CONDITIONS:
-						if len(lexemes) == 0 {
-							return nil, fmt.Errorf(`'%s' can't be the first statement [%d:%d]`, name, line, lexOffset-offline+1)
-						}
-						lexf := lexemes[len(lexemes)-1]
-						if lexf.Type&0xff != KEYWORD || lexf.Value.(string) != Keyword2Str(FUNC) {
-							lexemes = append(lexemes, NewLexeme(FUNC, Keyword2Str(FUNC), line, lexOffset-offline+1))
-						}
-						value = name
-					case TRUE:
-						tk, value = NUMBER, true
-					case FALSE:
-						tk, value = NUMBER, false
-					case NIL:
-						tk, value = NUMBER, nil
-					default:
-						if keyID == IF {
-							ifbuf = append(ifbuf, ifBuf{})
-						}
-						tk, value = keyID, Keyword2Str(keyID)
-					}
-				} else if tInfo, ok := TypeNameValue[name]; ok {
-					tk, value = TYPENAME, tInfo
-				} else {
-					value = name
-				}
-			}
-			if tk != COMMENT {
-				lexemes = append(lexemes, NewLexeme(tk, value, line, lexOffset-offline+1))
+			if a.token != COMMENT {
+				c.lexemes = append(c.lexemes, lexeme)
 			}
 		}
-		if hasPush(flag) {
-			start = off
+		if hasPush(c.action.flag) {
+			c.startPos = c.position
 		}
-		if hasNext(flag) {
-			off++
+
+		if hasNext(c.action.flag) {
+			c.position++
 		}
 	}
-	return lexemes, nil
+	return c.lexemes, nil
+}
+
+func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
+	var value any
+	tk := c.action.token
+	switch tk {
+	default:
+	case NEWLINE:
+		if c.input[startPos] == rune(0x0a) {
+			c.line++
+			c.offline = c.position
+		}
+	case DELIMITER:
+		ch := c.input[startPos]
+		tk = delimiter2Token[ch]
+		value = string(ch)
+		if len(c.ifBuf) > 0 {
+			if ch == '{' {
+				c.ifBuf[len(c.ifBuf)-1].pair++
+			}
+			if ch == '}' {
+				c.ifBuf[len(c.ifBuf)-1].pair--
+				if c.ifBuf[len(c.ifBuf)-1].pair == 0 {
+					c.ifBuf[len(c.ifBuf)-1].stop = true
+				}
+			}
+		}
+	case LITERAL, COMMENT:
+		val := string(c.input[startPos+1 : endPos-1])
+		if tk == LITERAL && c.skip {
+			c.skip = false
+			if c.input[startPos] == '"' && c.input[endPos-1] == '"' {
+				val = strings.ReplaceAll(val, `\"`, `"`)
+				val = strings.ReplaceAll(val, `\t`, "\t")
+				val = strings.ReplaceAll(val, `\r`, "\r")
+			}
+		}
+		for _, ch := range val {
+			if ch == 0x0a {
+				c.line++
+				//offline = off + uint32(i) + 1
+			}
+		}
+		if c.input[startPos] == '"' && c.input[endPos-1] == '"' {
+			val = strings.ReplaceAll(val, `\n`, "\n")
+		}
+		value = val
+	case OPERATOR:
+		val := string(c.input[startPos:endPos])
+		var ok bool
+		value, ok = op2Token[val]
+		if !ok {
+			return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, c.line, c.position-c.offline+1)
+		}
+		OPERATOR.TypeName()
+	case NUMBER:
+		name := string(c.input[startPos:endPos])
+		val, err := string2Number(name)
+		if err != nil {
+			return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, c.line, c.position-c.offline+1)
+		}
+		value = val
+	case IDENTIFIER:
+		name := string(c.input[startPos:endPos])
+		if name[0] == '$' {
+			tk = EXTEND
+			value = name[1:]
+			if err := canIdent(name[1:]); err != nil {
+				return nil, err
+			}
+			break
+		} else if keyID, ok := KeywordValue[name]; ok {
+			switch keyID {
+			case ELIF:
+				if len(c.ifBuf) == 0 {
+					return nil, fmt.Errorf(`expected statement, found '%s' [%d:%d]`, name, c.line, startPos-c.offline+1)
+				}
+				c.lexemes = append(c.lexemes,
+					NewLexeme(ELSE, Keyword2Str(ELSE), c.line, c.position-c.offline+1),
+					NewLexeme(LBRACE, Keyword2Str(LBRACE), c.line, c.position-c.offline+1))
+				tk, value = IF, Keyword2Str(IF)
+				c.ifBuf[len(c.ifBuf)-1].count++
+			case ACTION, CONDITIONS:
+				if len(c.lexemes) == 0 {
+					return nil, fmt.Errorf(`'%s' can't be the first statement [%d:%d]`, name, c.line, startPos-c.offline+1)
+				}
+				lexf := c.lexemes[len(c.lexemes)-1]
+				if lexf.Type&0xff != KEYWORD || lexf.Value.(string) != Keyword2Str(FUNC) {
+					c.lexemes = append(c.lexemes, NewLexeme(FUNC, Keyword2Str(FUNC), c.line, startPos-c.offline+1))
+				}
+				value = name
+
+			case TRUE:
+				tk, value = NUMBER, true
+			case FALSE:
+				tk, value = NUMBER, false
+			case NIL:
+				tk, value = NUMBER, nil
+			default:
+				if keyID == IF {
+					c.ifBuf = append(c.ifBuf, struct {
+						count, pair int
+						stop        bool
+					}{})
+				}
+				tk, value = keyID, Keyword2Str(keyID)
+			}
+		} else if tInfo, ok := TypeNameValue[name]; ok {
+			tk, value = TYPENAME, tInfo
+		} else {
+			value = name
+		}
+	}
+	return NewLexeme(tk, value, c.line, startPos-c.offline+1), nil
 }
 
 func hasNext(flag int) bool {

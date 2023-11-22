@@ -7,7 +7,7 @@ import (
 func CompileBlock(input []rune, conf *CompConfig) (*CodeBlock, error) {
 	lexer, err := NewLexer(input)
 	if err != nil {
-		return nil, fmt.Errorf("lexer: %w", err)
+		return nil, fmt.Errorf("lexer error: %w", err)
 	}
 	parser := NewParser(lexer, conf)
 	block, err := parser.Parse()

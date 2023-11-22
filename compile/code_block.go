@@ -225,9 +225,9 @@ func newByteCode(cmd CmdT, Lexeme *Lexeme, value any) *ByteCode {
 // ByteCodes is the slice of ByteCode items
 type ByteCodes []*ByteCode
 
-func (b ByteCodes) String() string {
+func (b *ByteCodes) String() string {
 	var ret string
-	for _, code := range b {
+	for _, code := range *b {
 		ret = ret + code.Cmd.String() + " "
 		ret = ret + fmt.Sprint(code.Value) + "\n"
 	}

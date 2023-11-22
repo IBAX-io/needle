@@ -274,16 +274,8 @@ func (vm *VM) FlushExtern() {
 	return
 }
 
-func (vm *VM) MakeCompConfig(conf *compile.CompConfig) *compile.CompConfig {
-	if conf == nil {
-		conf = &compile.CompConfig{
-			Objects: make(map[string]*compile.Object),
-			Owner:   &compile.OwnerInfo{StateID: 1},
-		}
-	}
-	if conf.Objects == nil {
-		conf.Objects = make(map[string]*compile.Object)
-	}
+func (vm *VM) MergeCompConfig(conf *compile.CompConfig) *compile.CompConfig {
+	conf.MakeConfig()
 	for s, info := range vm.Objects {
 		conf.Objects[s] = info
 	}
@@ -306,7 +298,7 @@ func (vm *VM) MakeCompConfig(conf *compile.CompConfig) *compile.CompConfig {
 
 // Compile compiles a source code and loads the byte-code into the virtual machine,
 func (vm *VM) Compile(input []rune, conf *compile.CompConfig) error {
-	root, err := compile.CompileBlock(input, vm.MakeCompConfig(conf))
+	root, err := compile.CompileBlock(input, vm.MergeCompConfig(conf))
 	if err != nil {
 		return err
 	}
