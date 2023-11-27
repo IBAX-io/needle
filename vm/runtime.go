@@ -147,7 +147,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 				if cmd != nil && cmd.Lexeme != nil {
 					line = fmt.Sprintf(":%d", cmd.Lexeme.Line)
 					if cmd.Lexeme.Column != 0 {
-						//line += fmt.Sprintf(":%d", cmd.Lexeme.Column)
+						line += fmt.Sprintf(":%d", cmd.Lexeme.Column)
 					}
 					line += "]"
 				}
