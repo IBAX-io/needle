@@ -35,7 +35,7 @@ func fnError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if lexeme.Type == NEWLINE {
 		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, err, lexeme.Line-1)
 	}
-	return fmt.Errorf(`%s %s %v`, err, lexeme.Type, lexeme.Value)
+	return fmt.Errorf(`%s, got %s %v`, err, lexeme.Type, lexeme.Value)
 }
 
 // StateName checks the name of the contract and modifies it to @[state]name if it is necessary.
@@ -56,11 +56,17 @@ func fnBlockDecl(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	name := lexeme.Value.(string)
 	switch state {
 	case stateBlock:
+		if prev.Type != ObjOwner {
+			return fmt.Errorf("%s can only be in owner", lexeme.Value)
+		}
 		itype = ObjContract
 		name = StateName(buf.ParentOwner().StateID, name)
 		fblock.Info = &ContractInfo{ID: uint32(len(prev.Children) - 1),
 			Name: name, Owner: buf.ParentOwner(), Used: make(map[string]bool)}
 	default:
+		if prev.Type != ObjContract && prev.Type != ObjOwner {
+			return fmt.Errorf("%s can only be in contract or owner", lexeme.Value)
+		}
 		itype = ObjFunc
 		fblock.Info = &FuncInfo{ID: uint32(len(prev.Children) - 1), Name: name}
 	}
