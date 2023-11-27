@@ -165,7 +165,7 @@ main:
 				if prevLex.Type == IF {
 					return fmt.Errorf("if must be followed by a condition")
 				}
-				pMap, err := p.getInitMap(&i, block, false)
+				pMap, err := p.parseInitMap(&i, block, false)
 				if err != nil {
 					return fmt.Errorf("get init map: %w", err)
 				}
@@ -173,7 +173,7 @@ main:
 				continue
 			}
 			if lexeme.Type == LBRACK {
-				pArray, err := p.getInitArray(&i, block)
+				pArray, err := p.parseInitArray(&i, block)
 				if err != nil {
 					return fmt.Errorf("get init array: %w", err)
 				}
@@ -575,7 +575,7 @@ func (p *Parser) findObj(name string, block *CodeBlocks) (obj *Object, owner *Co
 	return
 }
 
-func (p *Parser) getInitValue(ind *int, block *CodeBlocks) (value MapItem, err error) {
+func (p *Parser) parseInitValue(ind *int, block *CodeBlocks) (value MapItem, err error) {
 	var (
 		subArr []MapItem
 		subMap *Map
@@ -585,12 +585,12 @@ func (p *Parser) getInitValue(ind *int, block *CodeBlocks) (value MapItem, err e
 
 	switch lexeme.Type {
 	case LBRACK:
-		subArr, err = p.getInitArray(&i, block)
+		subArr, err = p.parseInitArray(&i, block)
 		if err == nil {
 			value = MapItem{Type: MapArray, Value: subArr}
 		}
 	case LBRACE:
-		subMap, err = p.getInitMap(&i, block, false)
+		subMap, err = p.parseInitMap(&i, block, false)
 		if err == nil {
 			value = MapItem{Type: MapMap, Value: subMap}
 		}
@@ -612,7 +612,7 @@ func (p *Parser) getInitValue(ind *int, block *CodeBlocks) (value MapItem, err e
 	return
 }
 
-func (p *Parser) getInitMap(ind *int, block *CodeBlocks, oneItem bool) (*Map, error) {
+func (p *Parser) parseInitMap(ind *int, block *CodeBlocks, oneItem bool) (*Map, error) {
 	var next int
 	if !oneItem {
 		next = 1
@@ -677,7 +677,7 @@ main:
 
 			state = MustColon
 		case MustValue:
-			mapi, err := p.getInitValue(&i, block)
+			mapi, err := p.parseInitValue(&i, block)
 			if err != nil {
 				return nil, err
 			}
@@ -695,7 +695,7 @@ main:
 	return ret, nil
 }
 
-func (p *Parser) getInitArray(ind *int, block *CodeBlocks) ([]MapItem, error) {
+func (p *Parser) parseInitArray(ind *int, block *CodeBlocks) ([]MapItem, error) {
 	i := *ind + 1
 	ret := make([]MapItem, 0)
 	state := MustValue
@@ -716,13 +716,13 @@ main:
 			state = MustValue
 		case MustValue:
 			if i+1 < len(p.lexemes) && p.lexemes[i+1].Type == COLON {
-				subMap, err := p.getInitMap(&i, block, true)
+				subMap, err := p.parseInitMap(&i, block, true)
 				if err != nil {
 					return nil, err
 				}
 				ret = append(ret, MapItem{Type: MapMap, Value: subMap})
 			} else {
-				arri, err := p.getInitValue(&i, block)
+				arri, err := p.parseInitValue(&i, block)
 				if err != nil {
 					return nil, err
 				}
