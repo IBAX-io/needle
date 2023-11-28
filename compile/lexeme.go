@@ -41,6 +41,25 @@ func (l *Lexeme) Position() string {
 
 type Lexemes []*Lexeme
 
+func (lexemes Lexemes) nameList(tok Token, level int) []string {
+	names := make([]string, 0)
+	var lvl int
+	for i, lexeme := range lexemes {
+		switch lexeme.Type {
+		default:
+		case LBRACE:
+			lvl++
+		case RBRACE:
+			lvl--
+		case tok:
+			if lvl == level && i+1 < len(lexemes) && lexemes[i+1].Type == IDENTIFIER {
+				names = append(names, lexemes[i+1].Value.(string))
+			}
+		}
+	}
+	return names
+}
+
 type contextLexer struct {
 	input                     []rune
 	position                  int
