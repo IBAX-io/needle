@@ -33,9 +33,9 @@ func fnNothing(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 func fnError(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	err := errTable[int(state)]
 	if lexeme.Type == NEWLINE {
-		return fmt.Errorf(`%s (unexpected new line) [Ln:%d]`, err, lexeme.Line-1)
+		return fmt.Errorf("%s, unexpected semicolon or newline", err)
 	}
-	return fmt.Errorf(`%s, got %s %v`, err, lexeme.Type, lexeme.Value)
+	return fmt.Errorf("%s, got %s %v", err, lexeme.Type, lexeme.Value)
 }
 
 // StateName checks the name of the contract and modifies it to @[state]name if it is necessary.

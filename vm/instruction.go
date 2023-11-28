@@ -56,7 +56,7 @@ func init() {
 		}
 		err = rt.extendFunc(code.Value.(string))
 		if err != nil {
-			err = fmt.Errorf("extend function '$%s' err: %v", code.Value.(string), err)
+			err = fmt.Errorf("extend function '$%s' error: %v", code.Value.(string), err)
 		}
 		return
 	}

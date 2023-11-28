@@ -125,7 +125,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 		}
 
 		if err := comps.fn(&blocks, nextState, lexeme); err != nil {
-			return nil, fmt.Errorf("func handles: %s[%s]", err, lexeme.Position())
+			return nil, fmt.Errorf("func handles error: %s[%s]", err, lexeme.Position())
 		}
 		curState = nextState
 	}
