@@ -183,6 +183,11 @@ main:
 		}
 		noMap = false
 		switch lexeme.Type {
+		default:
+		case EQ:
+			if prevLex.Type == LPAREN || prevLex.Type == COMMA {
+				return fmt.Errorf("unexpected %s, expected expression", lexeme.Value)
+			}
 		case COLON:
 			err := p.sliceStmt(i, buffer, bytecode)
 			if err != nil {
