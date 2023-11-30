@@ -23,24 +23,24 @@ settingsDef:
 settingsValue: (numberLiteral | booleanLiteral | StringLiteral);
 
 funcDef: (innerFuncDef | defaultFuncDef) (
-		DOT Identifier signature
+		DOT Identifier funcSignature
 	)? block;
 
-innerFuncDef: funcDescriptor signature;
+innerFuncDef: funcDescriptor funcSignature;
 
-defaultFuncDef: FUNC? (CONDITIONS | ACTION) signature?;
+defaultFuncDef: FUNC? (CONDITIONS | ACTION) funcSignature;
 
 funcDescriptor: FUNC Identifier;
 
-signature: (parameterList returnParameters) | parameterList;
+funcSignature: parameterList? returnParameters?;
 
 parameterList:
 	LPAREN (parameter (COMMA? parameter)* COMMA?)? RPAREN;
 
 parameter:
-	identifierList typeName (COMMA? identifierList? typeName)*;
+	identifierList typeName (COMMA? identifierList typeName)*;
 
-returnParameters: (typeName (COMMA typeName)* COMMA?)?;
+returnParameters: typeName (COMMA? typeName)* COMMA? ;
 
 block: LBRACE statementList? RBRACE;
 
