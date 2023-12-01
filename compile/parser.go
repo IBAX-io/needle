@@ -221,16 +221,16 @@ main:
 					break
 				}
 				bytecode.push(prev)
-				buffer = buffer[:len(buffer)-1]
+				buffer.pop()
 			}
 		case RPAREN:
 			noMap = true
 			for {
 				if len(buffer) == 0 {
-					return fmt.Errorf("%s: there is not pair", lexeme.Type)
+					return fmt.Errorf("%s: there is not paren pair", lexeme.Type)
 				}
 				prev := buffer.pop()
-				if prev.Value.(uint16) == 0xff {
+				if prev.Cmd == CmdSys && prev.Value.(uint16) == 0xff && prev.Lexeme.Type == LPAREN {
 					break
 				}
 				bytecode.push(prev)
@@ -329,10 +329,10 @@ main:
 			noMap = true
 			for {
 				if len(buffer) == 0 {
-					return fmt.Errorf("%s: there is not pair", lexeme.Type)
+					return fmt.Errorf("%s: there is not brack pair", lexeme.Type)
 				}
 				prev := buffer.pop()
-				if prev.Value.(uint16) == 0xff {
+				if prev.Cmd == CmdSys && prev.Value.(uint16) == 0xff && prev.Lexeme.Type == LBRACK {
 					break
 				}
 				bytecode.push(prev)
@@ -516,7 +516,7 @@ main:
 	}
 	for i := len(buffer) - 1; i >= 0; i-- {
 		if buffer[i].Cmd == CmdSys {
-			return fmt.Errorf("%s: there is not pair", buffer[i].Lexeme.Type)
+			return fmt.Errorf("%s: there is not pair of [%s]", buffer[i].Lexeme.Type, buffer[i].Lexeme.Position())
 		}
 		bytecode.push(buffer[i])
 	}
