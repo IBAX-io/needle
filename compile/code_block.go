@@ -234,6 +234,10 @@ func (b *ByteCodes) String() string {
 	return ret
 }
 
+func (b *ByteCodes) empty() bool {
+	return b == nil || len(*b) == 0
+}
+
 func (b *ByteCodes) push(x *ByteCode) {
 	*b = append(*b, x)
 }

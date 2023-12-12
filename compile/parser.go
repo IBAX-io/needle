@@ -167,7 +167,7 @@ main:
 				}
 				pMap, err := p.parseInitMap(&i, block, false)
 				if err != nil {
-					return fmt.Errorf("get init map: %w", err)
+					return fmt.Errorf("parse init map: %w", err)
 				}
 				bytecode.push(newByteCode(CmdMapInit, lexeme, pMap))
 				continue
@@ -175,7 +175,7 @@ main:
 			if lexeme.Type == LBRACK {
 				pArray, err := p.parseInitArray(&i, block)
 				if err != nil {
-					return fmt.Errorf("get init array: %w", err)
+					return fmt.Errorf("parse init array: %w", err)
 				}
 				bytecode.push(newByteCode(CmdArrayInit, lexeme, pArray))
 				continue
@@ -212,6 +212,10 @@ main:
 		case LPAREN, LBRACK:
 			buffer.push(newByteCode(CmdSys, lexeme, uint16(0xff)))
 		case COMMA:
+			if i < len(p.lexemes)-1 && p.lexemes[i+1].Type == RBRACK || p.lexemes[i+1].Type == RPAREN {
+				return fmt.Errorf("unexpected trailing comma[%s]", lexeme.Position())
+			}
+
 			if len(parcount) > 0 {
 				parcount[len(parcount)-1]++
 			}
@@ -226,7 +230,7 @@ main:
 		case RPAREN:
 			noMap = true
 			for {
-				if len(buffer) == 0 {
+				if buffer.empty() {
 					return fmt.Errorf("%s: there is not paren pair", lexeme.Type)
 				}
 				prev := buffer.pop()
@@ -235,12 +239,12 @@ main:
 				}
 				bytecode.push(prev)
 			}
-			if len(buffer) == 0 {
+			if buffer.empty() {
 				continue
 			}
 
 			if prev := buffer.peek(); prev.Cmd == CmdFuncTail {
-				buffer = buffer[:len(buffer)-1]
+				buffer.pop()
 				fn := prev.Value.(FuncTailCmd)
 				names := fn.FuncTail
 				wantlen := len(names.Params)
@@ -271,12 +275,12 @@ main:
 				setWritable(block)
 			}
 			if objInfo.Type == ObjFunc && objInfo.GetFuncInfo().HasTails() {
-				if len(bytecode) == 0 || bytecode[len(bytecode)-1].Cmd != CmdFuncTail {
+				if bytecode.empty() || bytecode[len(bytecode)-1].Cmd != CmdFuncTail {
 					bytecode.push(newByteCode(CmdPush, lexeme, make(map[string][]any)))
 				}
 				if i < len(p.lexemes)-4 && p.lexemes[i+1].Type == DOT {
 					if p.lexemes[i+2].Type != IDENTIFIER {
-						return fmt.Errorf(`must be the name of the tail`)
+						return fmt.Errorf("must be the name of the tail")
 					}
 					names := prev.Value.(*Object).GetFuncInfo().Tails
 					if _, ok := names[p.lexemes[i+2].Value.(string)]; !ok {
@@ -305,6 +309,33 @@ main:
 			}
 			count := parcount[len(parcount)-1]
 			parcount = parcount[:len(parcount)-1]
+			if prev.Value.(*Object).Type == ObjFunc {
+				fn := prev.Value.(*Object).GetFuncInfo()
+				wantlen := len(fn.Params)
+				if fn.Variadic {
+					wantlen--
+				}
+				if count != wantlen && (!fn.Variadic || count < wantlen) {
+					if fn.Variadic {
+						return fmt.Errorf("%s: at least %d params, but %d given", fn.Name, wantlen, count)
+					}
+					return fmt.Errorf("%s: want %d params, but %d given", fn.Name, wantlen, count)
+				}
+				var y int
+				for i := len(buffer) - 1; i >= 0; i-- {
+					buf := buffer[i]
+					if buf.Cmd == CmdCallVariadic || buf.Cmd == CmdCall {
+						y++
+					}
+					if y == 2 {
+						if prev.Value.(*Object).GetResultsLen() == 0 {
+							return fmt.Errorf("%s used return value, but it has no return value", fn.Name)
+						}
+						parcount[len(parcount)-1] += len(fn.Results) - 1
+						break
+					}
+				}
+			}
 			if prev.Value.(*Object).Type == ObjExtFunc {
 				extFn := prev.Value.(*Object).GetExtFuncInfo()
 				wantlen := len(extFn.Params) - extFn.AutoParamsCount()
@@ -313,6 +344,20 @@ main:
 				}
 				if count != wantlen && (!extFn.Variadic || count < wantlen) && p.conf.IgnoreObj != IgnoreIdent {
 					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
+				}
+				var y int
+				for i := len(buffer) - 1; i >= 0; i-- {
+					buf := buffer[i]
+					if buf.Cmd == CmdCallVariadic || buf.Cmd == CmdCall {
+						y++
+					}
+					if y == 2 {
+						if prev.Value.(*Object).GetResultsLen() == 0 {
+							return fmt.Errorf("%s used return value, but it has no return value", extFn.Name)
+						}
+						parcount[len(parcount)-1] += prev.Value.(*Object).GetResultsLen() - 1
+						break
+					}
 				}
 			}
 			if prev.Cmd == CmdCallVariadic {
@@ -328,7 +373,7 @@ main:
 		case RBRACK:
 			noMap = true
 			for {
-				if len(buffer) == 0 {
+				if buffer.empty() {
 					return fmt.Errorf("%s: there is not brack pair", lexeme.Type)
 				}
 				prev := buffer.pop()
@@ -372,15 +417,16 @@ main:
 			}
 			byteOper := newByteCode(op.Cmd, lexeme, op.Priority)
 			for {
-				if len(buffer) == 0 {
+				if buffer.empty() {
 					buffer.push(byteOper)
 					break
 				}
-				prev := buffer[len(buffer)-1]
+				prev := buffer.peek()
 				if prev.Value.(uint16) >= op.Priority && op.Priority != uint16(CmdUnary) && prev.Cmd != CmdSys {
 					if prev.Value.(uint16) == uint16(CmdUnary) { // Right to left
 						unar := len(buffer) - 1
-						for ; unar > 0 && buffer[unar-1].Value.(uint16) == uint16(CmdUnary); unar-- {
+						for unar > 0 && buffer[unar-1].Value.(uint16) == uint16(CmdUnary) {
+							unar--
 						}
 						bytecode = append(bytecode, buffer[unar:]...)
 						buffer = buffer[:unar]
@@ -394,6 +440,9 @@ main:
 				}
 			}
 		case NUMBER, LITERAL:
+			if prevLex.Type == RPAREN {
+				return fmt.Errorf("unexpected %v at end of expression[%s]", lexeme.Value, lexeme.Position())
+			}
 			noMap = true
 			cmd = newByteCode(CmdPush, lexeme, lexeme.Value)
 		case EXTEND:
