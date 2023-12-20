@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
-	"strings"
 	"unsafe"
 
 	"github.com/IBAX-io/needle/compile"
@@ -14,16 +13,6 @@ import (
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
 )
-
-// StateName checks the name of the contract and modifies it to @[state]name if it is necessary.
-func StateName(state uint32, name string) string {
-	if !strings.HasPrefix(name, `@`) {
-		return fmt.Sprintf(`@%d%s`, state, name)
-	} else if len(name) > 1 && (name[1] < '0' || name[1] > '9') {
-		name = `@1` + name[1:]
-	}
-	return name
-}
 
 // ParseName gets a state identifier and the name of the contract or table
 // from the full name like @[id]name

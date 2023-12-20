@@ -91,7 +91,20 @@ func init() {
 			if err = rt.SubCost(cost); err != nil {
 				return
 			}
+			if rt.callDepth >= MaxCallDepth {
+				err = fmt.Errorf("max call depth of recursive call")
+				return
+			}
 
+			rt.callDepth++
+			defer func() {
+				rt.callDepth--
+			}()
+			obj := code.Value.(*compile.Object)
+			if obj.Type == compile.ObjFunc {
+				err = rt.callObjFunc(obj)
+				return
+			}
 			err = rt.callFunc(code.Value.(*compile.Object))
 			return
 		}
@@ -473,7 +486,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdFuncTail] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		f := code.Value.(compile.FuncTailCmd)
+		f := code.Value.(*compile.FuncTailCmd)
 		off := rt.stack.size() - f.Count
 		if off < 0 {
 			err = fmt.Errorf("not enough stack to assign for tail function '%v'", f.FuncTail.Name)

@@ -96,7 +96,6 @@ type (
 		Params   []reflect.Type
 		Offset   []int
 		Variadic bool
-		Decl     bool
 	}
 
 	// FuncTailCmd for CmdFuncTail
@@ -174,7 +173,7 @@ func (fi *FieldInfo) ContainsTag(tag string) bool {
 	return strings.Contains(fi.Tags, tag)
 }
 
-func NewObjInfo(t ObjectType, v isObjInfoValue) *Object {
+func NewObject(t ObjectType, v isObjInfoValue) *Object {
 	return &Object{Type: t, Value: v}
 }
 
@@ -238,15 +237,21 @@ func (obj *Object) GetCodeBlock() *CodeBlock {
 }
 
 func (obj *Object) GetContractInfo() *ContractInfo {
-	if x, ok := obj.GetCodeBlock().Info.(*ContractInfo); ok {
-		return x
+	cb := obj.GetCodeBlock()
+	if cb != nil {
+		if x, ok := cb.Info.(*ContractInfo); ok {
+			return x
+		}
 	}
 	return nil
 }
 
 func (obj *Object) GetFuncInfo() *FuncInfo {
-	if x, ok := obj.GetCodeBlock().Info.(*FuncInfo); ok {
-		return x
+	cb := obj.GetCodeBlock()
+	if cb != nil {
+		if x, ok := cb.Info.(*FuncInfo); ok {
+			return x
+		}
 	}
 	return nil
 }

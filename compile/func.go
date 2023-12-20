@@ -74,7 +74,7 @@ func fnBlockDecl(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	if _, ok := prev.Objects[name]; ok {
 		return fmt.Errorf("%s '%s' redeclared in this code block", itype, name)
 	}
-	prev.Objects[name] = NewObjInfo(itype, fblock)
+	prev.Objects[name] = NewObject(itype, fblock)
 	return nil
 }
 
@@ -110,7 +110,7 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		}
 	}
 
-	block.Objects[name] = NewObjInfo(ObjVar, &ObjInfoVariable{Name: name, Index: len(block.Vars)})
+	block.Objects[name] = NewObject(ObjVar, &ObjInfoVariable{Name: name, Index: len(block.Vars)})
 	block.Vars = append(block.Vars, reflect.TypeOf(nil))
 
 	if block.Type != ObjFunc || (state != stateFnParam && state != stateFnParamType) {
@@ -123,9 +123,6 @@ func fnParamName(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return nil
 	}
 	for name, f := range fblock.Tails {
-		if f.Decl {
-			continue
-		}
 		params := append(fblock.Tails[name].Params, reflect.TypeOf(nil))
 		offset := append(fblock.Tails[name].Offset, len(block.Vars)-1)
 		fblock.Tails[name] = FuncTail{Name: f.Name, Params: params, Offset: offset}
@@ -155,10 +152,7 @@ func fnParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		return nil
 	}
 
-	for key, f := range fblock.Tails {
-		if f.Decl {
-			continue
-		}
+	for key := range fblock.Tails {
 		for pkey, param := range fblock.Tails[key].Params {
 			if param == reflect.TypeOf(nil) {
 				fblock.Tails[key].Params[pkey] = rtp
@@ -188,7 +182,6 @@ func fnDeclTail(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 			Params:   name.Params,
 			Offset:   name.Offset,
 			Variadic: name.Variadic,
-			Decl:     true,
 		}
 	}
 	fblock.Tails[lexeme.Value.(string)] = FuncTail{
@@ -224,9 +217,6 @@ func fnTailParamType(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	}
 
 	for name, f := range fblock.Tails {
-		if f.Decl {
-			continue
-		}
 		for pkey, param := range fblock.Tails[name].Params {
 			if param == reflect.TypeOf(nil) {
 				if used {
@@ -278,7 +268,7 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 		if buf.get(0).AssertVar(lexeme.Value.(string)) {
 			return fmt.Errorf(eSysVar, lexeme.Value.(string))
 		}
-		obj := NewObjInfo(ObjExtVar, &ObjInfoExtendVariable{Name: lexeme.Value.(string)})
+		obj := NewObject(ObjExtVar, &ObjInfoExtendVariable{Name: lexeme.Value.(string)})
 		ivar = VarInfo{Obj: obj, Owner: nil}
 	} else {
 		objInfo, tobj := findVar(lexeme.Value.(string), buf)

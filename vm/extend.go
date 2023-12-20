@@ -178,7 +178,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 
 // CallContract executes the name contract in the state with specified parameters
 func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (any, error) {
-	name = StateName(uint32(state), name)
+	name = compile.StateName(uint32(state), name)
 	_, ok := rt.vm.Objects[name]
 	if !ok {
 		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")

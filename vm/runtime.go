@@ -264,14 +264,6 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	var (
 		count, in int
 	)
-	if rt.callDepth >= MaxCallDepth {
-		return fmt.Errorf("max call depth of recursive call")
-	}
-
-	rt.callDepth++
-	defer func() {
-		rt.callDepth--
-	}()
 	variadic := obj.GetVariadic()
 	in = obj.GetParamsLen()
 	if rt.unwrap && variadic && rt.stack.size() > 1 &&
@@ -285,45 +277,6 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	count = in
 	if variadic {
 		count = rt.stack.pop().(int)
-	}
-	if obj.Type == compile.ObjFunc {
-		var imap map[string][]any
-		finfo := obj.GetFuncInfo()
-		if finfo.HasTails() {
-			imap, _ = rt.stack.pop().(map[string][]any)
-		}
-		if variadic {
-			parcount := count + 1 - in
-			if parcount < 0 {
-				return errWrongCountPars
-			}
-			pars := make([]any, parcount)
-			shift := rt.stack.size() - parcount
-			for i := parcount; i > 0; i-- {
-				pars[i-1] = rt.stack.get(shift + i - 1)
-			}
-			rt.stack.resetByIdx(shift)
-			rt.stack.push(pars)
-		}
-		if rt.stack.size() < len(finfo.Params) {
-			return fmt.Errorf("func '%s' wrong number of parameters, expected %d, got %d", finfo.Name, len(finfo.Params), rt.stack.size())
-		}
-		for i, v := range finfo.Params {
-			offset := rt.stack.size() - in + i
-			stack := rt.stack.get(offset)
-			if v.Kind() == reflect.Int64 && reflect.TypeOf(stack).Kind() == reflect.Float64 {
-				val, _ := ValueToInt(stack)
-				rt.stack.set(offset, val)
-			}
-			if reflect.TypeOf(stack) != v {
-				return fmt.Errorf("func '%s' param: cannot use (type %T) as the type %s", finfo.Name, stack, v)
-			}
-		}
-		if finfo.HasTails() {
-			rt.stack.push(imap)
-		}
-		_, err = rt.RunCode(obj.GetCodeBlock())
-		return
 	}
 
 	var (
@@ -412,6 +365,67 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 		}
 	}
 	return
+}
+
+func (rt *Runtime) callObjFunc(obj *compile.Object) error {
+	var (
+		count    int
+		imap     map[string][]any
+		finfo    = obj.GetFuncInfo()
+		in       = len(finfo.Params)
+		variadic = finfo.Variadic
+	)
+	if rt.unwrap && variadic && rt.stack.size() > 1 &&
+		reflect.TypeOf(rt.stack.get(rt.stack.size()-2)).String() == `[]interface {}` {
+		count = rt.stack.pop().(int)
+		arr := rt.stack.pop().([]any)
+		rt.stack.pushN(arr)
+		rt.stack.push(count - 1 + len(arr))
+	}
+	rt.unwrap = false
+	count = in
+	if variadic {
+		count = rt.stack.pop().(int)
+	}
+
+	if finfo.HasTails() {
+		imap, _ = rt.stack.pop().(map[string][]any)
+	}
+	if finfo.Variadic {
+		parcount := count + 1 - in
+		if parcount < 0 {
+			return errWrongCountPars
+		}
+		pars := make([]any, parcount)
+		shift := rt.stack.size() - parcount
+		for i := parcount; i > 0; i-- {
+			pars[i-1] = rt.stack.get(shift + i - 1)
+		}
+		rt.stack.resetByIdx(shift)
+		rt.stack.push(pars)
+	}
+	if rt.stack.size() < len(finfo.Params) {
+		return fmt.Errorf("func '%s' wrong number of parameters, expected %d, got %d", finfo.Name, len(finfo.Params), rt.stack.size())
+	}
+	if len(finfo.Params) == 0 {
+		rt.stack.pushN(nil)
+	}
+	for i, v := range finfo.Params {
+		offset := rt.stack.size() - in + i
+		stack := rt.stack.get(offset)
+		if v.Kind() == reflect.Int64 && reflect.TypeOf(stack).Kind() == reflect.Float64 {
+			val, _ := ValueToInt(stack)
+			rt.stack.set(offset, val)
+		}
+		if reflect.TypeOf(stack) != v {
+			return fmt.Errorf("func '%s' param: cannot use (type %T) as the type %s", finfo.Name, stack, v)
+		}
+	}
+	if finfo.HasTails() {
+		rt.stack.push(imap)
+	}
+	_, err := rt.RunCode(obj.GetCodeBlock())
+	return err
 }
 
 func (rt *Runtime) extendFunc(name string) error {
@@ -622,11 +636,11 @@ func (rt *Runtime) setVarBy(block *compile.CodeBlock, names map[string][]any) er
 				value = append(rt.vars[ind].([]any), value)
 			} else {
 				ind = varoff + params.Offset[i]
-				//refx := reflect.TypeOf(value)
-				//refy := reflect.TypeOf(rt.vars[ind])
-				//if refx != refy {
-				//	return fmt.Errorf("func tail '%s' param: cannot use (type %s) as the type %s", key, refx, refy)
-				//}
+				refx := reflect.TypeOf(value)
+				refy := reflect.TypeOf(rt.vars[ind])
+				if refx != refy {
+					return fmt.Errorf("func tail '%s' param: cannot use (type %s) as the type %s", key, refx, refy)
+				}
 			}
 			rt.setVar(ind, value)
 		}

@@ -79,9 +79,9 @@ func (s *Stack) peekN(n int) []any {
 	ret := make([]any, n)
 	copy(ret, el)
 	//reverse to make sure the order
-	for i, j := 0, len(ret)-1; i < j; i, j = i+1, j-1 {
-		ret[i], ret[j] = ret[j], ret[i]
-	}
+	//for i, j := 0, len(ret)-1; i < j; i, j = i+1, j-1 {
+	//	ret[i], ret[j] = ret[j], ret[i]
+	//}
 	return ret
 }
 

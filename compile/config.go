@@ -70,7 +70,7 @@ func (cfg *CompConfig) MakeExtFunc() map[string]*Object {
 
 func (item *ExtendFunc) MakeObject() *Object {
 	if v := item.ExtFuncInfo(); v != nil {
-		return &Object{Type: ObjExtFunc, Value: v}
+		return NewObject(ObjExtFunc, v)
 	}
 	return nil
 }

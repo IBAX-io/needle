@@ -26,13 +26,17 @@ func init() {
 	}
 }
 
-// VM is the main type of the virtual machine
+// VM is the main type of the virtual machine.
 type VM struct {
 	*compile.CodeBlock
-	ExtCost       func(string) int64 // the cost of executing an extend function
-	FuncCallsDB   map[string]struct{}
-	Extern        compile.IgnoreLevel // extern mode of compilation
-	ShiftContract int64               // id of the first contract
+	// the cost of executing an extend function.
+	ExtCost func(string) int64
+	// if the function is in the list, the first of result must be a int64 that the cost of executing.
+	FuncCallsDB map[string]struct{}
+	// extern mode of compilation.
+	Extern compile.IgnoreLevel
+	// id of the first contract.
+	ShiftContract int64
 	logger        *log.Entry
 }
 
@@ -246,7 +250,7 @@ func Run(vm *VM, block *compile.CodeBlock, extend map[string]any) (ret []any, er
 }
 
 func ObjectExists(vm *VM, name string, state uint32) bool {
-	name = StateName(state, name)
+	name = compile.StateName(state, name)
 	_, ok := vm.Objects[name]
 	return ok
 }

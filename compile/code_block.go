@@ -192,7 +192,7 @@ func (bc *CodeBlock) SetExtendFunc(ext []ExtendFunc) {
 			for i := 0; i < fobj.NumOut(); i++ {
 				data.Results[i] = fobj.Out(i)
 			}
-			bc.Objects[item.Name] = &Object{Type: ObjExtFunc, Value: data}
+			bc.Objects[item.Name] = NewObject(ObjExtFunc, data)
 		}
 	}
 }
