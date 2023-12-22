@@ -30,10 +30,5 @@ type SliceItem struct {
 	Index [2]int
 }
 
-func (i *SliceItem) SetLow(low int) {
-	i.Index[0] = low
-}
-
-func (i *SliceItem) SetHigh(high int) {
-	i.Index[1] = high
-}
+func (i *SliceItem) SetLow(low int)   { i.Index[0] = low }
+func (i *SliceItem) SetHigh(high int) { i.Index[1] = high }

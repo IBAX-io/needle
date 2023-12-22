@@ -279,7 +279,7 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lexeme *Lexeme) error {
 	}
 	if len(block.Code) > 0 {
 		if block.Code[len(block.Code)-1].Cmd == CmdAssignVar {
-			prev = block.Code[len(block.Code)-1].Value.([]*VarInfo)
+			prev = block.Code[len(block.Code)-1].VarInfos()
 		}
 	}
 	prev = append(prev, &ivar)

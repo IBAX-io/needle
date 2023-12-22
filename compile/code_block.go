@@ -201,25 +201,89 @@ func (bc *CodeBlock) SetExtendFunc(ext []ExtendFunc) {
 type ByteCode struct {
 	Cmd    CmdT
 	Lexeme *Lexeme
-	//FuncTailCmd
-	//*Object
-	//uint16
-	//*IndexInfo
-	//[]*VarInfo
-	//*VarInfo
-	//*CodeBlock
-	//*Map
-	//[]mapItem
-	//string
-	//uint32
-	//lexeme.Value
-	//nil
-	//int
+	//*FuncTailCmd, assigned to CmdFuncTail.
+	//*IndexInfo, assigned to CmdGetIndex, CmdSetIndex
+	//*VarInfo, assigned to CmdVar
+	//*CodeBlock, assigned to CmdIf, CmdElse, CmdWhile
+	//*Object, assigned to CmdCall, CmdCallVariadic both for ObjFunc, ObjExtFunc and ObjContract
+	//*SliceItem, assigned to CmdSliceColon
+	//*Map, assigned to CmdMapInit
+	//[]*VarInfo, assigned to CmdAssignVar
+	//[]*MapItem, assigned to CmdArrayInit
+	//Lexeme.Value, assigned to CmdPush, CmdError
+	//map[string][]any, assigned to CmdPush for function tail
+	//string, assigned to CmdPush, CmdCallExtend, CmdExtend
+	//uint32, assigned to CmdPush for OwnerInfo.StateID
+	//uint16, assigned to CmdSys, op.Cmd is operatorPriority
+	//int, assigned to CmdReturn, CmdBreak, CmdContinue, CmdWhile, CmdPush, CmdAssign, CmdUnwrapArr, CmdLabel
 	Value any
 }
 
 func newByteCode(cmd CmdT, Lexeme *Lexeme, value any) *ByteCode {
 	return &ByteCode{Cmd: cmd, Lexeme: Lexeme, Value: value}
+}
+
+func (b *ByteCode) FuncTailCmd() *FuncTailCmd {
+	if x, ok := b.Value.(*FuncTailCmd); ok {
+		return x
+	}
+	return nil
+}
+
+func (b *ByteCode) IndexInfo() *IndexInfo {
+	if x, ok := b.Value.(*IndexInfo); ok {
+		return x
+	}
+	return nil
+}
+
+func (b *ByteCode) VarInfo() *VarInfo {
+	if x, ok := b.Value.(*VarInfo); ok {
+		return x
+	}
+	return nil
+}
+
+func (b *ByteCode) CodeBlock() *CodeBlock {
+	if x, ok := b.Value.(*CodeBlock); ok {
+		return x
+	}
+	return nil
+}
+
+func (b *ByteCode) Map() *Map {
+	if x, ok := b.Value.(*Map); ok {
+		return x
+	}
+	return nil
+}
+
+func (b *ByteCode) SliceItem() *SliceItem {
+	if x, ok := b.Value.(*SliceItem); ok {
+		return x
+	}
+	return nil
+}
+
+func (b *ByteCode) Object() *Object {
+	if x, ok := b.Value.(*Object); ok {
+		return x
+	}
+	return nil
+}
+
+func (b *ByteCode) MapItems() []*MapItem {
+	if x, ok := b.Value.([]*MapItem); ok {
+		return x
+	}
+	return []*MapItem{}
+}
+
+func (b *ByteCode) VarInfos() []*VarInfo {
+	if x, ok := b.Value.([]*VarInfo); ok {
+		return x
+	}
+	return []*VarInfo{}
 }
 
 // ByteCodes is the slice of ByteCode items

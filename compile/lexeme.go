@@ -10,7 +10,13 @@ import (
 )
 
 type Lexeme struct {
-	Type   Token
+	Type Token
+	//string
+	//int64
+	//float64
+	//Token
+	//bool
+	//nil
 	Value  any
 	Line   int
 	Column int
@@ -158,6 +164,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 			c.line++
 			c.offline = c.position
 		}
+		value = string(c.input[startPos])
 	case DELIMITER:
 		ch := c.input[startPos]
 		tk = delimiter2Token[ch]
@@ -200,7 +207,6 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		if !ok {
 			return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, c.line, c.position-c.offline+1)
 		}
-		OPERATOR.TypeName()
 	case NUMBER:
 		name := string(c.input[startPos:endPos])
 		val, err := string2Number(name)

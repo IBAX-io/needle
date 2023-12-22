@@ -55,12 +55,12 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 	fork := 0
 
 	for i := 0; i < len(p.lexemes); i++ {
-		lexeme := p.lexemes[i]
+		lex := p.lexemes[i]
 		st, found := stateTable[curState]
 		if !found {
 			st = stateTable[stateRoot]
 		}
-		comps, ok := st[lexeme.Type]
+		comps, ok := st[lex.Type]
 		if !ok {
 			comps = st[UNKNOWN]
 		}
@@ -71,7 +71,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 		}
 		if comps.hasState(stateFlagToFork) {
 			i, fork = fork, 0
-			lexeme = p.lexemes[i]
+			lex = p.lexemes[i]
 		}
 		if comps.hasState(stateFlagStay) {
 			curState = nextState
@@ -80,7 +80,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 		}
 		if nextState == stateEval {
 			if comps.hasState(stateFlagLabel) {
-				blocks.peek().Code.push(newByteCode(CmdLabel, lexeme, 0))
+				blocks.peek().Code.push(newByteCode(CmdLabel, lex, 0))
 			}
 
 			curlen := len(blocks.peek().Code)
@@ -88,7 +88,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 				return nil, fmt.Errorf("parse evaluate error: %s", err)
 			}
 			if comps.hasState(stateFlagMustEval) && curlen == len(blocks.peek().Code) {
-				return nil, fmt.Errorf("there is not eval expression in %s", lexeme.Position())
+				return nil, fmt.Errorf("there is not eval expression in %s", lex.Position())
 			}
 
 			nextState = curState
@@ -103,7 +103,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 
 		if comps.hasState(stateFlagPop) {
 			if len(stateStack) == 0 {
-				return nil, fnError(&blocks, errMustLBRACE, lexeme)
+				return nil, fnError(&blocks, errMustLBRACE, lex)
 			}
 			nextState, stateStack = stateStack[len(stateStack)-1], stateStack[:len(stateStack)-1]
 			if len(blocks) >= 2 {
@@ -111,7 +111,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 				if len(prev.Code) > 0 && (*prev).Code[len((*prev).Code)-1].Cmd == CmdContinue {
 					(*prev).Code = (*prev).Code[:len((*prev).Code)-1]
 					prev = blocks.peek()
-					(*prev).Code.push(newByteCode(CmdContinue, lexeme, 0))
+					(*prev).Code.push(newByteCode(CmdContinue, lex, 0))
 				}
 			}
 			blocks = blocks[:len(blocks)-1]
@@ -123,8 +123,8 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 			nextState = stateBody
 		}
 
-		if err := comps.fn(&blocks, nextState, lexeme); err != nil {
-			return nil, fmt.Errorf("func handles error: %s[%s]", err, lexeme.Position())
+		if err := comps.fn(&blocks, nextState, lex); err != nil {
+			return nil, fmt.Errorf("func handles error: %s[%s]", err, lex.Position())
 		}
 		curState = nextState
 	}
@@ -241,7 +241,7 @@ main:
 				continue
 			}
 			prev := buffer.peek()
-			if fn, ok := prev.Value.(*FuncTailCmd); ok {
+			if fn := prev.FuncTailCmd(); fn != nil {
 				buffer.pop()
 				names := fn.FuncTail
 				wantlen := len(names.Params)
@@ -264,7 +264,7 @@ main:
 			if prev.Cmd != CmdCall && prev.Cmd != CmdCallVariadic {
 				continue
 			}
-			objInfo, _ := prev.Value.(*Object)
+			objInfo := prev.Object()
 			if (objInfo.Type == ObjFunc && objInfo.GetFuncInfo().CanWrite) ||
 				(objInfo.Type == ObjExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
 				setWritable(block)
@@ -277,7 +277,7 @@ main:
 					if p.lexemes[i+2].Type != IDENTIFIER {
 						return fmt.Errorf("must be the name of the tail")
 					}
-					names := prev.Value.(*Object).GetFuncInfo().Tails
+					names := prev.Object().GetFuncInfo().Tails
 					if v, ok := names[p.lexemes[i+2].Value.(string)]; ok {
 						buffer.push(newByteCode(CmdFuncTail, p.lexemes[i+2], &FuncTailCmd{FuncTail: v}))
 						count := 0
@@ -292,7 +292,7 @@ main:
 			}
 			count := parcount[len(parcount)-1]
 			parcount = parcount[:len(parcount)-1]
-			if fn := prev.Value.(*Object).GetFuncInfo(); fn != nil {
+			if fn := prev.Object().GetFuncInfo(); fn != nil {
 				var y int
 				for x := len(buffer) - 1; x >= 0; x-- {
 					buf := buffer[x]
@@ -300,7 +300,7 @@ main:
 						y++
 					}
 					if y == 2 && p.lexemes[i+1].Type == RPAREN {
-						if prev.Value.(*Object).GetResultsLen() == 0 {
+						if prev.Object().GetResultsLen() == 0 {
 							return fmt.Errorf("%s used return value, but it has no return value", fn.Name)
 						}
 						parcount[len(parcount)-1] += len(fn.Results) - 1
@@ -308,7 +308,7 @@ main:
 					}
 				}
 			}
-			if extFn := prev.Value.(*Object).GetExtFuncInfo(); extFn != nil {
+			if extFn := prev.Object().GetExtFuncInfo(); extFn != nil {
 				wantlen := len(extFn.Params) - extFn.AutoParamsCount()
 				if extFn.Variadic {
 					wantlen--
@@ -323,10 +323,10 @@ main:
 						y++
 					}
 					if y == 2 && p.lexemes[i+1].Type == RPAREN {
-						if prev.Value.(*Object).GetResultsLen() == 0 {
+						if prev.Object().GetResultsLen() == 0 {
 							return fmt.Errorf("%s used return value, but it has no return value", extFn.Name)
 						}
-						parcount[len(parcount)-1] += prev.Value.(*Object).GetResultsLen() - 1
+						parcount[len(parcount)-1] += prev.Object().GetResultsLen() - 1
 						break
 					}
 				}
@@ -354,7 +354,7 @@ main:
 					if i < len(p.lexemes)-1 && p.lexemes[i+1].Type == EQ {
 						i++
 						setIndex = true
-						indexInfo = prev.Value.(*IndexInfo)
+						indexInfo = prev.IndexInfo()
 						noMap = false
 						continue
 					}
@@ -595,36 +595,36 @@ func (p *Parser) findObj(name string, block *CodeBlocks) (obj *Object, owner *Co
 	return
 }
 
-func (p *Parser) parseInitValue(ind *int, block *CodeBlocks) (value MapItem, err error) {
+func (p *Parser) parseInitValue(ind *int, block *CodeBlocks) (value *MapItem, err error) {
 	var (
-		subArr []MapItem
+		subArr []*MapItem
 		subMap *Map
 	)
 	i := *ind
-	lexeme := p.lexemes[i]
+	lex := p.lexemes[i]
 
-	switch lexeme.Type {
+	switch lex.Type {
 	case LBRACK:
 		subArr, err = p.parseInitArray(&i, block)
 		if err == nil {
-			value = MapItem{Type: MapArray, Value: subArr}
+			value = &MapItem{Type: MapArray, Value: subArr}
 		}
 	case LBRACE:
 		subMap, err = p.parseInitMap(&i, block, false)
 		if err == nil {
-			value = MapItem{Type: MapMap, Value: subMap}
+			value = &MapItem{Type: MapMap, Value: subMap}
 		}
 	case EXTEND:
-		value = MapItem{Type: MapExtend, Value: lexeme.Value}
+		value = &MapItem{Type: MapExtend, Value: lex.Value}
 	case IDENTIFIER:
-		objInfo, tobj := p.findObj(lexeme.Value.(string), block)
+		objInfo, tobj := p.findObj(lex.Value.(string), block)
 		if objInfo == nil {
-			err = fmt.Errorf(eUnknownIdent, lexeme.Value)
+			err = fmt.Errorf(eUnknownIdent, lex.Value)
 		} else {
-			value = MapItem{Type: MapVar, Value: &VarInfo{Obj: objInfo, Owner: tobj}}
+			value = &MapItem{Type: MapVar, Value: &VarInfo{Obj: objInfo, Owner: tobj}}
 		}
 	case NUMBER, LITERAL:
-		value = MapItem{Type: MapConst, Value: lexeme.Value}
+		value = &MapItem{Type: MapConst, Value: lex.Value}
 	default:
 		err = errUnexpValue
 	}
@@ -643,19 +643,19 @@ func (p *Parser) parseInitMap(ind *int, block *CodeBlocks, oneItem bool) (*Map, 
 	state := MustKey
 main:
 	for ; i < len(p.lexemes); i++ {
-		lexeme := p.lexemes[i]
-		switch lexeme.Type {
+		lex := p.lexemes[i]
+		switch lex.Type {
 		case NEWLINE:
 			continue
 		case RBRACE:
 			if state == MustColon {
-				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lexeme.Position())
+				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lex.Position())
 			}
 			if state == MustValue {
-				return nil, fmt.Errorf("%w[%s]", errUnexpValue, lexeme.Position())
+				return nil, fmt.Errorf("%w[%s]", errUnexpValue, lex.Position())
 			}
 			if state == MustKey {
-				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lexeme.Position())
+				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lex.Position())
 			}
 			break main
 		case COMMA, RBRACK:
@@ -666,24 +666,24 @@ main:
 		}
 		switch state {
 		case MustComma:
-			if lexeme.Type != COMMA {
-				return nil, fmt.Errorf("%w[%s]", errUnexpComma, lexeme.Position())
+			if lex.Type != COMMA {
+				return nil, fmt.Errorf("%w[%s]", errUnexpComma, lex.Position())
 			}
 			state = MustKey
 		case MustColon:
-			if lexeme.Type != COLON {
-				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lexeme.Position())
+			if lex.Type != COLON {
+				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lex.Position())
 			}
 			state = MustValue
 		case MustKey:
-			switch lexeme.Type & 0xff {
+			switch lex.Type & 0xff {
 			case IDENTIFIER, LITERAL:
-				key = lexeme.Value.(string)
+				key = lex.Value.(string)
 			case EXTEND:
-				key = "$" + lexeme.Value.(string)
+				key = "$" + lex.Value.(string)
 			case KEYWORD:
 				for ikey, v := range KeywordValue {
-					if Keyword2Str(v) == fmt.Sprint(lexeme.Value) {
+					if Keyword2Str(v) == fmt.Sprint(lex.Value) {
 						key = ikey
 						if v == FUNC && i < len(p.lexemes)-1 && p.lexemes[i+1].Type&0xff == IDENTIFIER {
 							continue main
@@ -692,7 +692,7 @@ main:
 					}
 				}
 			default:
-				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lexeme.Position())
+				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lex.Position())
 			}
 
 			state = MustColon
@@ -715,14 +715,14 @@ main:
 	return ret, nil
 }
 
-func (p *Parser) parseInitArray(ind *int, block *CodeBlocks) ([]MapItem, error) {
+func (p *Parser) parseInitArray(ind *int, block *CodeBlocks) ([]*MapItem, error) {
 	i := *ind + 1
-	ret := make([]MapItem, 0)
+	ret := make([]*MapItem, 0)
 	state := MustValue
 main:
 	for ; i < len(p.lexemes); i++ {
-		lexeme := p.lexemes[i]
-		switch lexeme.Type {
+		lex := p.lexemes[i]
+		switch lex.Type {
 		case NEWLINE:
 			continue
 		case RBRACK:
@@ -730,7 +730,7 @@ main:
 		}
 		switch state {
 		case MustComma:
-			if lexeme.Type != COMMA {
+			if lex.Type != COMMA {
 				return nil, errUnexpComma
 			}
 			state = MustValue
@@ -740,7 +740,7 @@ main:
 				if err != nil {
 					return nil, err
 				}
-				ret = append(ret, MapItem{Type: MapMap, Value: subMap})
+				ret = append(ret, &MapItem{Type: MapMap, Value: subMap})
 			} else {
 				arri, err := p.parseInitValue(&i, block)
 				if err != nil {

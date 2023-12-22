@@ -553,7 +553,7 @@ func (rt *Runtime) recalculateMemVar(k int) {
 	rt.memVars[k] = mem
 }
 
-func (rt *Runtime) getResultValue(item compile.MapItem) (value any, err error) {
+func (rt *Runtime) getResultValue(item *compile.MapItem) (value any, err error) {
 	switch item.Type {
 	case compile.MapConst:
 		value = item.Value
@@ -578,12 +578,12 @@ func (rt *Runtime) getResultValue(item compile.MapItem) (value any, err error) {
 	case compile.MapMap:
 		value, err = rt.getResultMap(item.Value.(*compile.Map))
 	case compile.MapArray:
-		value, err = rt.getResultArray(item.Value.([]compile.MapItem))
+		value, err = rt.getResultArray(item.Value.([]*compile.MapItem))
 	}
 	return
 }
 
-func (rt *Runtime) getResultArray(cmd []compile.MapItem) ([]any, error) {
+func (rt *Runtime) getResultArray(cmd []*compile.MapItem) ([]any, error) {
 	initArr := make([]any, 0)
 	for _, val := range cmd {
 		value, err := rt.getResultValue(val)
@@ -599,7 +599,7 @@ func (rt *Runtime) getResultMap(cmd *compile.Map) (*compile.Map, error) {
 	initMap := compile.NewMap()
 	for _, key := range cmd.Keys() {
 		val, _ := cmd.Get(key)
-		value, err := rt.getResultValue(val.(compile.MapItem))
+		value, err := rt.getResultValue(val.(*compile.MapItem))
 		if err != nil {
 			return nil, err
 		}

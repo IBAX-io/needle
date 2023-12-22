@@ -79,8 +79,8 @@ func init() {
 	for i := compile.CmdCall; i <= compile.CmdCallVariadic; i++ {
 		instructionTable[i] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 			var cost = int64(CostCall)
-			if code.Value.(*compile.Object).Type == compile.ObjExtFunc {
-				finfo := code.Value.(*compile.Object).GetExtFuncInfo()
+			if code.Object().Type == compile.ObjExtFunc {
+				finfo := code.Object().GetExtFuncInfo()
 				if rt.vm.ExtCost != nil {
 					cost = rt.vm.ExtCost(finfo.Name)
 					if cost == -1 {
@@ -100,12 +100,12 @@ func init() {
 			defer func() {
 				rt.callDepth--
 			}()
-			obj := code.Value.(*compile.Object)
+			obj := code.Object()
 			if obj.Type == compile.ObjFunc {
 				err = rt.callObjFunc(obj)
 				return
 			}
-			err = rt.callFunc(code.Value.(*compile.Object))
+			err = rt.callFunc(code.Object())
 			return
 		}
 	}
@@ -129,7 +129,7 @@ func init() {
 			return
 		}
 		ctx.ifCond = true
-		return rt.RunCode(code.Value.(*compile.CodeBlock))
+		return rt.RunCode(code.CodeBlock())
 	}
 	instructionTable[compile.CmdElse] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		if ctx.ifCond {
@@ -141,13 +141,13 @@ func init() {
 		}
 		ret := rt.stack.pop()
 		if !valueToBool(ret) {
-			return rt.RunCode(code.Value.(*compile.CodeBlock))
+			return rt.RunCode(code.CodeBlock())
 		}
 		return
 	}
 
 	instructionTable[compile.CmdAssignVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ctx.assignVar = code.Value.([]*compile.VarInfo)
+		ctx.assignVar = code.VarInfos()
 		for _, item := range ctx.assignVar {
 			if item.Owner == nil && item.Obj.Type == compile.ObjExtVar {
 				var n = item.Obj.GetExtendVariable().Name
@@ -169,7 +169,7 @@ func init() {
 		cut := count
 		preCode := rt.peekBlock().Block.Code[ctx.ci-1]
 		if preCode.Cmd == compile.CmdCall || preCode.Cmd == compile.CmdCallVariadic {
-			objInfo := preCode.Value.(*compile.Object)
+			objInfo := preCode.Object()
 			resultsLen := objInfo.GetResultsLen()
 			if objInfo.Type == compile.ObjExtFunc || objInfo.Type == compile.ObjFunc {
 				if count > resultsLen {
@@ -245,7 +245,7 @@ func init() {
 		if !valueToBool(rt.stack.pop()) {
 			return
 		}
-		status, err = rt.RunCode(code.Value.(*compile.CodeBlock))
+		status, err = rt.RunCode(code.CodeBlock())
 		newci := ctx.popLabel()
 		if status == statusContinue {
 			ctx.ci = newci - 1
@@ -261,7 +261,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdSliceColon] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ctx.slice = code.Value.(*compile.SliceItem)
+		ctx.slice = code.SliceItem()
 		return
 	}
 	instructionTable[compile.CmdGetIndex] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
@@ -393,7 +393,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdVar] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		ivar := code.Value.(*compile.VarInfo)
+		ivar := code.VarInfo()
 		var i int
 		for i = len(rt.blocks) - 1; i >= 0; i-- {
 			if ivar.Owner == rt.blocks[i].Block {
@@ -422,7 +422,7 @@ func init() {
 			return
 		}
 		var indexKey int
-		indexInfo := code.Value.(*compile.IndexInfo)
+		indexInfo := code.IndexInfo()
 		if indexInfo.Owner != nil {
 			for i := len(rt.blocks) - 1; i >= 0; i-- {
 				if indexInfo.Owner == rt.blocks[i].Block {
@@ -486,7 +486,7 @@ func init() {
 		return
 	}
 	instructionTable[compile.CmdFuncTail] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
-		f := code.Value.(*compile.FuncTailCmd)
+		f := code.FuncTailCmd()
 		off := rt.stack.size() - f.Count
 		if off < 0 {
 			err = fmt.Errorf("not enough stack to assign for tail function '%v'", f.FuncTail.Name)
@@ -521,7 +521,7 @@ func init() {
 	}
 	instructionTable[compile.CmdMapInit] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		var initMap *compile.Map
-		initMap, err = rt.getResultMap(code.Value.(*compile.Map))
+		initMap, err = rt.getResultMap(code.Map())
 		if err != nil {
 			return
 		}
@@ -530,7 +530,7 @@ func init() {
 	}
 	instructionTable[compile.CmdArrayInit] = func(rt *Runtime, code *compile.ByteCode, ctx *instructionCtx) (status int, err error) {
 		var initArray []any
-		initArray, err = rt.getResultArray(code.Value.([]compile.MapItem))
+		initArray, err = rt.getResultArray(code.MapItems())
 		if err != nil {
 			return
 		}
