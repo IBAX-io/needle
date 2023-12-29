@@ -6,10 +6,11 @@ import (
 )
 
 func TestNewLexeme(t *testing.T) {
-	lexer, err := NewLexer([]rune(`shift int $abc action func action if elif`))
+	input := []rune(`shift int $abc action func action if elif`)
+	lexer, err := NewLexer(input)
 	t.Log(err)
 	for _, l := range lexer {
-		fmt.Printf("- %v  %v [%d:%d]\n", l.Type, l.Value, l.Line, l.Column)
+		fmt.Printf("lexer: %v %v [%d:%d]\n", l.Type, l.Value, l.Line, l.Column)
 	}
 }
 

@@ -89,7 +89,7 @@ func (tok stateType) String() string {
 	if s == "" {
 		s = "state(" + strconv.Itoa(int(tok)) + ")"
 	}
-	return fmt.Sprintf("%-15s", s)
+	return fmt.Sprintf("%s", s)
 }
 
 const (

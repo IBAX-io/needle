@@ -31,6 +31,14 @@ func (l *Lexeme) GetLogger() *log.Entry {
 	return log.WithFields(log.Fields{"lex_type": l.Type, "lex_line": l.Line, "lex_column": l.Column})
 }
 
+func (l *Lexeme) error(msg string) error {
+	return fmt.Errorf("%s [%s]", msg, l.Position())
+}
+
+func (l *Lexeme) errorWrap(err error)error {
+	return fmt.Errorf("%s [%s]", err, l.Position())
+}
+
 func (l *Lexeme) Position() string {
 	var s string
 	if l.Line != 0 {
@@ -167,7 +175,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		value = string(c.input[startPos])
 	case DELIMITER:
 		ch := c.input[startPos]
-		tk = delimiter2Token[ch]
+		tk = delimiter2Token[string(ch)]
 		value = string(ch)
 		if len(c.ifBuf) > 0 {
 			if ch == '{' {
@@ -230,17 +238,17 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 					return nil, fmt.Errorf(`expected statement, found '%s' [%d:%d]`, name, c.line, startPos-c.offline+1)
 				}
 				c.lexemes = append(c.lexemes,
-					NewLexeme(ELSE, Keyword2Str(ELSE), c.line, c.position-c.offline+1),
-					NewLexeme(LBRACE, Keyword2Str(LBRACE), c.line, c.position-c.offline+1))
-				tk, value = IF, Keyword2Str(IF)
+					NewLexeme(ELSE, ELSE.String(), c.line, c.position-c.offline+1),
+					NewLexeme(LBRACE, LBRACE.String(), c.line, c.position-c.offline+1))
+				tk, value = IF, IF.String()
 				c.ifBuf[len(c.ifBuf)-1].count++
 			case ACTION, CONDITIONS:
 				if len(c.lexemes) == 0 {
 					return nil, fmt.Errorf(`'%s' can't be the first statement [%d:%d]`, name, c.line, startPos-c.offline+1)
 				}
 				lexf := c.lexemes[len(c.lexemes)-1]
-				if lexf.Type&0xff != KEYWORD || lexf.Value.(string) != Keyword2Str(FUNC) {
-					c.lexemes = append(c.lexemes, NewLexeme(FUNC, Keyword2Str(FUNC), c.line, startPos-c.offline+1))
+				if lexf.Type&0xff != KEYWORD || lexf.Value.(string) != FUNC.String() {
+					c.lexemes = append(c.lexemes, NewLexeme(FUNC, FUNC.String(), c.line, startPos-c.offline+1))
 				}
 				value = name
 
@@ -257,7 +265,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 						stop        bool
 					}{})
 				}
-				tk, value = keyID, Keyword2Str(keyID)
+				tk, value = keyID, keyID.String()
 			}
 		} else if tInfo, ok := TypeNameValue[name]; ok {
 			tk, value = TYPENAME, tInfo

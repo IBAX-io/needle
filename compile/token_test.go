@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+func TestToken_String(t *testing.T) {
+	fmt.Println(FUNC, RBRACE, Add, BOOL, EXTEND, KEYWORD, LITERAL)
+}
+
 func TestGetFieldDefaultValue(t *testing.T) {
 	for i := 0; i < 11; i++ {
 		lexeme := TYPENAME | Token((i+1)<<8)

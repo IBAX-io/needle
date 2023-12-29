@@ -29,7 +29,7 @@ const (
 
 // Delimiters for Delimiter.
 const (
-	LPAREN = DELIMITER | ((iota + 1) << 8)
+	LPAREN = DELIMITER | (iota+1)<<8
 	RPAREN
 	COMMA
 	DOT
@@ -41,22 +41,22 @@ const (
 	RBRACE
 )
 
-var delimiter2Token = map[rune]Token{
-	'(': LPAREN,
-	')': RPAREN,
-	',': COMMA,
-	'.': DOT,
-	':': COLON,
-	'=': EQ,
-	'[': LBRACK,
-	']': RBRACK,
-	'{': LBRACE,
-	'}': RBRACE,
+var delimiter2Token = map[string]Token{
+	"(": LPAREN,
+	")": RPAREN,
+	",": COMMA,
+	".": DOT,
+	":": COLON,
+	"=": EQ,
+	"[": LBRACK,
+	"]": RBRACK,
+	"{": LBRACE,
+	"}": RBRACE,
 }
 
 // Operations for Operator.
 const (
-	Not = OPERATOR | ((iota + 1) << 8)
+	Not = OPERATOR | (iota+1)<<8
 	Mul
 	Add
 	Sub
@@ -127,7 +127,7 @@ var op2Token = map[string]Token{
 
 // The list of keyword identifiers for IDENTIFIER.
 const (
-	CONTRACT = KEYWORD | ((iota + 1) << 8)
+	CONTRACT = KEYWORD | (iota+1)<<8
 	FUNC
 	RETURN
 	IF
@@ -198,13 +198,9 @@ var KeywordStr = map[Token]string{
 	ERROR:      `error`,
 }
 
-func Keyword2Str(t Token) string {
-	return KeywordStr[t]
-}
-
 // data types for parameters and variables for Type.
 const (
-	BOOL = TYPENAME | ((iota + 1) << 8)
+	BOOL = TYPENAME | (iota+1)<<8
 	BYTES
 	INT
 	ADDRESS
@@ -254,18 +250,8 @@ func GetFieldDefaultValue(fieldType Token) any {
 	return defaultValue
 }
 
-func (tk Token) TypeName() string {
-	for s, t := range TypeNameValue {
-		if tk == t {
-			return s
-		}
-	}
-	return ""
-}
-
 var tokenToString = map[Token]string{
-	UNKNOWN: `UNKNOWN`,
-	//basic token
+	UNKNOWN:    `UNKNOWN`,
 	DELIMITER:  `DELIMITER`,
 	OPERATOR:   `OPERATOR`,
 	NUMBER:     `NUMBER`,
@@ -276,87 +262,6 @@ var tokenToString = map[Token]string{
 	KEYWORD:    `KEYWORD`,
 	TYPENAME:   `TYPENAME`,
 	EXTEND:     `EXTEND`,
-
-	//system
-	LPAREN: `LPAREN`,
-	RPAREN: `RPAREN`,
-	COMMA:  `COMMA`,
-	DOT:    `DOT`,
-	COLON:  `COLON`,
-	EQ:     `EQ`,
-	LBRACK: `LBRACK`,
-	RBRACK: `RBRACK`,
-	LBRACE: `LBRACE`,
-	RBRACE: `RBRACE`,
-
-	//operator
-	Not:    `Not`,
-	Mul:    `Mul`,
-	Add:    `Add`,
-	Sub:    `Sub`,
-	Quo:    `Quo`,
-	MOD:    `MOD`,
-	Less:   `Less`,
-	Great:  `Great`,
-	Assign: `Assign`,
-	NotEq:  `NotEq`,
-	And:    `And`,
-	LessEq: `LessEq`,
-	EqEq:   `EqEq`,
-	GrEq:   `GrEq`,
-	Or:     `Or`,
-	BitAnd: `BitAnd`,
-	BitOr:  `BitOr`,
-	BitXor: `BitXor`,
-	LSHIFT: `LSHIFT`,
-	RSHIFT: `RSHIFT`,
-	AddEq:  `AddEq`,
-	SubEq:  `SubEq`,
-	MulEq:  `MulEq`,
-	DivEq:  `DivEq`,
-	ModEq:  `ModEq`,
-	LshEq:  `LshEq`,
-	RshEq:  `RshEq`,
-	AndEq:  `AndEq`,
-	OrEq:   `OrEq`,
-	XorEq:  `XorEq`,
-	Inc:    `Inc`,
-	Dec:    `Dec`,
-
-	//keyword
-	CONTRACT:   `CONTRACT`,
-	FUNC:       `FUNC`,
-	RETURN:     `RETURN`,
-	IF:         `IF`,
-	ELIF:       `ELIF`,
-	ELSE:       `ELSE`,
-	WHILE:      `WHILE`,
-	TRUE:       `TRUE`,
-	FALSE:      `FALSE`,
-	VAR:        `VAR`,
-	TX:         `DATA`,
-	SETTINGS:   `SETTINGS`,
-	BREAK:      `BREAK`,
-	CONTINUE:   `CONTINUE`,
-	ERRWARNING: `ERRWARNING`,
-	ERRINFO:    `ERRINFO`,
-	NIL:        `NIL`,
-	ACTION:     `ACTION`,
-	CONDITIONS: `CONDITIONS`,
-	TAIL:       `TAIL`,
-	ERROR:      `ERROR`,
-
-	//typename
-	BOOL:    `BOOL`,
-	BYTES:   `BYTES`,
-	INT:     `INT`,
-	ADDRESS: `ADDRESS`,
-	ARRAY:   `ARRAY`,
-	MAP:     `MAP`,
-	MONEY:   `MONEY`,
-	FLOAT:   `FLOAT`,
-	STRING:  `STRING`,
-	FILE:    `FILE`,
 }
 
 // Lookup maps an identifier to its keyword token
@@ -367,8 +272,25 @@ func Lookup(ident string) (Token, bool) {
 
 func (tok Token) String() string {
 	s := ""
+	f := func(m map[string]Token) {
+		for op, t := range m {
+			if t == tok {
+				s = op
+			}
+		}
+	}
 	if 0 <= tok {
 		s = tokenToString[tok]
+		switch tok & 0xff {
+		case TYPENAME:
+			f(TypeNameValue)
+		case KEYWORD:
+			f(KeywordValue)
+		case OPERATOR:
+			f(op2Token)
+		case DELIMITER:
+			f(delimiter2Token)
+		}
 	}
 	if s == "" {
 		s = "token(" + strconv.Itoa(int(tok)) + ")"

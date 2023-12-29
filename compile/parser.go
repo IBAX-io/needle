@@ -6,14 +6,16 @@ import (
 
 type Parser struct {
 	parent, root *CodeBlock
-	lexemes      Lexemes
+	inputs       Lexemes
 	conf         *CompConfig
+	blocks       CodeBlocks
+	scanner
 }
 
 func NewParser(lexemes Lexemes, conf *CompConfig) *Parser {
 	var p = &Parser{
-		lexemes: lexemes,
-		conf:    conf,
+		inputs: lexemes,
+		conf:   conf,
 	}
 	p.init()
 	return p
@@ -42,53 +44,56 @@ func (p *Parser) init() {
 	for s, info := range p.conf.MakeExtFunc() {
 		p.root.Objects[s] = info
 	}
+	if p.blocks == nil {
+		p.blocks = make(CodeBlocks, 1)
+	}
+	p.blocks[0] = p.root
 }
 
 func (p *Parser) Parse() (*CodeBlock, error) {
-	if len(p.lexemes) == 0 {
+	if len(p.inputs) == 0 {
 		return p.root, nil
 	}
 	curState := stateRoot
 	stateStack := make([]stateType, 0)
-	blocks := make(CodeBlocks, 1)
-	blocks[0] = p.root
+	blocks := p.blocks
 	fork := 0
 
-	for i := 0; i < len(p.lexemes); i++ {
-		lex := p.lexemes[i]
+	for ; p.i < len(p.inputs); p.i++ {
+		p.set(p.i)
 		st, found := stateTable[curState]
 		if !found {
 			st = stateTable[stateRoot]
 		}
-		comps, ok := st[lex.Type]
+		comps, ok := st[p.lex.Type]
 		if !ok {
 			comps = st[UNKNOWN]
 		}
 
 		nextState := comps.next & 0xff
 		if comps.hasState(stateFlagFork) {
-			fork = i
+			fork = p.i
 		}
 		if comps.hasState(stateFlagToFork) {
-			i, fork = fork, 0
-			lex = p.lexemes[i]
+			p.set(fork)
+			fork = 0
 		}
 		if comps.hasState(stateFlagStay) {
 			curState = nextState
-			i--
+			p.i--
 			continue
 		}
 		if nextState == stateEval {
 			if comps.hasState(stateFlagLabel) {
-				blocks.peek().Code.push(newByteCode(CmdLabel, lex, 0))
+				blocks.peek().Code.push(newByteCode(CmdLabel, p.lex, 0))
 			}
 
 			curlen := len(blocks.peek().Code)
-			if err := p.parseEval(&i, &blocks); err != nil {
+			if err := p.parseEval(&blocks); err != nil {
 				return nil, fmt.Errorf("parse evaluate error: %s", err)
 			}
 			if comps.hasState(stateFlagMustEval) && curlen == len(blocks.peek().Code) {
-				return nil, fmt.Errorf("there is not eval expression in %s", lex.Position())
+				return nil, p.syntaxError("there is not eval expression")
 			}
 
 			nextState = curState
@@ -103,7 +108,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 
 		if comps.hasState(stateFlagPop) {
 			if len(stateStack) == 0 {
-				return nil, fnError(&blocks, errMustLBRACE, lex)
+				return nil, fnError(&blocks, errMustLBRACE, p.lex)
 			}
 			nextState, stateStack = stateStack[len(stateStack)-1], stateStack[:len(stateStack)-1]
 			if len(blocks) >= 2 {
@@ -111,7 +116,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 				if len(prev.Code) > 0 && (*prev).Code[len((*prev).Code)-1].Cmd == CmdContinue {
 					(*prev).Code = (*prev).Code[:len((*prev).Code)-1]
 					prev = blocks.peek()
-					(*prev).Code.push(newByteCode(CmdContinue, lex, 0))
+					(*prev).Code.push(newByteCode(CmdContinue, p.lex, 0))
 				}
 			}
 			blocks = blocks[:len(blocks)-1]
@@ -123,13 +128,13 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 			nextState = stateBody
 		}
 
-		if err := comps.fn(&blocks, nextState, lex); err != nil {
-			return nil, fmt.Errorf("func handles error: %s[%s]", err, lex.Position())
+		if err := comps.fn(&blocks, nextState, p.lex); err != nil {
+			return nil, p.syntaxErrorWrap(fmt.Errorf("func handles error: %s", err))
 		}
 		curState = nextState
 	}
 	if len(stateStack) > 0 {
-		return nil, fnError(&blocks, errMustRBRACE, p.lexemes[len(p.lexemes)-1])
+		return nil, fnError(&blocks, errMustRBRACE, p.inputs[len(p.inputs)-1])
 	}
 	for _, item := range p.root.Objects {
 		if item.Type == ObjContract {
@@ -143,106 +148,110 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 	return p.root, nil
 }
 
-func (p *Parser) parseEval(ind *int, block *CodeBlocks) error {
+func (p *Parser) parseEval(block *CodeBlocks) error {
 	var indexInfo *IndexInfo
-	i := *ind
 	curBlock := block.peek()
-	buffer := make(ByteCodes, 0, 20)
-	bytecode := make(ByteCodes, 0, 100)
+	buf := make(ByteCodes, 0, 20)
+	bc := make(ByteCodes, 0, 100)
 	parcount := make([]int, 0, 20)
 	setIndex := false
 	noMap := false
 	prevLex := &Lexeme{}
 main:
-	for ; i < len(p.lexemes); i++ {
+	for ; p.i < len(p.inputs); p.i++ {
+		p.set(p.i)
 		var cmd *ByteCode
 		var call bool
-		lex := p.lexemes[i]
 		if !noMap {
-			if lex.Type == LBRACE {
+			if p.lex.Type == LBRACE {
 				if prevLex.Type == IF {
-					return fmt.Errorf("if must be followed by a condition[%s]", prevLex.Position())
+					return p.syntaxError("if must be followed by a condition")
 				}
-				pMap, err := p.parseInitMap(&i, block, false)
+				pMap, err := p.parseInitMap(block, false)
 				if err != nil {
-					return fmt.Errorf("parse init map: %w", err)
+					return err
 				}
-				bytecode.push(newByteCode(CmdMapInit, lex, pMap))
+				bc.push(newByteCode(CmdMapInit, p.lex, pMap))
 				continue
 			}
-			if lex.Type == LBRACK {
-				pArray, err := p.parseInitArray(&i, block)
+			if p.lex.Type == LBRACK {
+				pArray, err := p.parseInitArray(block)
 				if err != nil {
-					return fmt.Errorf("parse init array: %w", err)
+					return err
 				}
-				bytecode.push(newByteCode(CmdArrayInit, lex, pArray))
+				bc.push(newByteCode(CmdArrayInit, p.lex, pArray))
 				continue
 			}
 		}
 		noMap = false
-		switch lex.Type {
+		switch p.lex.Type {
 		default:
+		case DOT:
+			if p.nextNonBlankN(1).Type != IDENTIFIER {
+				return p.syntaxError("must be the name of the dot")
+			}
 		case EQ:
 			if prevLex.Type == LPAREN || prevLex.Type == COMMA {
-				return fmt.Errorf("unexpected %s, expected expression", lex.Value)
+				return p.syntaxErrorExpected("expected expression")
 			}
 		case COLON:
-			err := p.sliceStmt(i, buffer, bytecode)
+			err := p.sliceStmt(buf, bc)
 			if err != nil {
 				return err
 			}
 		case RBRACE, LBRACE:
-			i--
-			if prevLex.Type == COMMA || prevLex.Type == OPERATOR {
-				return errEndExp
+			p.i--
+			if prevLex.Type == COMMA || prevLex.Type == OPERATOR || prevLex.Type == DOT {
+				return p.syntaxErrorWrap(errEndExp)
 			}
 			break main
 		case NEWLINE:
-			if i > 0 && (p.lexemes[i-1].Type == COMMA || p.lexemes[i-1].Type == OPERATOR && (p.lexemes[i-1].Value != Inc && p.lexemes[i-1].Value != Dec)) {
+			if p.prevNonBlankN(1).Type == COMMA || p.prevNonBlankN(1).Type == OPERATOR &&
+				(p.prevNonBlankN(1).Value != Inc && p.prevNonBlankN(1).Value != Dec) {
 				continue main
 			}
-			for k := len(buffer) - 1; k >= 0; k-- {
-				if buffer[k].Cmd == CmdSys {
+			for k := len(buf) - 1; k >= 0; k-- {
+				if buf[k].Cmd == CmdSys {
 					continue main
 				}
 			}
 			break main
 		case LPAREN, LBRACK:
-			buffer.push(newByteCode(CmdSys, lex, uint16(0xff)))
+			buf.push(newByteCode(CmdSys, p.lex, uint16(0xff)))
 		case COMMA:
-			if i < len(p.lexemes)-1 && p.lexemes[i+1].Type == RBRACK || p.lexemes[i+1].Type == RPAREN {
-				return fmt.Errorf("unexpected trailing comma[%s]", lex.Position())
+			if p.nextNonBlankN(1).Type == RBRACK || p.nextNonBlankN(1).Type == RPAREN {
+				return p.syntaxError("unexpected trailing comma")
 			}
 
 			if len(parcount) > 0 {
 				parcount[len(parcount)-1]++
 			}
-			for len(buffer) > 0 {
-				prev := buffer.peek()
+			for len(buf) > 0 {
+				prev := buf.peek()
 				if prev.Cmd == CmdSys && prev.Value.(uint16) == 0xff {
 					break
 				}
-				bytecode.push(prev)
-				buffer.pop()
+				bc.push(prev)
+				buf.pop()
 			}
 		case RPAREN:
 			noMap = true
 			for {
-				if buffer.empty() {
-					return fmt.Errorf("%s: there is not paren pair", lex.Type)
+				if buf.empty() {
+					return p.syntaxError(fmt.Sprintf("there is not %s paren pair", p.lex.Type))
 				}
-				prev := buffer.pop()
+				prev := buf.pop()
 				if prev.Cmd == CmdSys && prev.Value.(uint16) == 0xff && prev.Lexeme.Type == LPAREN {
 					break
 				}
-				bytecode.push(prev)
+				bc.push(prev)
 			}
-			if buffer.empty() {
+			if buf.empty() {
 				continue
 			}
-			prev := buffer.peek()
+			prev := buf.peek()
 			if fn := prev.FuncTailCmd(); fn != nil {
-				buffer.pop()
+				buf.pop()
 				names := fn.FuncTail
 				wantlen := len(names.Params)
 				if names.Variadic {
@@ -251,16 +260,16 @@ main:
 				count := parcount[len(parcount)-1]
 				if count != wantlen && (!names.Variadic || count < wantlen) {
 					if names.Variadic {
-						return fmt.Errorf("%s: at least %d params, but %d given", names.Name, wantlen, count)
+						return p.syntaxErrorWrap(fmt.Errorf("%s: at least %d params, but %d given", names.Name, wantlen, count))
 					}
-					return fmt.Errorf("%s: want %d params, but %d given", names.Name, wantlen, count)
+					return p.syntaxErrorWrap(fmt.Errorf("%s: want %d params, but %d given", names.Name, wantlen, count))
 				}
 				fn.Count = count
 				(*prev).Value = fn
 				parcount = parcount[:len(parcount)-1]
-				bytecode.push(prev)
+				bc.push(prev)
 			}
-			prev = buffer.peek()
+			prev = buf.peek()
 			if prev.Cmd != CmdCall && prev.Cmd != CmdCallVariadic {
 				continue
 			}
@@ -270,22 +279,19 @@ main:
 				setWritable(block)
 			}
 			if objInfo.Type == ObjFunc && objInfo.GetFuncInfo().HasTails() {
-				if bytecode.empty() || bytecode[len(bytecode)-1].Cmd != CmdFuncTail {
-					bytecode.push(newByteCode(CmdPush, lex, make(map[string][]any)))
+				if bc.empty() || bc[len(bc)-1].Cmd != CmdFuncTail {
+					bc.push(newByteCode(CmdPush, p.lex, make(map[string][]any)))
 				}
-				if i < len(p.lexemes)-4 && p.lexemes[i+1].Type == DOT {
-					if p.lexemes[i+2].Type != IDENTIFIER {
-						return fmt.Errorf("must be the name of the tail")
-					}
+				if p.nextNonBlankN(1).Type == DOT && p.nextNonBlankN(2).Type == IDENTIFIER {
 					names := prev.Object().GetFuncInfo().Tails
-					if v, ok := names[p.lexemes[i+2].Value.(string)]; ok {
-						buffer.push(newByteCode(CmdFuncTail, p.lexemes[i+2], &FuncTailCmd{FuncTail: v}))
+					if v, ok := names[p.nextNonBlankN(2).Value.(string)]; ok {
+						buf.push(newByteCode(CmdFuncTail, p.nextNonBlankN(2), &FuncTailCmd{FuncTail: v}))
 						count := 0
-						if p.lexemes[i+4].Type != RPAREN {
+						if p.nextNonBlankN(4).Type != RPAREN {
 							count++
 						}
 						parcount = append(parcount, count)
-						i += 2
+						p.i += 2
 						break
 					}
 				}
@@ -294,14 +300,14 @@ main:
 			parcount = parcount[:len(parcount)-1]
 			if fn := prev.Object().GetFuncInfo(); fn != nil {
 				var y int
-				for x := len(buffer) - 1; x >= 0; x-- {
-					buf := buffer[x]
+				for x := len(buf) - 1; x >= 0; x-- {
+					buf := buf[x]
 					if buf.Cmd == CmdCallVariadic || buf.Cmd == CmdCall {
 						y++
 					}
-					if y == 2 && p.lexemes[i+1].Type == RPAREN {
+					if y == 2 && p.nextNonBlankN(1).Type == RPAREN {
 						if prev.Object().GetResultsLen() == 0 {
-							return fmt.Errorf("%s used return value, but it has no return value", fn.Name)
+							return p.syntaxErrorWrap(fmt.Errorf("%s used return value, but it has no return value", fn.Name))
 						}
 						parcount[len(parcount)-1] += len(fn.Results) - 1
 						break
@@ -314,17 +320,17 @@ main:
 					wantlen--
 				}
 				if count != wantlen && (!extFn.Variadic || count < wantlen) && p.conf.IgnoreObj != IgnoreIdent {
-					return fmt.Errorf(eWrongParams, extFn.Name, wantlen)
+					return p.syntaxErrorWrap(fmt.Errorf(eWrongParams, extFn.Name, wantlen))
 				}
 				var y int
-				for x := len(buffer) - 1; x >= 0; x-- {
-					buf := buffer[x]
+				for x := len(buf) - 1; x >= 0; x-- {
+					buf := buf[x]
 					if buf.Cmd == CmdCallVariadic || buf.Cmd == CmdCall {
 						y++
 					}
-					if y == 2 && p.lexemes[i+1].Type == RPAREN {
+					if y == 2 && p.nextNonBlankN(1).Type == RPAREN {
 						if prev.Object().GetResultsLen() == 0 {
-							return fmt.Errorf("%s used return value, but it has no return value", extFn.Name)
+							return p.syntaxErrorWrap(fmt.Errorf("%s used return value, but it has no return value", extFn.Name))
 						}
 						parcount[len(parcount)-1] += prev.Object().GetResultsLen() - 1
 						break
@@ -332,112 +338,112 @@ main:
 				}
 			}
 			if prev.Cmd == CmdCallVariadic {
-				bytecode.push(newByteCode(CmdPush, lex, count))
+				bc.push(newByteCode(CmdPush, p.lex, count))
 			}
-			buffer = buffer[:len(buffer)-1]
-			bytecode.push(prev)
+			buf = buf[:len(buf)-1]
+			bc.push(prev)
 		case RBRACK:
 			noMap = true
 			for {
-				if buffer.empty() {
-					return fmt.Errorf("%s: there is not brack pair", lex.Type)
+				if buf.empty() {
+					return p.syntaxError(fmt.Sprintf("there is not %s brack pair", p.lex.Type))
 				}
-				prev := buffer.pop()
+				prev := buf.pop()
 				if prev.Cmd == CmdSys && prev.Value.(uint16) == 0xff && prev.Lexeme.Type == LBRACK {
 					break
 				}
-				bytecode.push(prev)
+				bc.push(prev)
 			}
-			if len(buffer) > 0 {
-				if prev := buffer.peek(); prev.Cmd == CmdGetIndex {
-					buffer = buffer[:len(buffer)-1]
-					if i < len(p.lexemes)-1 && p.lexemes[i+1].Type == EQ {
-						i++
+			if len(buf) > 0 {
+				if prev := buf.peek(); prev.Cmd == CmdGetIndex {
+					buf = buf[:len(buf)-1]
+					if p.i < len(p.inputs)-1 && p.nextNonBlankN(1).Type == EQ {
+						p.i++
 						setIndex = true
 						indexInfo = prev.IndexInfo()
 						noMap = false
 						continue
 					}
-					bytecode.push(prev)
+					bc.push(prev)
 				}
 			}
-			if p.lexemes[i+1].Type == LBRACK {
-				return errMultiIndex
+			if p.nextNonBlankN(1).Type == LBRACK {
+				return p.syntaxErrorWrap(errMultiIndex)
 			}
 		case OPERATOR:
-			op, ok := operatorPriority[lex.Value.(Token)]
+			op, ok := operatorPriority[p.lex.Value.(Token)]
 			if !ok {
-				return fmt.Errorf(`unknown operator %v`, lex.Value)
+				return p.syntaxErrorWrap(fmt.Errorf("unknown operator %v", p.lex.Value))
 			}
 			var prevType Token
-			if i > 0 {
-				prevType = p.lexemes[i-1].Type
+			if p.i > 0 {
+				prevType = p.prevNonBlankN(1).Type
 			}
-			if (op.Cmd == CmdSub || op.Cmd == CmdAdd) && (i == 0 || (prevType != NUMBER && prevType != IDENTIFIER &&
+			if (op.Cmd == CmdSub || op.Cmd == CmdAdd) && (p.i == 0 || (prevType != NUMBER && prevType != IDENTIFIER &&
 				prevType != EXTEND && prevType != LITERAL && prevType != RBRACE &&
 				prevType != RBRACK && prevType != RPAREN)) {
 				op.Cmd = CmdSign
 				op.Priority = uint16(CmdUnary)
 			} else if prevLex.Type == OPERATOR && op.Priority != uint16(CmdUnary) {
-				return errOper
+				return p.syntaxErrorWrap(errOper)
 			}
-			byteOper := newByteCode(op.Cmd, lex, op.Priority)
+			byteOper := newByteCode(op.Cmd, p.lex, op.Priority)
 			for {
-				if buffer.empty() {
-					buffer.push(byteOper)
+				if buf.empty() {
+					buf.push(byteOper)
 					break
 				}
-				prev := buffer.peek()
+				prev := buf.peek()
 				if prev.Value.(uint16) >= op.Priority && op.Priority != uint16(CmdUnary) && prev.Cmd != CmdSys {
 					if prev.Value.(uint16) == uint16(CmdUnary) { // Right to left
-						unary := len(buffer) - 1
-						for unary > 0 && buffer[unary-1].Value.(uint16) == uint16(CmdUnary) {
+						unary := len(buf) - 1
+						for unary > 0 && buf[unary-1].Value.(uint16) == uint16(CmdUnary) {
 							unary--
 						}
-						bytecode = append(bytecode, buffer[unary:]...)
-						buffer = buffer[:unary]
+						bc = append(bc, buf[unary:]...)
+						buf = buf[:unary]
 					} else {
-						bytecode.push(prev)
-						buffer = buffer[:len(buffer)-1]
+						bc.push(prev)
+						buf = buf[:len(buf)-1]
 					}
 				} else {
-					buffer.push(byteOper)
+					buf.push(byteOper)
 					break
 				}
 			}
 		case NUMBER, LITERAL:
 			if prevLex.Type == RPAREN {
-				return fmt.Errorf("unexpected %v at end of expression[%s]", lex.Value, lex.Position())
+				return p.syntaxErrorWrap(fmt.Errorf("unexpected %v at end of expression", p.lex.Value))
 			}
 			noMap = true
-			cmd = newByteCode(CmdPush, lex, lex.Value)
+			cmd = newByteCode(CmdPush, p.lex, p.lex.Value)
 		case EXTEND:
 			noMap = true
-			if i < len(p.lexemes)-2 {
-				if p.lexemes[i+1].Type == LPAREN {
+			if p.i < len(p.inputs)-2 {
+				if p.nextNonBlankN(1).Type == LPAREN {
 					count := 0
-					if p.lexemes[i+2].Type != RPAREN {
+					if p.nextNonBlankN(2).Type != RPAREN {
 						count++
 					}
 					parcount = append(parcount, count)
-					buffer.push(newByteCode(CmdCallExtend, lex, lex.Value.(string)))
+					buf.push(newByteCode(CmdCallExtend, p.lex, p.lex.Value.(string)))
 					call = true
 				}
 			}
 			if !call {
-				cmd = newByteCode(CmdExtend, lex, lex.Value.(string))
-				if i < len(p.lexemes)-1 && p.lexemes[i+1].Type == LBRACK {
-					buffer.push(newByteCode(CmdGetIndex, lex, &IndexInfo{Extend: lex.Value.(string)}))
+				cmd = newByteCode(CmdExtend, p.lex, p.lex.Value.(string))
+				if p.i < len(p.inputs)-1 && p.nextNonBlankN(1).Type == LBRACK {
+					buf.push(newByteCode(CmdGetIndex, p.lex, &IndexInfo{Extend: p.lex.Value.(string)}))
 				}
 			}
 		case IDENTIFIER:
 			noMap = true
-			obj, owner := p.findObj(lex.Value.(string), block)
-			if obj == nil && (p.conf.IgnoreObj != IgnoreIdent || i >= len(p.lexemes)-2 || p.lexemes[i+1].Type != LPAREN) {
-				return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lex.Value, lex.Position()))
+			obj, owner := p.findObj(p.lex.Value.(string), block)
+			if obj == nil && (p.conf.IgnoreObj != IgnoreIdent || p.i >= len(p.inputs)-2 || p.nextNonBlankN(1).Type != LPAREN) {
+				return p.syntaxErrorWrap(fmt.Errorf(eUnknownIdent, p.lex.Value))
 			}
-			if i < len(p.lexemes)-2 {
-				if p.lexemes[i+1].Type == LPAREN {
+			if p.i < len(p.inputs)-2 {
+				if p.nextNonBlankN(1).Type == LPAREN {
 					var (
 						isContract  bool
 						objContract *ContractInfo
@@ -447,7 +453,7 @@ main:
 					}
 					if obj == nil || (obj.Type != ObjExtFunc && obj.Type != ObjFunc &&
 						obj.Type != ObjContract) {
-						return fmt.Errorf(`unknown %s %s`, lex.Type, lex.Value)
+						return p.syntaxErrorWrap(fmt.Errorf(`unknown %s %s`, p.lex.Type, p.lex.Value))
 					}
 
 					if obj.Type == ObjContract {
@@ -456,7 +462,7 @@ main:
 						}
 						obj, owner = p.findObj(`ExecContract`, block)
 						if obj == nil {
-							return fmt.Errorf(eUnknownIdent, fmt.Sprintf(`%s[%s]`, lex.Value, lex.Position()))
+							return p.syntaxErrorWrap(fmt.Errorf(eUnknownIdent, p.lex.Value))
 						}
 						isContract = true
 					}
@@ -465,17 +471,17 @@ main:
 						cmd = CmdCallVariadic
 					}
 					count := 0
-					if p.lexemes[i+2].Type != RPAREN {
+					if p.nextNonBlankN(2).Type != RPAREN {
 						count++
 					}
-					buffer.push(newByteCode(cmd, lex, obj))
+					buf.push(newByteCode(cmd, p.lex, obj))
 					if isContract {
-						name := StateName(block.ParentOwner().StateID, lex.Value.(string))
+						name := StateName(block.ParentOwner().StateID, p.lex.Value.(string))
 						for j := len(*block) - 1; j >= 0; j-- {
 							topBlock := (*block)[j]
 							if topBlock.Type == ObjContract {
 								if name == topBlock.GetContractInfo().Name {
-									return errRecursion
+									return p.syntaxErrorWrap(errRecursion)
 								}
 								topBlock.GetContractInfo().Used[name] = true
 							}
@@ -483,97 +489,93 @@ main:
 						if objContract != nil && objContract.CanWrite {
 							setWritable(block)
 						}
-						bytecode.push(newByteCode(CmdPush, lex, name))
+						bc.push(newByteCode(CmdPush, p.lex, name))
 						if count == 0 {
 							count = 2
-							bytecode.push(newByteCode(CmdPush, lex, ""))
-							bytecode.push(newByteCode(CmdPush, lex, ""))
+							bc.push(newByteCode(CmdPush, p.lex, ""))
+							bc.push(newByteCode(CmdPush, p.lex, ""))
 						}
 
 						count++
 					}
-					if lex.Value.(string) == "CallContract" {
+					if p.lex.Value.(string) == "CallContract" {
 						count++
-						bytecode.push(newByteCode(CmdPush, lex, block.ParentOwner().StateID))
+						bc.push(newByteCode(CmdPush, p.lex, block.ParentOwner().StateID))
 					}
 					parcount = append(parcount, count)
 					call = true
 				}
-				if p.lexemes[i+1].Type == LBRACK {
+				if p.nextNonBlankN(1).Type == LBRACK {
 					if obj == nil || obj.Type != ObjVar {
-						return fmt.Errorf(`unknown variable %v`, lex.Value)
+						return p.syntaxErrorWrap(fmt.Errorf("unknown variable %v", p.lex.Value))
 					}
-					buffer.push(newByteCode(CmdGetIndex, lex, &IndexInfo{VarOffset: obj.GetVariable().Index, Owner: owner}))
+					buf.push(newByteCode(CmdGetIndex, p.lex, &IndexInfo{VarOffset: obj.GetVariable().Index, Owner: owner}))
 				}
 			}
 			if !call {
 				if obj.Type != ObjVar {
-					return fmt.Errorf(`unknown variable %v`, lex.Value)
+					return p.syntaxErrorWrap(fmt.Errorf("unknown variable %v", p.lex.Value))
 				}
-				cmd = newByteCode(CmdVar, lex, &VarInfo{Obj: obj, Owner: owner})
+				cmd = newByteCode(CmdVar, p.lex, &VarInfo{Obj: obj, Owner: owner})
 			}
 		case TAIL:
-			cmd = newByteCode(CmdUnwrapArr, lex, 0)
+			cmd = newByteCode(CmdUnwrapArr, p.lex, 0)
 		}
-		if lex.Type != NEWLINE {
-			prevLex = lex
-		}
-		if lex.Type&0xff == KEYWORD && lex.Value.(string) == Keyword2Str(TAIL) {
-			cmd = newByteCode(CmdUnwrapArr, lex, 0)
+		if p.lex.Type != NEWLINE {
+			prevLex = p.lex
 		}
 		if cmd != nil {
-			bytecode.push(cmd)
+			bc.push(cmd)
 		}
 	}
-	*ind = i
 	if prevLex.Type == OPERATOR && (prevLex.Value != Inc && prevLex.Value != Dec) {
-		return errEndExp
+		return prevLex.errorWrap(errEndExp)
 	}
-	for i := len(buffer) - 1; i >= 0; i-- {
-		if buffer[i].Cmd == CmdSys {
-			return fmt.Errorf("%s: there is not pair of [%s]", buffer[i].Lexeme.Type, buffer[i].Lexeme.Position())
+
+	for i := len(buf) - 1; i >= 0; i-- {
+		if buf[i].Cmd == CmdSys {
+			return buf[i].Lexeme.error(fmt.Sprintf("there is not close pair of %s", buf[i].Lexeme.Type))
 		}
-		bytecode.push(buffer[i])
+		bc.push(buf[i])
 	}
 	if setIndex {
-		bytecode.push(newByteCode(CmdSetIndex, &Lexeme{Line: bytecode[len(bytecode)-1].Lexeme.Line}, indexInfo))
+		bc.push(newByteCode(CmdSetIndex, &Lexeme{Line: bc[len(bc)-1].Lexeme.Line}, indexInfo))
 	}
-	curBlock.Code = append(curBlock.Code, bytecode...)
+	curBlock.Code = append(curBlock.Code, bc...)
 	return nil
 }
 
-func (p *Parser) sliceStmt(i int, buffer, bytecode ByteCodes) error {
-	lexeme := p.lexemes[i]
+func (p *Parser) sliceStmt(buffer, bytecode ByteCodes) error {
 	var low, high = -1, -1
-	if p.lexemes[i-1].Type == LBRACK {
+	if p.prevNonBlankN(1).Type == LBRACK {
 		low = SliceLow
 	}
-	if p.lexemes[i+1].Type == RBRACK {
+	if p.nextNonBlankN(1).Type == RBRACK {
 		high = SliceHigh
 	}
-	if p.lexemes[i-1].Type == NUMBER {
-		if (buffer.peek().Cmd == CmdSign && p.lexemes[i-3].Type == LBRACK) || p.lexemes[i-2].Type == LBRACK {
-			if _, ok := p.lexemes[i-1].Value.(int64); !ok {
-				return fmt.Errorf("slice index must be integer")
+	if p.prevNonBlankN(1).Type == NUMBER {
+		if (buffer.peek().Cmd == CmdSign && p.prevNonBlankN(3).Type == LBRACK) || p.prevNonBlankN(2).Type == LBRACK {
+			if _, ok := p.prevNonBlankN(1).Value.(int64); !ok {
+				return p.prevNonBlankN(1).error("slice index must be integer")
 			}
 			low = SliceLowNum
 		}
 	}
 
-	if p.lexemes[i+1].Type == NUMBER && p.lexemes[i+2].Type == RBRACK {
-		if _, ok := p.lexemes[i+1].Value.(int64); !ok {
-			return fmt.Errorf("slice index must be integer")
+	if p.nextNonBlankN(1).Type == NUMBER && p.nextNonBlankN(2).Type == RBRACK {
+		if _, ok := p.nextNonBlankN(1).Value.(int64); !ok {
+			return p.nextNonBlankN(1).error("slice index must be integer")
 		}
 		high = SliceHighNum
 	}
-	if (p.lexemes[i+1].Value == Sub || p.lexemes[i+1].Value == Add) && p.lexemes[i+2].Type == NUMBER && p.lexemes[i+3].Type == RBRACK {
-		if _, ok := p.lexemes[i+2].Value.(int64); !ok {
-			return fmt.Errorf("slice index must be integer")
+	if (p.nextNonBlankN(1).Value == Sub || p.nextNonBlankN(1).Value == Add) && p.nextNonBlankN(2).Type == NUMBER && p.nextNonBlankN(3).Type == RBRACK {
+		if _, ok := p.nextNonBlankN(2).Value.(int64); !ok {
+			return p.nextNonBlankN(2).error("slice index must be integer")
 		}
 		high = SliceHighNum
 	}
 	if low != -1 && high != -1 {
-		bytecode.push(newByteCode(CmdSliceColon, lexeme, &SliceItem{Index: [2]int{low, high}}))
+		bytecode.push(newByteCode(CmdSliceColon, p.lex, &SliceItem{Index: [2]int{low, high}}))
 	}
 	return nil
 }
@@ -595,109 +597,103 @@ func (p *Parser) findObj(name string, block *CodeBlocks) (obj *Object, owner *Co
 	return
 }
 
-func (p *Parser) parseInitValue(ind *int, block *CodeBlocks) (value *MapItem, err error) {
+func (p *Parser) parseInitValue(block *CodeBlocks) (value *MapItem, err error) {
 	var (
 		subArr []*MapItem
 		subMap *Map
 	)
-	i := *ind
-	lex := p.lexemes[i]
-
-	switch lex.Type {
+	switch p.lex.Type {
 	case LBRACK:
-		subArr, err = p.parseInitArray(&i, block)
+		subArr, err = p.parseInitArray(block)
 		if err == nil {
 			value = &MapItem{Type: MapArray, Value: subArr}
 		}
 	case LBRACE:
-		subMap, err = p.parseInitMap(&i, block, false)
+		subMap, err = p.parseInitMap(block, false)
 		if err == nil {
 			value = &MapItem{Type: MapMap, Value: subMap}
 		}
 	case EXTEND:
-		value = &MapItem{Type: MapExtend, Value: lex.Value}
+		value = &MapItem{Type: MapExtend, Value: p.lex.Value}
 	case IDENTIFIER:
-		objInfo, tobj := p.findObj(lex.Value.(string), block)
+		objInfo, tobj := p.findObj(p.lex.Value.(string), block)
 		if objInfo == nil {
-			err = fmt.Errorf(eUnknownIdent, lex.Value)
+			err = p.syntaxErrorWrap(fmt.Errorf(eUnknownIdent, p.lex.Value))
 		} else {
 			value = &MapItem{Type: MapVar, Value: &VarInfo{Obj: objInfo, Owner: tobj}}
 		}
 	case NUMBER, LITERAL:
-		value = &MapItem{Type: MapConst, Value: lex.Value}
+		value = &MapItem{Type: MapConst, Value: p.lex.Value}
 	default:
-		err = errUnexpValue
+		err = p.syntaxErrorExpected("expected string, int value or variable")
 	}
-	*ind = i
 	return
 }
 
-func (p *Parser) parseInitMap(ind *int, block *CodeBlocks, oneItem bool) (*Map, error) {
-	var next int
+func (p *Parser) parseInitMap(block *CodeBlocks, oneItem bool) (*Map, error) {
 	if !oneItem {
-		next = 1
+		p.i++
 	}
-	i := *ind + next
 	key := ``
 	ret := NewMap()
 	state := MustKey
 main:
-	for ; i < len(p.lexemes); i++ {
-		lex := p.lexemes[i]
-		switch lex.Type {
+	for ; p.i < len(p.inputs); p.i++ {
+		p.set(p.i)
+		switch p.lex.Type {
 		case NEWLINE:
 			continue
 		case RBRACE:
 			if state == MustColon {
-				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lex.Position())
+				return nil, p.syntaxErrorExpected("expected colon")
 			}
 			if state == MustValue {
-				return nil, fmt.Errorf("%w[%s]", errUnexpValue, lex.Position())
+				return nil, p.syntaxErrorExpected("expected string, int value or variable")
 			}
 			if state == MustKey {
-				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lex.Position())
+				return nil, p.syntaxErrorExpected("expected string key")
 			}
 			break main
 		case COMMA, RBRACK:
 			if oneItem {
-				*ind = i - 1
+				p.i--
 				return ret, nil
 			}
 		}
 		switch state {
 		case MustComma:
-			if lex.Type != COMMA {
-				return nil, fmt.Errorf("%w[%s]", errUnexpComma, lex.Position())
+			if p.lex.Type != COMMA {
+				return nil, p.syntaxErrorExpected("expected comma or ]")
 			}
 			state = MustKey
 		case MustColon:
-			if lex.Type != COLON {
-				return nil, fmt.Errorf("%w[%s]", errUnexpColon, lex.Position())
+			if p.lex.Type != COLON {
+				return nil, p.syntaxErrorExpected("expected colon")
 			}
 			state = MustValue
 		case MustKey:
-			switch lex.Type & 0xff {
+			switch p.lex.Type & 0xff {
 			case IDENTIFIER, LITERAL:
-				key = lex.Value.(string)
+				key = p.lex.Value.(string)
 			case EXTEND:
-				key = "$" + lex.Value.(string)
+				key = "$" + p.lex.Value.(string)
 			case KEYWORD:
 				for ikey, v := range KeywordValue {
-					if Keyword2Str(v) == fmt.Sprint(lex.Value) {
+					if v == p.lex.Type {
 						key = ikey
-						if v == FUNC && i < len(p.lexemes)-1 && p.lexemes[i+1].Type&0xff == IDENTIFIER {
+						if v == FUNC && p.i < len(p.inputs)-1 && p.nextNonBlankN(1).Type&0xff == IDENTIFIER {
 							continue main
 						}
 						break
 					}
 				}
 			default:
-				return nil, fmt.Errorf("%w[%s]", errUnexpKey, lex.Position())
+				return nil, p.syntaxErrorExpected("expected string key")
 			}
 
 			state = MustColon
 		case MustValue:
-			mapi, err := p.parseInitValue(&i, block)
+			mapi, err := p.parseInitValue(block)
 			if err != nil {
 				return nil, err
 			}
@@ -706,23 +702,22 @@ main:
 		}
 	}
 	if ret.IsEmpty() && (state == MustKey) {
-		return nil, fmt.Errorf("%w[%s]", errUnexpKey, p.lexemes[i].Position())
+		return nil, p.syntaxErrorExpected("expected string key")
 	}
-	if i == len(p.lexemes) {
-		return nil, errUnclosedMap
+	if p.i == len(p.inputs) {
+		return nil, p.syntaxErrorWrap(errUnclosedMap)
 	}
-	*ind = i
 	return ret, nil
 }
 
-func (p *Parser) parseInitArray(ind *int, block *CodeBlocks) ([]*MapItem, error) {
-	i := *ind + 1
+func (p *Parser) parseInitArray(block *CodeBlocks) ([]*MapItem, error) {
+	p.i++
 	ret := make([]*MapItem, 0)
 	state := MustValue
 main:
-	for ; i < len(p.lexemes); i++ {
-		lex := p.lexemes[i]
-		switch lex.Type {
+	for ; p.i < len(p.inputs); p.i++ {
+		p.set(p.i)
+		switch p.lex.Type {
 		case NEWLINE:
 			continue
 		case RBRACK:
@@ -730,19 +725,19 @@ main:
 		}
 		switch state {
 		case MustComma:
-			if lex.Type != COMMA {
-				return nil, errUnexpComma
+			if p.lex.Type != COMMA {
+				return nil, p.syntaxErrorExpected("expected comma or ]")
 			}
 			state = MustValue
 		case MustValue:
-			if i+1 < len(p.lexemes) && p.lexemes[i+1].Type == COLON {
-				subMap, err := p.parseInitMap(&i, block, true)
+			if p.i+1 < len(p.inputs) && p.nextNonBlankN(1).Type == COLON {
+				subMap, err := p.parseInitMap(block, true)
 				if err != nil {
 					return nil, err
 				}
 				ret = append(ret, &MapItem{Type: MapMap, Value: subMap})
 			} else {
-				arri, err := p.parseInitValue(&i, block)
+				arri, err := p.parseInitValue(block)
 				if err != nil {
 					return nil, err
 				}
@@ -752,11 +747,10 @@ main:
 		}
 	}
 	if len(ret) > 0 && state == MustValue {
-		return nil, errUnexpValue
+		return nil, p.syntaxErrorExpected("expected string, int value or variable")
 	}
-	if i == len(p.lexemes) {
-		return nil, errUnclosedArray
+	if p.i == len(p.inputs) {
+		return nil, p.syntaxErrorWrap(errUnclosedArray)
 	}
-	*ind = i
 	return ret, nil
 }

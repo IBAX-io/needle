@@ -276,38 +276,40 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	rt.unwrap = false
 	count = in
 	if variadic {
-		count = rt.stack.pop().(int)
+		count, _ = rt.stack.pop().(int)
 	}
 
 	var (
 		result []reflect.Value
 		limit  int
-		finfo  = obj.GetExtFuncInfo()
-		foo    = reflect.ValueOf(finfo.Func)
+		info   = obj.GetExtFuncInfo()
+		foo    = reflect.ValueOf(info.Func)
 		pars   = make([]reflect.Value, in)
 	)
 	stack, ok := rt.extend[ExtendSc].(Stacker)
 	if ok {
-		if err := stack.AppendStack(finfo.Name); err != nil {
+		if err := stack.AppendStack(info.Name); err != nil {
 			return err
 		}
 	}
 	rt.extend[ExtendRt] = rt
-	auto := finfo.AutoParamsCount()
+	auto := info.AutoParamsCount()
 	size := rt.stack.size()
 	shift := size - count + auto
-	if finfo.Variadic {
+	if info.Variadic {
 		shift = size - count
 		count += auto
-		limit = count - in + 1
 	}
-	i := count
-	for ; i > limit; i-- {
+	if shift < 0 {
+		return fmt.Errorf("not enough arguments in call to %s", info.Name)
+	}
+	limit = count - in + 1
+	for i := count; i > limit; i-- {
 		index := count - i
-		if len(finfo.Auto[index]) > 0 {
-			value, ok := rt.extend[finfo.Auto[index]]
+		if len(info.Auto[index]) > 0 {
+			value, ok := rt.extend[info.Auto[index]]
 			if !ok {
-				return fmt.Errorf("func %q auto param %q not found", finfo.Name, finfo.Auto[index])
+				return fmt.Errorf("func %q auto param %q not found", info.Name, info.Auto[index])
 			}
 			pars[index] = reflect.ValueOf(value)
 			auto--
@@ -315,37 +317,30 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 			pars[index] = reflect.ValueOf(rt.stack.get(size - i + auto))
 		}
 		if !pars[index].IsValid() {
-			pars[index] = reflect.Zero(finfo.Params[index])
+			pars[index] = reflect.Zero(info.Params[index])
 		}
 	}
-	if i > 0 {
-		if size-i >= 0 {
-			pars[in-1] = reflect.ValueOf(rt.stack.peekFromTo(size-i, size))
-		} else {
-			if !pars[in-1].IsValid() {
-				pars[in-1] = reflect.Zero(finfo.Params[in-1])
-			}
+	if size-limit >= 0 {
+		pars[in-1] = reflect.ValueOf(rt.stack.peekFromTo(size-limit, size))
+	} else {
+		if !pars[in-1].IsValid() {
+			pars[in-1] = reflect.Zero(info.Params[in-1])
 		}
 	}
-	if finfo.Variadic {
-		if i == 0 {
-			pars = []reflect.Value{reflect.Zero(finfo.Params[in-1])}
-		}
+	if variadic {
 		result = foo.CallSlice(pars)
 	} else {
 		result = foo.Call(pars)
 	}
-	if shift < 0 {
-		shift = 0
-	}
+
 	rt.stack.resetByIdx(shift)
 	if stack != nil {
-		stack.PopStack(finfo.Name)
+		stack.PopStack(info.Name)
 	}
 
 	for i, ret := range result {
 		// first return value of every extend function that makes queries to DB is cost
-		if _, ok := rt.vm.FuncCallsDB[finfo.Name]; ok && i == 0 {
+		if _, ok := rt.vm.FuncCallsDB[info.Name]; ok && i == 0 {
 			if !ret.CanInt() {
 				err = fmt.Errorf("invalid type of first return parameter")
 				return
@@ -355,9 +350,9 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 			}
 			continue
 		}
-		if finfo.Results[i].String() == `error` {
+		if info.Results[i].String() == `error` {
 			if ret.Interface() != nil {
-				rt.errInfo = ExtFuncErr{Name: finfo.Name, Value: ret.Interface()}
+				rt.errInfo = ExtFuncErr{Name: info.Name, Value: ret.Interface()}
 				return rt.errInfo
 			}
 		} else {

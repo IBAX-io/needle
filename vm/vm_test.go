@@ -181,95 +181,65 @@ contract dataSection {
 		{"case_execRecursion", "@1Recursion.action", []rune(`
 contract Recursion {
     action{ 
- 		$e = Println2()
+ 		$e = nil
     }
 }`), assert.NoError},
 		{"case_tail", "@1tail.action", []rune(`
 contract tail {
-func NameA(i int).TailNameA() int,string{
-	return 123 "a"
-}
-func NameB(s string,b bool) string{
-	return "b"
-}
-func NameC(i int,s string) string{return "c"}
-
-    action{ 
- 		var i int s string
-  i s = NameA(1)
-
-  s = NameA(2).NameB(true)
-
-  s = NameA(3).NameC()
+	func NameA(i int).TailNameA(s string, xx bool) int,string  { return 123 "a"  }
+	func NameB(s string, b bool) string{Println("b--",s,b);return "b1"}
+	func NameC(i int, s string) string{Println("c--",i,s); return "cs" }
+	func NameD(s ...){
+		Println("d--",s)
 	}
+	action{
+		var i int s string
+		i s = NameA(1).TailNameA("tailA",true)
+		s = NameA(2).NameB(true)
+		s = NameA(3).NameC()
+		NameC(1,"c").NameB(true)
+
+		Println(NameA(3).NameC().NameB(true).NameB("b",true))
+ 		Println(NameA(3).TailNameA("tailA",true))
+		NameC("print--").NameB(true)
+		NameB(true)
+		$d = [1,2,3]
+		NameD($d...)
+ 	}
 }`), assert.NoError},
 		{"case_control", "@1control.action", []rune(`
 contract control{
-	func fn1().sm int string{
-		return 2 ""
-	}
-	 
 	action {
-	var a int;a = 1
-    //while a < 5 {
-    //   a++
-    //   if a == 2 {
-    //       continue
-    //   }
-	//	if a == 3 {
-	//		break
-	//	}
-    //}
-
-$s = fn1()
-		if 3 {
-			Println("ifs -",$s)
-
-		//}elif $s{
-		}elif fn1(){
-			Println("elifs --")
-		}else{
-			//break
-			Println("elses ---")
+		var a int;a = 1
+		while a < 5 {
+		  a++
+		  if a == 2  {
+			  continue
+		  }
+		  if a == 3 {
+		  	  break
+		  }
 		}
 	}
-}`), assert.NoError},
-		{"case_tail", "@1control.action", []rune(`
-contract control{
-     action {
-        var top array limit  int ignore map
-        ignore["0"]=1
-        ignore["5555"]=1
-        limit = 4  
-        top = [{"id":"0"},{"id":"2"},{"id":"3"},{"id":"4"}]
-        var i int
-        while i < lenArray(top){
-            var m map id account string
-            m = top[i]
-			i = i + 1
-            id = m["id"]
-            if ignore[id] {
-                continue
-            }
-            Println("id--",id)
-        }
-}
 }`), assert.NoError},
 		{"case_map_init", "@1map_init.action", []rune(`
 contract map_init {
     action{
 		var m map
-		 $a = "222"
-		m  = {if:"is",">"}
-		 m[$a] = 123233 
+		$a = "222"
+		m = {inst:"is", "b":{if:"d"},d:"e"}
+		m[$a] = 123233 
 		Println(m)
     }
 }`), assert.NoError},
 		{"case_error_test", "@1error_test.action", []rune(`
 contract error_test {
+	func am() string int{
+		return "am error" 2
+	}
     action{
 		if " " {
-			error  -2 
+			error am()
 		}elif "3" {
 			warning 3
 		}else{
@@ -295,9 +265,9 @@ contract Name {
 		Println(.23)
     }
 }`), assert.NoError},
-		{"case_ifstmt", "@1ifstmt.action", []rune(`
-contract ifstmt {
- 		if "" {
+		{"case_ifstmt", "ifstmt", []rune(`
+func ifstmt() {
+ 		if ""{
 			Println("if")
 		}
 		elif ""{
@@ -318,10 +288,51 @@ contract ifstmt {
 			}
 		}
 	}
-} 
+}
 `), assert.NoError},
+		{"case_tail_test", "@1tail_test.action", []rune(`
+contract tail_test {
+	func f(a ...){
+		Println(a)
+ 	}
+    action{
+		f(1,2,3)
+    }
+}`), assert.NoError},
+		{"case_exponent_test", "@1exponent_test.action", []rune(`
+contract exponent_test {
+    action{
+		var b1 float b2 int b3 float b4 money
+		b1 = 2e-50+2e3+"3.123"
+		b2 = 12
+		b3 = b1 + b2
+		b4 = "2e1" + "2" + 2e4
+		Println(b1,b3,b4)
+    }
+}`), assert.NoError},
+		{"case_var_shadow_test", "@1var_shadow_test.action", []rune(`
+contract var_shadow_test {
+	func shadow() {
+		Println(9,"dup")
 	}
-	limit := int64(2700)
+	func Println(s string, i int) {}
+	action {
+		shadow()
+		Println("2",3)
+	}
+}`), assert.NoError},
+		{"case_funcSign_test", "@1funcSign_test.action", []rune(`
+contract funcSign_test {
+func tailMain(i int).t(s string)int string{return 999 s}
+  	func sign() int bool int {return 1 true 2 }
+	action {
+		Println(sign())
+		Println(sign(),2,3,4,tailMain(5).t("123"),666)
+		Println(sign(),2,3,4,sign())
+	}
+}`), assert.NoError},
+	}
+	limit := int64(27000)
 	extend := map[string]any{
 		ExtendTxCost:           limit,
 		ExtendGenBlock:         true,
@@ -329,7 +340,7 @@ contract ifstmt {
 		ExtendParentContract:   ``,
 		ExtendOriginalContract: ``,
 		ExtendThisContract:     ``,
-		"extFn": func(a1, a2 int64, a ...int64) int64 {
+		"Println": func(a1, a2 int64, a ...int64) int64 {
 			fmt.Println("extFn", a1, a2, a)
 			return 2323
 		},
