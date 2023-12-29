@@ -44,15 +44,23 @@ var ops = map[string]opFunc{
 	"^=":  bitwiseXorAssign,
 }
 
-func evaluateCmd(x, y any, op compile.CmdT) (any, error) {
+func operationExpr(x, y any, op compile.CmdT) (any, error) {
 	if f, ok := ops[op.String()]; ok {
 		z, err := f(x, y)
 		if err != nil {
-			return nil, fmt.Errorf("evaluating error: %v", err)
+			return nil, fmt.Errorf("operation error: %v", err)
 		}
 		return z, nil
 	}
 	return nil, fmt.Errorf("unsupported operator: %s", op)
+}
+
+func reportOpError(op string, x, y any) error {
+	return fmt.Errorf("invalid types for %s operation: %T and %T", op, x, y)
+}
+
+func reportConvertError(op string, err error) error {
+	return fmt.Errorf("convert %s error: %w", op, err)
 }
 
 func add(x, y any) (any, error) {
@@ -77,7 +85,7 @@ func increment(x, y any) (any, error) {
 		return x.Add(decimal.NewFromInt(1)), nil
 	}
 
-	return nil, fmt.Errorf("invalid type for ++ operation: %T", x)
+	return nil, fmt.Errorf("invalid types for ++ operation: %T", x)
 }
 
 func subtract(x, y any) (any, error) {
@@ -102,7 +110,7 @@ func decrement(x, y any) (any, error) {
 		return x.Sub(decimal.NewFromInt(1)), nil
 	}
 
-	return nil, fmt.Errorf("invalid type for -- operation: %T", x)
+	return nil, fmt.Errorf("invalid types for -- operation: %T", x)
 }
 
 func multiply(x, y any) (any, error) {
@@ -159,7 +167,7 @@ func not(x, y any) (any, error) {
 		return !x, nil
 	}
 
-	return nil, fmt.Errorf("invalid type for ! operation: %T", x)
+	return nil, fmt.Errorf("invalid types for ! operation: %T", x)
 }
 
 func leftShift(x, y any) (any, error) {
@@ -173,7 +181,7 @@ func leftShift(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for << operation: %T and %T", x, y)
+	return nil, reportOpError("<<", x, y)
 }
 
 func leftShiftAssign(x, y any) (any, error) {
@@ -203,7 +211,7 @@ func rightShift(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for >> operation: %T and %T", x, y)
+	return nil, reportOpError(">>", x, y)
 }
 
 func rightShiftAssign(x, y any) (any, error) {
@@ -235,7 +243,7 @@ func bitwiseOrAssign(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for |= operation: %T and %T", x, y)
+	return nil, reportOpError("|=", x, y)
 }
 
 func bitwiseOr(x, y any) (any, error) {
@@ -246,7 +254,7 @@ func bitwiseOr(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for | operation: %T and %T", x, y)
+	return nil, reportOpError("|", x, y)
 }
 
 func logicalAnd(x, y any) (any, error) {
@@ -262,7 +270,7 @@ func bitwiseAndAssign(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for &= operation: %T and %T", x, y)
+	return nil, reportOpError("&=", x, y)
 }
 
 func bitwiseAnd(x, y any) (any, error) {
@@ -273,7 +281,7 @@ func bitwiseAnd(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for & operation: %T and %T", x, y)
+	return nil, reportOpError("&", x, y)
 }
 
 func bitwiseXor(x, y any) (any, error) {
@@ -284,7 +292,7 @@ func bitwiseXor(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for ^ operation: %T and %T", x, y)
+	return nil, reportOpError("^", x, y)
 }
 
 func bitwiseXorAssign(x, y any) (any, error) {
@@ -296,7 +304,7 @@ func bitwiseXorAssign(x, y any) (any, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid types for ^= operation: %T and %T", x, y)
+	return nil, reportOpError("^", x, y)
 }
 
 func stringstring(x, y string, op string) (any, error) {
@@ -316,7 +324,7 @@ func stringstring(x, y string, op string) (any, error) {
 	case "<=":
 		return x <= y, nil
 	}
-	return nil, fmt.Errorf("invalid types for %s operation: %T and %T", op, x, y)
+	return nil, reportOpError(op, x, y)
 }
 
 func intint(x, y int64, op string) (any, error) {
@@ -350,7 +358,7 @@ func intint(x, y int64, op string) (any, error) {
 	case "<=":
 		return x <= y, nil
 	}
-	return nil, fmt.Errorf("invalid types for %s operation: %T and %T", op, x, y)
+	return nil, reportOpError(op, x, y)
 }
 
 // binary arithmetic operator
@@ -361,11 +369,11 @@ func binaryArithmeticOperator(x, y any, op string) (any, error) {
 			return stringstring(x, y, op)
 		}
 		if y, ok := y.(int64); ok {
-			x, err := ValueToInt(x)
+			xv, err := ValueToInt(x)
 			if err != nil {
-				return nil, err
+				return nil, reportConvertError(op, err)
 			}
-			return intint(x, y, op)
+			return intint(xv, y, op)
 		}
 		if y, ok := y.(float64); ok {
 			return floatfloat(x, y, op)
@@ -378,7 +386,7 @@ func binaryArithmeticOperator(x, y any, op string) (any, error) {
 		case string, int64:
 			yv, err := ValueToInt(y)
 			if err != nil {
-				return nil, err
+				return nil, reportConvertError(op, err)
 			}
 			return intint(x, yv, op)
 		}
@@ -390,7 +398,7 @@ func binaryArithmeticOperator(x, y any, op string) (any, error) {
 	case decimal.Decimal:
 		return decimaldecimal(x, y, op)
 	}
-	return nil, fmt.Errorf("invalid types for %s operation: %T and %T", op, x, y)
+	return nil, reportOpError(op, x, y)
 }
 
 // comparison operator
@@ -421,11 +429,11 @@ func comparisonOperator(x, y any, op string) (any, error) {
 	case int64:
 		switch y.(type) {
 		case string, int64, decimal.Decimal:
-			y, err := ValueToInt(y)
+			yv, err := ValueToInt(y)
 			if err != nil {
-				return nil, err
+				return nil, reportConvertError(op, err)
 			}
-			return intint(x, y, op)
+			return intint(x, yv, op)
 		case float64:
 			return floatfloat(x, y, op)
 		}
@@ -434,18 +442,18 @@ func comparisonOperator(x, y any, op string) (any, error) {
 	case decimal.Decimal:
 		return decimaldecimal(x, y, op)
 	}
-	return nil, fmt.Errorf("invalid types for %s operation: %T and %T", op, x, y)
+	return nil, reportOpError(op, x, y)
 }
 
 func floatfloat(x, y any, op string) (any, error) {
 	xv, err := ValueToDecimal(x)
 	if err != nil {
-		return nil, err
+		return nil, reportConvertError(op, err)
 	}
 	var yv decimal.Decimal
 	yv, err = ValueToDecimal(y)
 	if err != nil {
-		return nil, err
+		return nil, reportConvertError(op, err)
 	}
 	switch op {
 	case "+":
@@ -477,13 +485,13 @@ func floatfloat(x, y any, op string) (any, error) {
 	case "<=":
 		return xv.LessThanOrEqual(yv), nil
 	}
-	return nil, fmt.Errorf("invalid types for %s operation: %T and %T", op, x, y)
+	return nil, reportOpError(op, x, y)
 }
 
 func decimaldecimal(x decimal.Decimal, y any, op string) (any, error) {
 	yv, err := ValueToDecimal(y)
 	if err != nil {
-		return nil, err
+		return nil, reportConvertError(op, err)
 	}
 	switch op {
 	case "+":
@@ -515,5 +523,5 @@ func decimaldecimal(x decimal.Decimal, y any, op string) (any, error) {
 	case "<=":
 		return x.LessThanOrEqual(yv), nil
 	}
-	return nil, fmt.Errorf("invalid types for %s operation: %T and %T", op, x, yv)
+	return nil, reportOpError(op, x, yv)
 }

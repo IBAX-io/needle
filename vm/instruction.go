@@ -587,7 +587,7 @@ func init() {
 				}
 				var n = item.Obj.GetExtendVariable().Name
 				var ret any
-				ret, err = evaluateCmd(rt.extend[n], y, code.Cmd)
+				ret, err = operationExpr(rt.extend[n], y, code.Cmd)
 				if err != nil {
 					return
 				}
@@ -598,7 +598,7 @@ func init() {
 				if item.Owner == rt.blocks[i].Block {
 					k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
 					var ret any
-					ret, err = evaluateCmd(rt.vars[k], y, code.Cmd)
+					ret, err = operationExpr(rt.vars[k], y, code.Cmd)
 					if err != nil {
 						return
 					}
@@ -623,7 +623,7 @@ func init() {
 			var z any
 			y := rt.stack.pop()
 			x := rt.stack.pop()
-			z, err = evaluateCmd(x, y, code.Cmd)
+			z, err = operationExpr(x, y, code.Cmd)
 			if err != nil {
 				return
 			}
