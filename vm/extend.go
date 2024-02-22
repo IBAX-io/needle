@@ -5,25 +5,27 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compiler"
+
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	ExtendParentContract   = `parent_contract`
-	ExtendOriginalContract = `original_contract`
-	ExtendThisContract     = `this_contract`
-	ExtendTimeLimit        = `time_limit`
-	ExtendGenBlock         = `gen_block`
-	ExtendTxCost           = `txcost`
-	ExtendStack            = `stack`
-	ExtendSc               = `sc`
-	ExtendRt               = `rt`
+	ExtendParentContract   = `parent_contract`   // parent contract name
+	ExtendOriginalContract = `original_contract` // original contract name
+	ExtendThisContract     = `this_contract`     // current contract name
+	ExtendTimeLimit        = `time_limit`        // time limit for contract execution
+	ExtendGenBlock         = `gen_block`         // true then we check the time limit
+	ExtendTxCost           = `txcost`            // maximum cost limit of the transaction
+	ExtendStack            = `stack`             // name of the contract stack
+	ExtendSc               = `sc`                // implements the Stacker interface of struct
+	ExtendRt               = `rt`                // runtime of the contract
 
-	ExtendResult = `result`
+	ExtendResult = `result` // result of the contract
 )
 
 const (
+	// TagOptional is the tag of the optional parameter in the contract.
 	TagOptional = "optional"
 )
 
@@ -54,7 +56,7 @@ func (rt *Runtime) setExtendBy(key string, value any) {
 }
 
 func (rt *Runtime) loadExtendBy(key string) *extendInfo {
-	var e = &extendInfo{}
+	e := &extendInfo{}
 	extend, ok := rt.extend[key]
 	if !ok {
 		return e
@@ -73,24 +75,24 @@ func (rt *Runtime) loadExtendBy(key string) *extendInfo {
 }
 
 // ExecContract runs the name contract where txs contains the list of parameters and
-// params are the values of parameters
+// params are the values of parameters.
 func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	if err := rt.SubCost(CostContract); err != nil {
 		return nil, err
 	}
 
 	obj, ok := rt.vm.Objects[name]
-	if !ok || obj.Type != compile.ObjContract {
+	if !ok || obj.Type != compiler.ObjContract {
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
 
-	//check if there is loop in contract
+	// check if there is loop in contract
 	if _, ok := rt.used[name]; ok {
 		return nil, fmt.Errorf(eContractLoop, name)
 	}
 	rt.used[name] = struct{}{}
 	defer delete(rt.used, name)
-	//save previous extend variables of current contract
+	// save previous extend variables of current contract
 	prevExtend := make(map[string]any)
 	for key, item := range rt.extend {
 		if rt.vm.AssertVar(key) {
@@ -116,10 +118,10 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	prevparent := rt.extend[ExtendParentContract]
 	parent := ``
 	for i := len(rt.blocks) - 1; i >= 0; i-- {
-		var b = rt.blocks[i].Block
-		if b.Type == compile.ObjFunc &&
+		b := rt.blocks[i].Block
+		if b.Type == compiler.ObjFunction &&
 			b.Parent != nil &&
-			b.Parent.Type == compile.ObjContract {
+			b.Parent.Type == compiler.ObjContract {
 			parent = b.Parent.GetContractInfo().Name
 			fid, fname := ParseName(parent)
 			cid, _ := ParseName(name)
@@ -134,16 +136,14 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 		}
 	}
 
-	var (
-		stack Stacker
-	)
+	var stack Stacker
 	if stack, ok = rt.extend[ExtendSc].(Stacker); ok {
 		if err := stack.AppendStack(name); err != nil {
 			return nil, err
 		}
 	}
 	for _, method := range []string{`conditions`, `action`} {
-		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compile.ObjFunc {
+		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compiler.ObjFunction {
 			rtemp := NewRuntime(rt.vm, rt.extend, rt.costRemain)
 			rt.extend[ExtendParentContract] = parent
 			rtemp.used = rt.used
@@ -176,21 +176,21 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 	return result, nil
 }
 
-// CallContract executes the name contract in the state with specified parameters
-func CallContract(rt *Runtime, state uint32, name string, params *compile.Map) (any, error) {
-	name = compile.StateName(state, name)
+// CallContract executes the name contract in the state with specified parameters.
+func CallContract(rt *Runtime, state uint32, name string, params *compiler.Map) (any, error) {
+	name = compiler.StateName(state, name)
 	_, ok := rt.vm.Objects[name]
 	if !ok {
 		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
 	if params == nil {
-		params = compile.NewMap()
+		params = compiler.NewMap()
 	}
 	return ExecContract(rt, name, strings.Join(params.Keys(), `,`), params.Values()...)
 }
 
-// GetSettings returns the value of the parameter of contract
+// GetSettings returns the value of the setting of the contract.
 func GetSettings(rt *Runtime, cntname, name string) (any, error) {
 	contract, found := rt.vm.Objects[cntname]
 	if !found || contract.GetCodeBlock() == nil {
@@ -206,11 +206,13 @@ func GetSettings(rt *Runtime, cntname, name string) (any, error) {
 	return ``, nil
 }
 
+// MemoryUsage returns the memory usage of the runtime.
 func MemoryUsage(rt *Runtime) int64 {
 	return rt.mem
 }
 
-func genExtVars(contract *compile.ContractInfo, txs string, params []any) (map[string]any, error) {
+// genExtVars generates the external variables of the contract.
+func genExtVars(contract *compiler.ContractInfo, txs string, params []any) (map[string]any, error) {
 	pars := strings.Split(txs, `,`)
 	param := make(map[string]struct{})
 	for _, par := range pars {

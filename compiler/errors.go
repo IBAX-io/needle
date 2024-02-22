@@ -1,7 +1,8 @@
-package compile
+package compiler
 
 import (
 	"errors"
+	"fmt"
 )
 
 const (
@@ -23,3 +24,15 @@ var (
 	errEndExp        = errors.New(`unexpected end of the expression`)
 	errOper          = errors.New(`unexpected operator; expecting operand`)
 )
+
+func (p *Parser) syntaxError(msg string) error {
+	return p.lex.errorPos(msg)
+}
+
+func (p *Parser) syntaxErrorWrap(err error) error {
+	return p.lex.errorWrap(err)
+}
+
+func (p *Parser) syntaxErrorExpected(msg string) error {
+	return p.lex.errorPos(fmt.Sprintf("unexpected %s, %s", p.lex.Value, msg))
+}

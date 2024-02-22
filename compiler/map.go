@@ -1,4 +1,4 @@
-package compile
+package compiler
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Link represents a node of doubly linked list
+// Link represents a node of doubly linked list.
 type Link struct {
 	key   string
 	value any
@@ -16,13 +16,14 @@ type Link struct {
 }
 
 // Map holds the elements in go's native map, also maintains the head and tail link
-// to keep the elements in insertion order
+// to keep the elements in insertion order.
 type Map struct {
 	m    map[string]*Link
 	head *Link
 	tail *Link
 }
 
+// newLink creates a new link node with the provided key and value.
 func newLink(key string, value any) *Link {
 	return &Link{key: key, value: value, next: nil, prev: nil}
 }
@@ -32,6 +33,7 @@ func NewMap() *Map {
 	return &Map{m: make(map[string]*Link), head: nil, tail: nil}
 }
 
+// ConvertMap converts the input to a linked hash map.
 func ConvertMap(in any) any {
 	switch v := in.(type) {
 	case map[string]any:
@@ -128,7 +130,7 @@ func (m *Map) Remove(key string) {
 	}
 }
 
-// IsEmpty returns true if map does not contain any elements
+// IsEmpty returns true if map does not contain any elements.
 func (m *Map) IsEmpty() bool {
 	return m == nil || m.Size() == 0
 }
@@ -167,7 +169,7 @@ func (m *Map) Clear() {
 	m.tail = nil
 }
 
-// String returns a string representation of container
+// String returns a string representation of container.
 func (m *Map) String() string {
 	str := "map["
 	for current := m.head; current != nil; current = current.next {
@@ -176,6 +178,7 @@ func (m *Map) String() string {
 	return strings.TrimRight(str, " ") + "]"
 }
 
+// MarshalJSON marshals the Map into JSON.
 func (m *Map) MarshalJSON() ([]byte, error) {
 	s := "{"
 	for current := m.head; current != nil; current = current.next {
@@ -196,6 +199,7 @@ func (m *Map) MarshalJSON() ([]byte, error) {
 	return []byte(s), nil
 }
 
+// NewFile creates a new file with default values.
 func NewFile() *Map {
 	return LoadMap(map[string]any{
 		"Name":     "",
@@ -204,6 +208,7 @@ func NewFile() *Map {
 	})
 }
 
+// NewFileFromMap creates a new file from a map.
 func NewFileFromMap(m map[string]any) (f *Map, ok bool) {
 	var v any
 	f = NewFile()
@@ -220,6 +225,5 @@ func NewFileFromMap(m map[string]any) (f *Map, ok bool) {
 		return
 	}
 	f.Set("Body", v)
-
 	return
 }

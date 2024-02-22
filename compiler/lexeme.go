@@ -1,4 +1,4 @@
-package compile
+package compiler
 
 import (
 	"fmt"
@@ -9,36 +9,35 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Lexeme is a lexical token of the program.
 type Lexeme struct {
-	Type Token
-	//string
-	//int64
-	//float64
-	//Token
-	//bool
-	//nil
+	Type   Token
 	Value  any
 	Line   int
 	Column int
 }
 
+// NewLexeme creates a new Lexeme with the given parameters.
 func NewLexeme(Type Token, value any, line int, column int) *Lexeme {
 	return &Lexeme{Type: Type, Value: value, Line: line, Column: column}
 }
 
-// GetLogger returns logger
+// GetLogger returns a logger with fields containing lexeme information.
 func (l *Lexeme) GetLogger() *log.Entry {
 	return log.WithFields(log.Fields{"lex_type": l.Type, "lex_line": l.Line, "lex_column": l.Column})
 }
 
-func (l *Lexeme) error(msg string) error {
+// errorPos  creates a new error with the given message and the position of the lexeme.
+func (l *Lexeme) errorPos(msg string) error {
 	return fmt.Errorf("%s [%s]", msg, l.Position())
 }
 
-func (l *Lexeme) errorWrap(err error)error {
-	return fmt.Errorf("%s [%s]", err, l.Position())
+// errorWrap wraps an existing error with the position of the lexeme.
+func (l *Lexeme) errorWrap(err error) error {
+	return fmt.Errorf("%w [%s]", err, l.Position())
 }
 
+// Position returns a string representation of the position of the lexeme.
 func (l *Lexeme) Position() string {
 	var s string
 	if l.Line != 0 {
@@ -53,20 +52,22 @@ func (l *Lexeme) Position() string {
 	return s
 }
 
+// Lexemes is a slice of pointers to Lexeme.
 type Lexemes []*Lexeme
 
-func (lexemes Lexemes) nameList(tok Token, level int) []string {
+// nameList returns a list of names of lexemes of a given token type at a given level.
+func (lexemes Lexemes) nameList(tok Token) []string {
 	names := make([]string, 0)
 	var lvl int
-	for i, lexeme := range lexemes {
-		switch lexeme.Type {
+	for i, l := range lexemes {
+		switch l.Type {
 		default:
 		case LBRACE:
 			lvl++
 		case RBRACE:
 			lvl--
 		case tok:
-			if lvl == level && i+1 < len(lexemes) && lexemes[i+1].Type == IDENTIFIER {
+			if lvl == 0 && i+1 < len(lexemes) && lexemes[i+1].Type == IDENTIFIER {
 				names = append(names, lexemes[i+1].Value.(string))
 			}
 		}
@@ -74,23 +75,25 @@ func (lexemes Lexemes) nameList(tok Token, level int) []string {
 	return names
 }
 
+// contextLexer is a lexer that maintains context while lexing.
 type contextLexer struct {
-	input                     []rune
-	position                  int
-	action                    *action
-	skip                      bool
-	startPos, endPos, offline int
-	line, column              int
-	lexemes                   Lexemes
-	ifBuf                     []struct {
-		count int
-		pair  int
-		stop  bool
+	input                        []rune
+	position                     int
+	action                       *action
+	skip                         bool
+	startPos, endPos, offsetLine int
+	line, column                 int
+	lexemes                      Lexemes
+	ifBuf                        []struct {
+		count, pair int
+		stop        bool
 	}
 }
 
+// newContextLexer creates a new contextLexer with the given input.
 func newContextLexer(input []rune) *contextLexer {
-	return &contextLexer{input: input,
+	return &contextLexer{
+		input:    input,
 		position: 0, line: 1, column: 0,
 		ifBuf: make([]struct {
 			count, pair int
@@ -101,6 +104,7 @@ func newContextLexer(input []rune) *contextLexer {
 	}
 }
 
+// getNextAction updates the action based on the current character and state.
 func (c *contextLexer) getNextAction() {
 	if c.position > len(c.input) {
 		c.action.state = stateError
@@ -117,6 +121,7 @@ func (c *contextLexer) getNextAction() {
 	c.action.flag = val & 0xff
 }
 
+// NewLexer creates a new Lexemes the given input.
 func NewLexer(input []rune) (Lexemes, error) {
 	c := newContextLexer(input)
 	for {
@@ -127,7 +132,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 		a := c.action
 		if a.state == stateError {
 			return nil, fmt.Errorf("unknown lexeme '%s' [%d:%d]",
-				string(c.input[c.startPos:c.position]), c.line, c.position-c.offline+1)
+				string(c.input[c.startPos:c.position]), c.line, c.position-c.offsetLine+1)
 		}
 		if hasSkip(a.flag) {
 			c.position++
@@ -147,9 +152,9 @@ func NewLexer(input []rune) (Lexemes, error) {
 			if err != nil {
 				return nil, err
 			}
-			if a.token != COMMENT {
-				c.lexemes = append(c.lexemes, lexeme)
-			}
+			// if a.token != COMMENT {
+			c.lexemes = append(c.lexemes, lexeme)
+			//}
 		}
 		if hasPush(c.action.flag) {
 			c.startPos = c.position
@@ -167,10 +172,11 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 	tk := c.action.token
 	switch tk {
 	default:
+		fmt.Println()
 	case NEWLINE:
 		if c.input[startPos] == rune(0x0a) {
 			c.line++
-			c.offline = c.position
+			c.offsetLine = c.position
 		}
 		value = string(c.input[startPos])
 	case DELIMITER:
@@ -201,7 +207,6 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		for _, ch := range val {
 			if ch == 0x0a {
 				c.line++
-				//offline = off + uint32(i) + 1
 			}
 		}
 		if c.input[startPos] == '"' && c.input[endPos-1] == '"' {
@@ -213,13 +218,13 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		var ok bool
 		value, ok = op2Token[val]
 		if !ok {
-			return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, c.line, c.position-c.offline+1)
+			return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, c.line, c.position-c.offsetLine+1)
 		}
 	case NUMBER:
 		name := string(c.input[startPos:endPos])
 		val, err := string2Number(name)
 		if err != nil {
-			return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, c.line, c.position-c.offline+1)
+			return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, c.line, c.position-c.offsetLine+1)
 		}
 		value = val
 	case IDENTIFIER:
@@ -231,27 +236,26 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 				return nil, err
 			}
 			break
-		} else if keyID, ok := KeywordValue[name]; ok {
-			switch keyID {
+		} else if keyId, ok := KeywordValue[name]; ok {
+			switch keyId {
 			case ELIF:
 				if len(c.ifBuf) == 0 {
-					return nil, fmt.Errorf(`expected statement, found '%s' [%d:%d]`, name, c.line, startPos-c.offline+1)
+					return nil, fmt.Errorf("expected statement, found '%s' [%d:%d]", name, c.line, startPos-c.offsetLine+1)
 				}
 				c.lexemes = append(c.lexemes,
-					NewLexeme(ELSE, ELSE.String(), c.line, c.position-c.offline+1),
-					NewLexeme(LBRACE, LBRACE.String(), c.line, c.position-c.offline+1))
+					NewLexeme(ELSE, ELSE.String(), c.line, c.position-c.offsetLine+1),
+					NewLexeme(LBRACE, LBRACE.String(), c.line, c.position-c.offsetLine+1))
 				tk, value = IF, IF.String()
 				c.ifBuf[len(c.ifBuf)-1].count++
 			case ACTION, CONDITIONS:
 				if len(c.lexemes) == 0 {
-					return nil, fmt.Errorf(`'%s' can't be the first statement [%d:%d]`, name, c.line, startPos-c.offline+1)
+					return nil, fmt.Errorf("'%s' can't be the first statement [%d:%d]", name, c.line, startPos-c.offsetLine+1)
 				}
 				lexf := c.lexemes[len(c.lexemes)-1]
 				if lexf.Type&0xff != KEYWORD || lexf.Value.(string) != FUNC.String() {
-					c.lexemes = append(c.lexemes, NewLexeme(FUNC, FUNC.String(), c.line, startPos-c.offline+1))
+					c.lexemes = append(c.lexemes, NewLexeme(FUNC, FUNC.String(), c.line, startPos-c.offsetLine+1))
 				}
 				value = name
-
 			case TRUE:
 				tk, value = NUMBER, true
 			case FALSE:
@@ -259,13 +263,13 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 			case NIL:
 				tk, value = NUMBER, nil
 			default:
-				if keyID == IF {
+				if keyId == IF {
 					c.ifBuf = append(c.ifBuf, struct {
 						count, pair int
 						stop        bool
 					}{})
 				}
-				tk, value = keyID, keyID.String()
+				tk, value = keyId, keyId.String()
 			}
 		} else if tInfo, ok := TypeNameValue[name]; ok {
 			tk, value = TYPENAME, tInfo
@@ -273,7 +277,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 			value = name
 		}
 	}
-	return NewLexeme(tk, value, c.line, startPos-c.offline+1), nil
+	return NewLexeme(tk, value, c.line, startPos-c.offsetLine+1), nil
 }
 
 func hasNext(flag int) bool {
@@ -315,7 +319,7 @@ func string2Number(s string) (interface{}, error) {
 			}
 		}
 	}
-	s = strings.ReplaceAll(s, `_`, ``)
+	s = strings.ReplaceAll(s, "_", "")
 	if isHex(s) {
 		if strings.HasPrefix(s, "0x") ||
 			strings.HasPrefix(s, "0X") {

@@ -42,7 +42,7 @@ var (
 	errIncorrectParameter = errors.New(`incorrect parameter of the condition function`)
 )
 
-// ExtFuncErr stores info about extend function
+// ExtFuncErr represents error of external function
 type ExtFuncErr struct {
 	Name  string
 	Value any

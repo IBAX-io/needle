@@ -1,19 +1,18 @@
 package vm
 
-import (
-	"github.com/IBAX-io/needle/compile"
-)
+import "github.com/IBAX-io/needle/compiler"
 
+// evalCode is a struct that represents a piece of code that can be evaluated.
+// It contains the source code as a string and a CodeBlock that represents the compiled code.
 type evalCode struct {
 	Source string
-	Code   *compile.CodeBlock
+	Code   *compiler.CodeBlock
 }
 
-var (
-	evals = make(map[uint64]*evalCode)
-)
+// evals is a map that associates a checksum of the source code with the corresponding evalCode.
+var evals = make(map[uint64]*evalCode)
 
-// CompileEval compiles conditional expression
+// CompileEval compiles the source code and stores it in the evals map.
 func (vm *VM) CompileEval(input string, state uint32) error {
 	source := `func eval bool { return ` + input + `}`
 	if input == `1` || input == `0` {
@@ -27,7 +26,7 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 		}`
 	}
 
-	block, err := compile.CompileBlock([]rune(source), vm.MergeCompConfig(&compile.CompConfig{Owner: &compile.OwnerInfo{StateID: state}}))
+	block, err := compiler.CompileBlock([]rune(source), vm.MergeCompConfig(&compiler.CompConfig{Owner: &compiler.OwnerInfo{StateId: state}}))
 	if err != nil {
 		return err
 	}

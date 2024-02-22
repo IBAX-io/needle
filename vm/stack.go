@@ -1,28 +1,35 @@
 package vm
 
 import (
-	"github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compiler"
+
 	"github.com/pkg/errors"
 )
 
+// ErrStackUnderFlow is an error that is returned when the stack is underflow.
 var ErrStackUnderFlow = errors.New("stack under flow")
 
+// Stack is a stack that contains elements of any type.
 type Stack struct {
 	element []any
 }
 
+// newStack creates a new stack with an initial capacity of 1024.
 func newStack() *Stack {
 	return &Stack{element: make([]any, 0, 1024)}
 }
 
+// Stack returns the stack as a slice.
 func (s *Stack) Stack() []any {
 	return s.element
 }
 
+// size returns the current size of the stack.
 func (s *Stack) size() int {
 	return len(s.element)
 }
 
+// CheckDepth checks if the stack has at least min elements.
 func (s *Stack) CheckDepth(min int) error {
 	if s.size() < min {
 		return ErrStackUnderFlow
@@ -30,23 +37,28 @@ func (s *Stack) CheckDepth(min int) error {
 	return nil
 }
 
+// set sets the element at the given index in the stack.
 func (s *Stack) set(ind int, d any) {
 	s.element[ind] = d
 }
 
+// reset clears all elements from the stack.
 func (s *Stack) reset() {
 	s.element = s.element[:0]
 }
 
+// push adds an element to the top of the stack.
 func (s *Stack) push(d any) {
 	s.element = append(s.element, d)
 }
 
+// pushN adds multiple elements to the top of the stack.
 func (s *Stack) pushN(d []any) {
 	s.element = append(s.element, d...)
 	return
 }
 
+// get returns the element at the given index from the stack.
 func (s *Stack) get(idx int) any {
 	if idx >= 0 && s.size() > 0 && s.size() > idx {
 		return s.element[idx]
@@ -54,6 +66,7 @@ func (s *Stack) get(idx int) any {
 	return nil
 }
 
+// getAndDel returns and removes the element at the given index from the stack.
 func (s *Stack) getAndDel(idx int) any {
 	if idx >= 0 && s.size() > 0 && s.size() > idx {
 		ret := s.element[idx]
@@ -63,6 +76,7 @@ func (s *Stack) getAndDel(idx int) any {
 	return nil
 }
 
+// peek returns the top element from the stack.
 func (s *Stack) peek() any {
 	if s.size() == 0 {
 		return nil
@@ -70,6 +84,7 @@ func (s *Stack) peek() any {
 	return s.element[s.size()-1]
 }
 
+// peekN returns the top n elements from the stack.
 func (s *Stack) peekN(n int) []any {
 	sLen := len(s.element)
 	var el []any = nil
@@ -78,14 +93,10 @@ func (s *Stack) peekN(n int) []any {
 	}
 	ret := make([]any, n)
 	copy(ret, el)
-	//reverse to make sure the order
-	//for i, j := 0, len(ret)-1; i < j; i, j = i+1, j-1 {
-	//	ret[i], ret[j] = ret[j], ret[i]
-	//}
 	return ret
 }
 
-// peekFromTo return elements from index from to index to
+// peekFromTo returns elements from index from to index to.
 func (s *Stack) peekFromTo(from, to int) []any {
 	var el []any = nil
 	if from >= 0 && to >= 0 && from <= to && s.size() >= to {
@@ -94,6 +105,7 @@ func (s *Stack) peekFromTo(from, to int) []any {
 	return el
 }
 
+// pop returns and removes the top element from the stack.
 func (s *Stack) pop() (ret any) {
 	ret = s.peek()
 	if s.size() == 0 {
@@ -104,6 +116,7 @@ func (s *Stack) pop() (ret any) {
 	return
 }
 
+// popN returns and removes the top n elements from the stack.
 func (s *Stack) popN(n int) []any {
 	sLen := len(s.element)
 	if sLen < n {
@@ -113,21 +126,20 @@ func (s *Stack) popN(n int) []any {
 	s.element = s.element[:sLen-n]
 	ret := make([]any, n)
 	copy(ret, elem)
-	//reverse to make sure the order
-	//for i, j := 0, len(ret)-1; i < j; i, j = i+1, j-1 {
-	//	ret[i], ret[j] = ret[j], ret[i]
-	//}
 	return ret
 }
 
+// swap swaps the nth element from the top with the top element of the stack.
 func (s *Stack) swap(n int) {
 	s.element[s.size()-n], s.element[s.size()-1] = s.peek(), s.element[s.size()-n]
 }
 
+// dup duplicates the nth element from the top of the stack.
 func (s *Stack) dup(n int) {
 	s.push(&s.element[s.size()-n])
 }
 
+// resetByIdx removes all elements from the given index to the top of the stack.
 func (s *Stack) resetByIdx(idx int) {
 	if idx < 0 || idx > s.size() {
 		idx = 0
@@ -135,11 +147,13 @@ func (s *Stack) resetByIdx(idx int) {
 	s.element = s.element[:idx]
 }
 
+// blockStack is a stack of code blocks with their corresponding offsets.
 type blockStack struct {
-	Block  *compile.CodeBlock
+	Block  *compiler.CodeBlock
 	Offset int
 }
 
+// peekBlock returns the top block from the stack of blocks.
 func (rt *Runtime) peekBlock() *blockStack {
 	if len(rt.blocks) == 0 {
 		return nil
@@ -147,12 +161,14 @@ func (rt *Runtime) peekBlock() *blockStack {
 	return rt.blocks[len(rt.blocks)-1]
 }
 
+// popBlock returns and removes the top block from the stack of blocks.
 func (rt *Runtime) popBlock() (ret *blockStack) {
 	ret = rt.blocks[len(rt.blocks)-1]
 	rt.blocks = rt.blocks[:len(rt.blocks)-1]
 	return
 }
 
+// pushBlock adds a block to the top of the stack of blocks.
 func (rt *Runtime) pushBlock(bs *blockStack) {
 	rt.blocks = append(rt.blocks, bs)
 }

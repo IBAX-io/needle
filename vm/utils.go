@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"unsafe"
 
-	"github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compiler"
 
 	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
@@ -59,8 +59,10 @@ func ValueToInt(v any) (ret int64, err error) {
 		err = fmt.Errorf(`%v is not a valid integer`, val)
 	}
 	if err != nil {
-		log.WithFields(log.Fields{"type": ConversionError, "error": err,
-			"value": fmt.Sprint(v)}).Error("converting value to int")
+		log.WithFields(log.Fields{
+			"type": ConversionError, "error": err,
+			"value": fmt.Sprint(v),
+		}).Error("converting value to int")
 	}
 	return
 }
@@ -121,7 +123,7 @@ func valueToBool(v any) bool {
 		return val != nil && len(val) > 0
 	case map[string]string:
 		return val != nil && len(val) > 0
-	case *compile.Map:
+	case *compiler.Map:
 		return val != nil && val.Size() > 0
 	default:
 		dec, _ := decimal.NewFromString(fmt.Sprintf(`%v`, val))
@@ -132,7 +134,7 @@ func valueToBool(v any) bool {
 
 func isSelfAssignment(dest, value any) bool {
 	if _, ok := value.([]any); !ok {
-		if _, ok = value.(*compile.Map); !ok {
+		if _, ok = value.(*compiler.Map); !ok {
 			return false
 		}
 	}
@@ -142,12 +144,11 @@ func isSelfAssignment(dest, value any) bool {
 	switch v := value.(type) {
 	case []any:
 		for _, item := range v {
-
 			if isSelfAssignment(dest, item) {
 				return true
 			}
 		}
-	case *compile.Map:
+	case *compiler.Map:
 		for _, item := range v.Values() {
 			if isSelfAssignment(dest, item) {
 				return true

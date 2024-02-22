@@ -1,35 +1,64 @@
-package compile
+package compiler
 
 import (
 	"sort"
 )
 
 const (
-	// alphaSize is the length of alphabet
-	alphaSize = 129
-	// alphaRuleSize is the length of alphabet rule
-	alphaRuleSize = 39
+	stateError = 0xff
+	stateMain  = iota
+	stateString
+	stateDoubleString
+	stateDoubleSlash
+	stateDot
+	stateDoubleDot
+	stateAnd
+	stateOr
+	stateEq
+	stateSolidus
+	stateOpNeq
+	stateNumber
+	stateIdentifier
+	stateMustIdent
+	stateComment
+	stateCommentStop
+	stateCommentLine
+	statePercent
+	stateLess
+	stateGreat
+	stateShiftEq
+	stateDouble
+	stateAdd
+	stateSub
+	stateMul
+	stateBitXor
+	stateUnderscore
+	stateExponentPart
+)
+
+// flags of lexical states
+const (
+	flagEnd  = 0
+	flagNext = 1
+	flagPush = 2
+	flagPop  = 4
+	flagSkip = 8
 )
 
 type action struct {
 	state int
 	token Token
-	flag  int
+	// flag is a set of flags that determine the behavior of the state machine
+	flag int
 }
 
 var (
-	lexTable   [][alphaRuleSize]int
-	alphaTable [alphaSize]byte
-	alphaRule  = [alphaRuleSize]byte{
-		0x01, 0x0A, 0x20, '`', '"',
-		';', '(', ')', '[', ']',
-		'{', '}', '&', '|', '#', '.', ',', '<', '>', '=',
-		'!', '*', '$', '@', ':', '+', '-', '/', '\\',
-		'0', '1', 'a', '_',
-		'~', '^', '%', '?', 0x27,
-		0x80,
-	}
-	stateRule = map[int]map[string]action{
+	// lexTable is a table of transitions between states of the state machine
+	lexTable [][alphaRuleSize]int
+
+	// stateMachine is description of the state machine that passes from one state to another
+	// depending on the next received character.
+	stateMachine = map[int]map[string]action{
 		stateMain: {
 			"n;":       {stateMain, NEWLINE, flagNext},
 			"()[],{}:": {stateMain, DELIMITER, flagNext},
@@ -176,106 +205,29 @@ var (
 	}
 )
 
-const (
-	stateError = 0xff
-	stateMain  = iota
-	stateString
-	stateDoubleString
-	stateDoubleSlash
-	stateDot
-	stateDoubleDot
-	stateAnd
-	stateOr
-	stateEq
-	stateSolidus
-	stateOpNeq
-	stateNumber
-	stateIdentifier
-	stateMustIdent
-	stateComment
-	stateCommentStop
-	stateCommentLine
-	statePercent
-	stateLess
-	stateGreat
-	stateShiftEq
-	stateDouble
-	stateAdd
-	stateSub
-	stateMul
-	stateBitXor
-	stateUnderscore
-	stateExponentPart
-)
-
-// flags of lexical states
-const (
-	flagEnd  = 0
-	flagNext = 1
-	flagPush = 2
-	flagPop  = 4
-	flagSkip = 8
-)
-
 func init() {
-	buildAlphaTable()
 	buildLexTable()
-}
-
-func buildAlphaTable() {
-	for ind, ch := range alphaRule {
-		r := byte(ind)
-		switch ch {
-		case ' ':
-			alphaTable[0x09] = r //Horizontal Tab, HT
-			alphaTable[0x0d] = r //Carriage Return, CR
-			alphaTable[0x20] = r //Space
-		case '1':
-			for k := '1'; k <= '9'; k++ {
-				alphaTable[k] = r
-			}
-		case 'a':
-			for k := 'a'; k <= 'z'; k++ {
-				alphaTable[k] = r
-				alphaTable[k-32] = r
-			}
-		case 0x80:
-			alphaTable[0x80] = r
-		default:
-			alphaTable[ch] = r
-		}
-	}
-	//for i, b := range alphaTable {
-	//	fmt.Printf("%d %c [%d]\n", i, i, b)
-	//}
-}
-
-func charToAlpha(ch rune) byte {
-	if ch > 127 {
-		return alphaTable[len(alphaTable)-1]
-	}
-	return alphaTable[ch]
 }
 
 func buildLexTable() {
 	var arr []int
-	for i := range stateRule {
+	for i := range stateMachine {
 		arr = append(arr, i)
 	}
 	sort.Ints(arr)
-	lexTable = make([][alphaRuleSize]int, len(stateRule))
+	lexTable = make([][alphaRuleSize]int, len(stateMachine))
 	for curState, r := range arr {
-		action := stateRule[r]
+		action := stateMachine[r]
 		for i := range lexTable[curState] {
 			lexTable[curState][i] = 0xFE << 16
 		}
-		for key, v := range action {
-			var val = v.state << 16
-			if v.state != stateError {
-				val = (arr[v.state-1] - 1) << 16
+		for key, ac := range action {
+			val := ac.state << 16
+			if ac.state != stateError {
+				val = (arr[ac.state-1] - 1) << 16
 			}
-			val |= int(v.token << 8)
-			val |= v.flag
+			val |= int(ac.token << 8)
+			val |= ac.flag
 			for _, ch := range []byte(key) {
 				var ind int
 				switch ch {

@@ -1,8 +1,8 @@
 package vm
 
 const (
-	// ShiftContractID is the offset of identifiers
-	ShiftContractID = 5000
+	// ShiftContractId is the offset of identifiers
+	ShiftContractId = 5000
 
 	// MaxArrayIndex is the maximum index of an array
 	MaxArrayIndex = 1000000

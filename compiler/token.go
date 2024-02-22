@@ -1,4 +1,4 @@
-package compile
+package compiler
 
 import (
 	"reflect"
@@ -21,13 +21,12 @@ const (
 	NEWLINE          // Line translation
 	LITERAL          // string or char
 	COMMENT          // Comment
-
-	KEYWORD  // keyword of IDENTIFIER
-	TYPENAME // name of the type of IDENTIFIER
-	EXTEND   // Referring to an external variable of IDENTIFIER
+	KEYWORD          // keyword of IDENTIFIER
+	TYPENAME         // name of the type of IDENTIFIER
+	EXTEND           // Referring to an external variable of IDENTIFIER
 )
 
-// Delimiters for Delimiter.
+// The list of delimiters for DELIMITER.
 const (
 	LPAREN = DELIMITER | (iota+1)<<8
 	RPAREN
@@ -41,6 +40,7 @@ const (
 	RBRACE
 )
 
+// delimiter2Token is a map of delimiters to tokens
 var delimiter2Token = map[string]Token{
 	"(": LPAREN,
 	")": RPAREN,
@@ -54,7 +54,7 @@ var delimiter2Token = map[string]Token{
 	"}": RBRACE,
 }
 
-// Operations for Operator.
+// The list of operators for OPERATOR.
 const (
 	Not = OPERATOR | (iota+1)<<8
 	Mul
@@ -90,6 +90,7 @@ const (
 	Dec
 )
 
+// op2Token is a map of operators to tokens
 var op2Token = map[string]Token{
 	"!":   Not,
 	"*":   Mul,
@@ -152,50 +153,27 @@ const (
 
 // KeywordValue is a map of keywords to tokens
 var KeywordValue = map[string]Token{
-	`contract`:   CONTRACT,
-	`func`:       FUNC,
-	`return`:     RETURN,
-	`if`:         IF,
-	`elif`:       ELIF,
-	`else`:       ELSE,
-	`while`:      WHILE,
-	`true`:       TRUE,
-	`false`:      FALSE,
-	`var`:        VAR,
-	`data`:       TX,
-	`settings`:   SETTINGS,
-	`break`:      BREAK,
-	`continue`:   CONTINUE,
-	`warning`:    ERRWARNING,
-	`info`:       ERRINFO,
-	`nil`:        NIL,
-	`action`:     ACTION,
-	`conditions`: CONDITIONS,
-	`...`:        TAIL,
-	`error`:      ERROR,
-}
-var KeywordStr = map[Token]string{
-	CONTRACT:   `contract`,
-	FUNC:       `func`,
-	RETURN:     `return`,
-	IF:         `if`,
-	ELIF:       `elif`,
-	ELSE:       `else`,
-	WHILE:      `while`,
-	TRUE:       `true`,
-	FALSE:      `false`,
-	VAR:        `var`,
-	TX:         `data`,
-	SETTINGS:   `settings`,
-	BREAK:      `break`,
-	CONTINUE:   `continue`,
-	ERRWARNING: `warning`,
-	ERRINFO:    `info`,
-	NIL:        `nil`,
-	ACTION:     `action`,
-	CONDITIONS: `conditions`,
-	TAIL:       `...`,
-	ERROR:      `error`,
+	"contract":   CONTRACT,
+	"func":       FUNC,
+	"return":     RETURN,
+	"if":         IF,
+	"elif":       ELIF,
+	"else":       ELSE,
+	"while":      WHILE,
+	"true":       TRUE,
+	"false":      FALSE,
+	"var":        VAR,
+	"data":       TX,
+	"settings":   SETTINGS,
+	"break":      BREAK,
+	"continue":   CONTINUE,
+	"warning":    ERRWARNING,
+	"info":       ERRINFO,
+	"nil":        NIL,
+	"action":     ACTION,
+	"conditions": CONDITIONS,
+	"...":        TAIL,
+	"error":      ERROR,
 }
 
 // data types for parameters and variables for Type.
@@ -214,16 +192,16 @@ const (
 
 // TypeNameValue is a map of types to tokens
 var TypeNameValue = map[string]Token{
-	`bool`:    BOOL,
-	`bytes`:   BYTES,
-	`int`:     INT,
-	`address`: ADDRESS,
-	`array`:   ARRAY,
-	`map`:     MAP,
-	`money`:   MONEY,
-	`float`:   FLOAT,
-	`string`:  STRING,
-	`file`:    FILE,
+	"bool":    BOOL,
+	"bytes":   BYTES,
+	"int":     INT,
+	"address": ADDRESS,
+	"array":   ARRAY,
+	"map":     MAP,
+	"money":   MONEY,
+	"float":   FLOAT,
+	"string":  STRING,
+	"file":    FILE,
 }
 
 // TypeNameReflect is a map of types to reflect.Type
@@ -236,7 +214,7 @@ var TypeNameReflect = map[Token]reflect.Type{
 	MAP:     reflect.TypeOf(&Map{}),
 	MONEY:   reflect.TypeOf(decimal.Zero),
 	FLOAT:   reflect.TypeOf(0.0),
-	STRING:  reflect.TypeOf(``),
+	STRING:  reflect.TypeOf(""),
 	FILE:    reflect.TypeOf(&Map{}),
 }
 
@@ -250,24 +228,35 @@ func GetFieldDefaultValue(fieldType Token) any {
 	return defaultValue
 }
 
+// d
 var tokenToString = map[Token]string{
-	UNKNOWN:    `UNKNOWN`,
-	DELIMITER:  `DELIMITER`,
-	OPERATOR:   `OPERATOR`,
-	NUMBER:     `NUMBER`,
-	IDENTIFIER: `IDENTIFIER`,
-	NEWLINE:    `NEWLINE`,
-	LITERAL:    `LITERAL`,
-	COMMENT:    `COMMENT`,
-	KEYWORD:    `KEYWORD`,
-	TYPENAME:   `TYPENAME`,
-	EXTEND:     `EXTEND`,
+	UNKNOWN:    "UNKNOWN",
+	DELIMITER:  "DELIMITER",
+	OPERATOR:   "OPERATOR",
+	NUMBER:     "NUMBER",
+	IDENTIFIER: "IDENTIFIER",
+	NEWLINE:    "NEWLINE",
+	LITERAL:    "LITERAL",
+	COMMENT:    "COMMENT",
+	KEYWORD:    "KEYWORD",
+	TYPENAME:   "TYPENAME",
+	EXTEND:     "EXTEND",
 }
 
 // Lookup maps an identifier to its keyword token
 func Lookup(ident string) (Token, bool) {
 	tok, ok := KeywordValue[ident]
 	return tok, ok
+}
+
+// contains checks if a token is in a list of tokens
+func (tok Token) contains(list []Token) bool {
+	for _, t := range list {
+		if t == tok {
+			return true
+		}
+	}
+	return false
 }
 
 func (tok Token) String() string {

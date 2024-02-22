@@ -1,4 +1,4 @@
-package compile
+package compiler
 
 import (
 	"reflect"
@@ -8,7 +8,8 @@ type IgnoreLevel int
 
 const (
 	IgnoreNone IgnoreLevel = iota
-	//IgnoreIdent ignore not found identifiers object
+	// IgnoreIdent ignore not found identifiers object.
+	// If it is not found, it will be treated as a contract object.
 	IgnoreIdent
 )
 
@@ -21,6 +22,7 @@ type CompConfig struct {
 	IgnoreObj IgnoreLevel
 }
 
+// ExtendFunc is used for the definition of the extended functions
 type ExtendFunc struct {
 	Name string
 	// Func is the function to be called, it must be a function type
@@ -29,11 +31,12 @@ type ExtendFunc struct {
 	AutoPars map[string]string
 }
 
+// setDefault is a function that sets default values for the CompConfig struct.
 func setDefault(conf *CompConfig) {
 	if conf == nil {
 		conf = &CompConfig{
 			Objects: make(map[string]*Object),
-			Owner:   &OwnerInfo{StateID: 1},
+			Owner:   &OwnerInfo{StateId: 1},
 			PreVar:  make([]string, 0),
 			Func:    make([]ExtendFunc, 0),
 		}
@@ -42,7 +45,7 @@ func setDefault(conf *CompConfig) {
 		conf.Objects = make(map[string]*Object)
 	}
 	if conf.Owner == nil {
-		conf.Owner = &OwnerInfo{StateID: 1}
+		conf.Owner = &OwnerInfo{StateId: 1}
 	}
 	if conf.PreVar == nil {
 		conf.PreVar = make([]string, 0)
@@ -52,11 +55,13 @@ func setDefault(conf *CompConfig) {
 	}
 }
 
+// MakeConfig sets default values and returns the CompConfig.
 func (cfg *CompConfig) MakeConfig() *CompConfig {
 	setDefault(cfg)
 	return cfg
 }
 
+// MakeExtFunc returns a map of the object of the extended functions
 func (cfg *CompConfig) MakeExtFunc() map[string]*Object {
 	objects := make(map[string]*Object)
 	for _, item := range cfg.Func {
@@ -68,13 +73,15 @@ func (cfg *CompConfig) MakeExtFunc() map[string]*Object {
 	return objects
 }
 
+// MakeObject returns an Object if the ExtendFuncInfo is not nil.
 func (item *ExtendFunc) MakeObject() *Object {
 	if v := item.ExtFuncInfo(); v != nil {
-		return NewObject(ObjExtFunc, v)
+		return NewObject(v)
 	}
 	return nil
 }
 
+// ExtFuncInfo returns an ExtFuncInfo if the Func is a function type.
 func (item *ExtendFunc) ExtFuncInfo() *ExtFuncInfo {
 	f := reflect.ValueOf(item.Func).Type()
 	switch f.Kind() {

@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compiler"
+
 	"github.com/pkg/errors"
 )
 
@@ -52,6 +53,7 @@ func (rt *Runtime) SetCost(cost int64) {
 	rt.costRemain = cost
 }
 
+// SubCost subtracts the cost of the execution.
 func (rt *Runtime) SubCost(cost int64) error {
 	if cost > 0 {
 		rt.costRemain -= cost
@@ -67,15 +69,16 @@ func (rt *Runtime) CostRemain() int64 {
 	return rt.costRemain
 }
 
+// CostUsed return the used cost of the execution.
 func (rt *Runtime) CostUsed() int64 {
 	return rt.costLimit - rt.costRemain
 }
 
-// Run executes CodeBlock with the extended variables and functions
-func (rt *Runtime) Run(block *compile.CodeBlock) (ret []any, err error) {
+// Run executes a block of code and returns the result and any error that occurred.
+func (rt *Runtime) Run(block *compiler.CodeBlock) (ret []any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			//rt.vm.logger.WithFields(log.Fields{"type": PanicRecoveredError, "error_info": r, "stack": string(debug.Stack())}).Error("runtime panic error")
+			// rt.vm.logger.WithFields(log.Fields{"type": PanicRecoveredError, "error_info": r, "stack": string(debug.Stack())}).Error("runtime panic error")
 			err = fmt.Errorf("runtime panic: %v", r)
 		}
 	}()
@@ -117,9 +120,9 @@ func (rt *Runtime) Run(block *compile.CodeBlock) (ret []any, err error) {
 	return
 }
 
-// RunCode executes CodeBlock
-func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
-	var cmd *compile.ByteCode
+// RunCode executes a block of code and returns the status and any error that occurred.
+func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
+	var cmd *compiler.ByteCode
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Errorf(`runcode panic: %v`, r)
@@ -128,10 +131,10 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		if err != nil {
 			if !errors.As(err, &VMError{}) {
 				var name, line string
-				if block.Parent != nil && block.Parent.Type == compile.ObjFunc {
+				if block.Parent != nil && block.Parent.Type == compiler.ObjFunction {
 					name = block.Parent.GetFuncInfo().Name
 				}
-				if block.Type == compile.ObjFunc {
+				if block.Type == compiler.ObjFunction {
 					name = block.GetFuncInfo().Name
 				}
 				if block.IsParentContract() {
@@ -174,7 +177,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}()
 	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
 	var names map[string][]any
-	if block.Type == compile.ObjFunc && block.GetFuncInfo().HasTails() {
+	if block.Type == compiler.ObjFunction && block.GetFuncInfo().HasTails() {
 		ret := rt.stack.pop()
 		if ret != nil {
 			names, _ = ret.(map[string][]any)
@@ -190,7 +193,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	if err != nil {
 		return
 	}
-	if block.Type == compile.ObjFunc {
+	if block.Type == compiler.ObjFunction {
 		start -= len(block.GetFuncInfo().Params)
 	}
 	if start < 0 {
@@ -221,7 +224,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 		if err != nil {
 			break
 		}
-		if block.Type != compile.ObjDefault && (status == statusContinue || status == statusBreak) {
+		if block.Type != compiler.ObjDefault && (status == statusContinue || status == statusBreak) {
 			err = fmt.Errorf(`%s is outside of loop block`, cmd.Cmd)
 			break
 		}
@@ -234,7 +237,7 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	}
 	last := rt.popBlock()
 	if status == statusReturn {
-		if last.Block.Type != compile.ObjFunc {
+		if last.Block.Type != compiler.ObjFunction {
 			return
 		}
 		funcInfo := last.Block.GetFuncInfo()
@@ -260,10 +263,8 @@ func (rt *Runtime) RunCode(block *compile.CodeBlock) (status int, err error) {
 	return
 }
 
-func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
-	var (
-		count, in int
-	)
+func (rt *Runtime) callFunc(obj *compiler.Object) (err error) {
+	var count, in int
 	variadic := obj.GetVariadic()
 	in = obj.GetParamsLen()
 	if rt.unwrap && variadic && rt.stack.size() > 1 &&
@@ -299,12 +300,13 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	if info.Variadic {
 		shift = size - count
 		count += auto
+		limit = count - in + 1
 	}
 	if shift < 0 {
 		return fmt.Errorf("not enough arguments in call to %s", info.Name)
 	}
-	limit = count - in + 1
-	for i := count; i > limit; i-- {
+	i := count
+	for ; i > limit; i-- {
 		index := count - i
 		if len(info.Auto[index]) > 0 {
 			value, ok := rt.extend[info.Auto[index]]
@@ -320,19 +322,26 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 			pars[index] = reflect.Zero(info.Params[index])
 		}
 	}
-	if size-limit >= 0 {
-		pars[in-1] = reflect.ValueOf(rt.stack.peekFromTo(size-limit, size))
-	} else {
-		if !pars[in-1].IsValid() {
-			pars[in-1] = reflect.Zero(info.Params[in-1])
+	if i > 0 {
+		if size-i >= 0 {
+			pars[in-1] = reflect.ValueOf(rt.stack.peekFromTo(size-i, size))
+		} else {
+			if !pars[in-1].IsValid() {
+				pars[in-1] = reflect.Zero(info.Params[in-1])
+			}
 		}
 	}
 	if variadic {
+		if i == 0 {
+			pars = []reflect.Value{reflect.Zero(info.Params[in-1])}
+		}
 		result = foo.CallSlice(pars)
 	} else {
 		result = foo.Call(pars)
 	}
-
+	if shift < 0 {
+		shift = 0
+	}
 	rt.stack.resetByIdx(shift)
 	if stack != nil {
 		stack.PopStack(info.Name)
@@ -362,11 +371,11 @@ func (rt *Runtime) callFunc(obj *compile.Object) (err error) {
 	return
 }
 
-func (rt *Runtime) callObjFunc(obj *compile.Object) error {
+func (rt *Runtime) callObjFunc(obj *compiler.Object) error {
 	var (
 		count    int
 		imap     map[string][]any
-		finfo    = obj.GetFuncInfo()
+		finfo    = obj.GetFunctionInfo()
 		in       = len(finfo.Params)
 		variadic = finfo.Variadic
 	)
@@ -477,7 +486,7 @@ func (rt *Runtime) extendFunc(name string) error {
 		}
 	}
 	if foo.Type().IsVariadic() {
-		var arr = make([]any, 0)
+		arr := make([]any, 0)
 		for _, v := range stack[last:] {
 			arr = append(arr, v)
 		}
@@ -548,18 +557,18 @@ func (rt *Runtime) recalculateMemVar(k int) {
 	rt.memVars[k] = mem
 }
 
-func (rt *Runtime) getResultValue(item *compile.MapItem) (value any, err error) {
+func (rt *Runtime) getResultValue(item *compiler.MapItem) (value any, err error) {
 	switch item.Type {
-	case compile.MapConst:
+	case compiler.MapConst:
 		value = item.Value
-	case compile.MapExtend:
+	case compiler.MapExtend:
 		var ok bool
 		value, ok = rt.extend[item.Value.(string)]
 		if !ok {
 			err = fmt.Errorf(`unknown extend identifier '$%s'`, item.Value)
 		}
-	case compile.MapVar:
-		ivar := item.Value.(*compile.VarInfo)
+	case compiler.MapVar:
+		ivar := item.Value.(*compiler.VarInfo)
 		var i int
 		for i = len(rt.blocks) - 1; i >= 0; i-- {
 			if ivar.Owner == rt.blocks[i].Block {
@@ -570,15 +579,15 @@ func (rt *Runtime) getResultValue(item *compile.MapItem) (value any, err error) 
 		if i < 0 {
 			err = fmt.Errorf(eWrongVar, ivar.Obj.Value)
 		}
-	case compile.MapMap:
-		value, err = rt.getResultMap(item.Value.(*compile.Map))
-	case compile.MapArray:
-		value, err = rt.getResultArray(item.Value.([]*compile.MapItem))
+	case compiler.MapMap:
+		value, err = rt.getResultMap(item.Value.(*compiler.Map))
+	case compiler.MapArray:
+		value, err = rt.getResultArray(item.Value.([]*compiler.MapItem))
 	}
 	return
 }
 
-func (rt *Runtime) getResultArray(cmd []*compile.MapItem) ([]any, error) {
+func (rt *Runtime) getResultArray(cmd []*compiler.MapItem) ([]any, error) {
 	initArr := make([]any, 0)
 	for _, val := range cmd {
 		value, err := rt.getResultValue(val)
@@ -590,11 +599,11 @@ func (rt *Runtime) getResultArray(cmd []*compile.MapItem) ([]any, error) {
 	return initArr, nil
 }
 
-func (rt *Runtime) getResultMap(cmd *compile.Map) (*compile.Map, error) {
-	initMap := compile.NewMap()
+func (rt *Runtime) getResultMap(cmd *compiler.Map) (*compiler.Map, error) {
+	initMap := compiler.NewMap()
 	for _, key := range cmd.Keys() {
 		val, _ := cmd.Get(key)
-		value, err := rt.getResultValue(val.(*compile.MapItem))
+		value, err := rt.getResultValue(val.(*compiler.MapItem))
 		if err != nil {
 			return nil, err
 		}
@@ -603,15 +612,15 @@ func (rt *Runtime) getResultMap(cmd *compile.Map) (*compile.Map, error) {
 	return initMap, nil
 }
 
-func (rt *Runtime) addVarBy(block *compile.CodeBlock) {
+func (rt *Runtime) addVarBy(block *compiler.CodeBlock) {
 	for key, par := range block.Vars {
 		var value any
-		if block.Type == compile.ObjFunc && key < len(block.GetFuncInfo().Params) {
+		if block.Type == compiler.ObjFunction && key < len(block.GetFuncInfo().Params) {
 			value = rt.stack.getAndDel(rt.stack.size() - len(block.GetFuncInfo().Params) + key)
 		} else {
 			value = reflect.New(par).Elem().Interface()
-			if par == reflect.TypeOf(&compile.Map{}) {
-				value = compile.NewMap()
+			if par == reflect.TypeOf(&compiler.Map{}) {
+				value = compiler.NewMap()
 			} else if par == reflect.TypeOf([]any{}) {
 				value = make([]any, 0, len(rt.vars)+1)
 			}
@@ -620,7 +629,7 @@ func (rt *Runtime) addVarBy(block *compile.CodeBlock) {
 	}
 }
 
-func (rt *Runtime) setVarBy(block *compile.CodeBlock, names map[string][]any) error {
+func (rt *Runtime) setVarBy(block *compiler.CodeBlock, names map[string][]any) error {
 	varoff := len(rt.vars) - len(block.Vars)
 	for key, item := range names {
 		params := block.GetFuncInfo().Tails[key]

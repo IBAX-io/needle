@@ -1,4 +1,4 @@
-package compile
+package compiler
 
 import (
 	"fmt"
@@ -119,10 +119,10 @@ var errTable = map[int]string{
 	errMisplacedDotDotDot: "can only use ... with final parameter in list",
 }
 
-// contains a next state and a handle function
+// compileState contains a next state and a handle function.
 type compileState struct {
-	fn   compileFunc // a handle function
-	next stateType   // a next state
+	handle compileFunc
+	next   stateType
 }
 
 // hasState returns true if the state is set
@@ -130,147 +130,148 @@ func (c compileState) hasState(state int) bool {
 	return int(c.next)&state > 0
 }
 
+// stateTable describes a finite machine with states on the base of which a bytecode will be generated
 var stateTable = make(map[stateType]map[Token]compileState)
 
 func init() {
 	stateTable[stateRoot] = map[Token]compileState{
-		NEWLINE:  {fnNothing, stateRoot},
-		CONTRACT: {fnNothing, stateContract | stateFlagPush},
-		FUNC:     {fnNothing, stateFunc | stateFlagPush},
-		UNKNOWN:  {fnError, errUnknownCmd},
+		NEWLINE:  {handleNothing, stateRoot},
+		CONTRACT: {handleNothing, stateContract | stateFlagPush},
+		FUNC:     {handleNothing, stateFunc | stateFlagPush},
+		UNKNOWN:  {handleError, errUnknownCmd},
 	}
 	stateTable[stateBody] = map[Token]compileState{
-		NEWLINE:    {fnNothing, stateBody},
-		FUNC:       {fnNothing, stateFunc | stateFlagPush},
-		RETURN:     {fnReturn, stateEval},
-		CONTINUE:   {fnContinue, stateBody},
-		BREAK:      {fnBreak, stateBody},
-		IF:         {fnIf, stateEval | stateFlagPush | stateFlagToBlock | stateFlagMustEval},
-		WHILE:      {fnWhile, stateEval | stateFlagPush | stateFlagToBlock | stateFlagLabel | stateFlagMustEval},
-		ELSE:       {fnElse, stateBlock | stateFlagPush},
-		VAR:        {fnNothing, stateVar},
-		TX:         {fnTx, stateTX},
-		SETTINGS:   {fnSettings, stateSettings},
-		ERROR:      {fnCmdError, stateEval},
-		ERRWARNING: {fnCmdError, stateEval},
-		ERRINFO:    {fnCmdError, stateEval},
-		IDENTIFIER: {fnNothing, stateAssignEval | stateFlagFork},
-		EXTEND:     {fnNothing, stateAssignEval | stateFlagFork},
-		RBRACE:     {fnNothing, stateFlagPop},
-		UNKNOWN:    {fnError, errMustRBRACE},
+		NEWLINE:    {handleNothing, stateBody},
+		FUNC:       {handleNothing, stateFunc | stateFlagPush},
+		RETURN:     {handleReturn, stateEval},
+		CONTINUE:   {handleContinue, stateBody},
+		BREAK:      {handleBreak, stateBody},
+		IF:         {handleIf, stateEval | stateFlagPush | stateFlagToBlock | stateFlagMustEval},
+		WHILE:      {handleWhile, stateEval | stateFlagPush | stateFlagToBlock | stateFlagLabel | stateFlagMustEval},
+		ELSE:       {handleElse, stateBlock | stateFlagPush},
+		VAR:        {handleNothing, stateVar},
+		TX:         {handleTx, stateTX},
+		SETTINGS:   {handleSettings, stateSettings},
+		ERROR:      {handleCmdError, stateEval},
+		ERRWARNING: {handleCmdError, stateEval},
+		ERRINFO:    {handleCmdError, stateEval},
+		IDENTIFIER: {handleNothing, stateAssignEval | stateFlagFork},
+		EXTEND:     {handleNothing, stateAssignEval | stateFlagFork},
+		RBRACE:     {handleNothing, stateFlagPop},
+		UNKNOWN:    {handleError, errMustRBRACE},
 	}
 	stateTable[stateBlock] = map[Token]compileState{
-		NEWLINE: {fnNothing, stateBlock},
-		LBRACE:  {fnNothing, stateBody},
-		UNKNOWN: {fnError, errMustLBRACE},
+		NEWLINE: {handleNothing, stateBlock},
+		LBRACE:  {handleNothing, stateBody},
+		UNKNOWN: {handleError, errMustLBRACE},
 	}
 	stateTable[stateContract] = map[Token]compileState{
-		NEWLINE:    {fnNothing, stateContract},
-		IDENTIFIER: {fnBlockDecl, stateBlock},
-		UNKNOWN:    {fnError, errMustName},
+		NEWLINE:    {handleNothing, stateContract},
+		IDENTIFIER: {handleBlockDecl, stateBlock},
+		UNKNOWN:    {handleError, errMustName},
 	}
 	stateTable[stateFunc] = map[Token]compileState{
-		NEWLINE:    {fnNothing, stateFunc},
-		IDENTIFIER: {fnBlockDecl, stateFnParams},
-		UNKNOWN:    {fnError, errMustName},
+		NEWLINE:    {handleNothing, stateFunc},
+		IDENTIFIER: {handleBlockDecl, stateFnParams},
+		UNKNOWN:    {handleError, errMustName},
 	}
 	stateTable[stateFnParams] = map[Token]compileState{
-		NEWLINE: {fnNothing, stateFnParams},
-		LPAREN:  {fnNothing, stateFnParam},
-		UNKNOWN: {fnNothing, stateFnResult | stateFlagStay},
+		NEWLINE: {handleNothing, stateFnParams},
+		LPAREN:  {handleNothing, stateFnParam},
+		UNKNOWN: {handleNothing, stateFnResult | stateFlagStay},
 	}
 	stateTable[stateFnParam] = map[Token]compileState{
-		NEWLINE:    {fnNothing, stateFnParam},
-		IDENTIFIER: {fnParamName, stateFnParamType},
-		COMMA:      {fnNothing, stateFnParam},
-		RPAREN:     {fnNothing, stateFnResult},
-		UNKNOWN:    {fnError, errParams},
+		NEWLINE:    {handleNothing, stateFnParam},
+		IDENTIFIER: {handleParamName, stateFnParamType},
+		COMMA:      {handleNothing, stateFnParam},
+		RPAREN:     {handleNothing, stateFnResult},
+		UNKNOWN:    {handleError, errParams},
 	}
 	stateTable[stateFnParamType] = map[Token]compileState{
-		IDENTIFIER: {fnParamName, stateFnParamType},
-		TYPENAME:   {fnParamType, stateFnParam},
-		TAIL:       {fnTailParamType, stateFnTail},
-		COMMA:      {fnNothing, stateFnParamType},
-		UNKNOWN:    {fnError, errVarType},
+		IDENTIFIER: {handleParamName, stateFnParamType},
+		TYPENAME:   {handleParamType, stateFnParam},
+		TAIL:       {handleTailParamType, stateFnTail},
+		COMMA:      {handleNothing, stateFnParamType},
+		UNKNOWN:    {handleError, errVarType},
 	}
 	stateTable[stateFnTail] = map[Token]compileState{
-		NEWLINE: {fnNothing, stateFnTail},
-		RPAREN:  {fnNothing, stateFnResult},
-		UNKNOWN: {fnError, errMisplacedDotDotDot},
+		NEWLINE: {handleNothing, stateFnTail},
+		RPAREN:  {handleNothing, stateFnResult},
+		UNKNOWN: {handleError, errMisplacedDotDotDot},
 	}
 	stateTable[stateFnResult] = map[Token]compileState{
-		NEWLINE:  {fnNothing, stateFnResult},
-		DOT:      {fnNothing, stateFnDot},
-		TYPENAME: {fnFuncResult, stateFnResult},
-		COMMA:    {fnNothing, stateFnResult},
-		UNKNOWN:  {fnNothing, stateBlock | stateFlagStay},
+		NEWLINE:  {handleNothing, stateFnResult},
+		DOT:      {handleNothing, stateFnDot},
+		TYPENAME: {handleFuncResult, stateFnResult},
+		COMMA:    {handleNothing, stateFnResult},
+		UNKNOWN:  {handleNothing, stateBlock | stateFlagStay},
 	}
 	stateTable[stateFnDot] = map[Token]compileState{
-		NEWLINE:    {fnNothing, stateFnDot},
-		IDENTIFIER: {fnDeclTail, stateFnParams},
-		UNKNOWN:    {fnError, errMustName},
+		NEWLINE:    {handleNothing, stateFnDot},
+		IDENTIFIER: {handleDeclTail, stateFnParams},
+		UNKNOWN:    {handleError, errMustName},
 	}
 	stateTable[stateVar] = map[Token]compileState{
-		NEWLINE:    {fnNothing, stateBody},
-		IDENTIFIER: {fnParamName, stateVarType},
-		RBRACE:     {fnNothing, stateBody | stateFlagStay},
-		COMMA:      {fnNothing, stateVar},
-		UNKNOWN:    {fnError, errVars},
+		NEWLINE:    {handleNothing, stateBody},
+		IDENTIFIER: {handleParamName, stateVarType},
+		RBRACE:     {handleNothing, stateBody | stateFlagStay},
+		COMMA:      {handleNothing, stateVar},
+		UNKNOWN:    {handleError, errVars},
 	}
 	stateTable[stateVarType] = map[Token]compileState{
-		IDENTIFIER: {fnParamName, stateVarType},
-		TYPENAME:   {fnParamType, stateVar},
-		COMMA:      {fnNothing, stateVarType},
-		UNKNOWN:    {fnError, errVarType},
+		IDENTIFIER: {handleParamName, stateVarType},
+		TYPENAME:   {handleParamType, stateVar},
+		COMMA:      {handleNothing, stateVarType},
+		UNKNOWN:    {handleError, errVarType},
 	}
 	stateTable[stateAssignEval] = map[Token]compileState{
-		LPAREN:  {fnNothing, stateEval | stateFlagToFork | stateFlagToBody},
-		LBRACK:  {fnNothing, stateEval | stateFlagToFork | stateFlagToBody},
-		UNKNOWN: {fnNothing, stateAssign | stateFlagToFork | stateFlagStay},
+		LPAREN:  {handleNothing, stateEval | stateFlagToFork | stateFlagToBody},
+		LBRACK:  {handleNothing, stateEval | stateFlagToFork | stateFlagToBody},
+		UNKNOWN: {handleNothing, stateAssign | stateFlagToFork | stateFlagStay},
 	}
 	stateTable[stateAssign] = map[Token]compileState{
-		COMMA:      {fnNothing, stateAssign},
-		IDENTIFIER: {fnAssignVar, stateAssign},
-		EXTEND:     {fnAssignVar, stateAssign},
-		EQ:         {fnAssign, stateEval | stateFlagToBody},
-		OPERATOR:   {fnAssign, stateEval | stateFlagToBody},
-		UNKNOWN:    {fnError, errAssign},
+		COMMA:      {handleNothing, stateAssign},
+		IDENTIFIER: {handleAssignVar, stateAssign},
+		EXTEND:     {handleAssignVar, stateAssign},
+		EQ:         {handleAssign, stateEval | stateFlagToBody},
+		OPERATOR:   {handleAssign, stateEval | stateFlagToBody},
+		UNKNOWN:    {handleError, errAssign},
 	}
 	stateTable[stateTX] = map[Token]compileState{
-		NEWLINE: {fnNothing, stateTX},
-		LBRACE:  {fnNothing, stateFields},
-		//IDENTIFIER:   {stateAssign,fTX},
-		EXTEND:  {fnTx, stateAssign},
-		UNKNOWN: {fnError, errMustLBRACE},
+		NEWLINE: {handleNothing, stateTX},
+		LBRACE:  {handleNothing, stateFields},
+		// IDENTIFIER:   {stateAssign,fTX},
+		EXTEND:  {handleTx, stateAssign},
+		UNKNOWN: {handleError, errMustLBRACE},
 	}
 	stateTable[stateSettings] = map[Token]compileState{
-		NEWLINE: {fnNothing, stateSettings},
-		LBRACE:  {fnNothing, stateConsts},
-		UNKNOWN: {fnError, errMustLBRACE},
+		NEWLINE: {handleNothing, stateSettings},
+		LBRACE:  {handleNothing, stateConsts},
+		UNKNOWN: {handleError, errMustLBRACE},
 	}
 	stateTable[stateConsts] = map[Token]compileState{
-		NEWLINE:    {fnNothing, stateConsts},
-		COMMA:      {fnNothing, stateConsts},
-		IDENTIFIER: {fnConstName, stateConstsAssign},
-		RBRACE:     {fnNothing, stateFlagToBody},
-		UNKNOWN:    {fnError, errMustRBRACE},
+		NEWLINE:    {handleNothing, stateConsts},
+		COMMA:      {handleNothing, stateConsts},
+		IDENTIFIER: {handleConstName, stateConstsAssign},
+		RBRACE:     {handleNothing, stateFlagToBody},
+		UNKNOWN:    {handleError, errMustRBRACE},
 	}
 	stateTable[stateConstsAssign] = map[Token]compileState{
-		EQ:      {fnNothing, stateConstsValue},
-		UNKNOWN: {fnError, errAssign},
+		EQ:      {handleNothing, stateConstsValue},
+		UNKNOWN: {handleError, errAssign},
 	}
 	stateTable[stateConstsValue] = map[Token]compileState{
-		LITERAL: {fnConstValue, stateConsts},
-		NUMBER:  {fnConstValue, stateConsts},
-		UNKNOWN: {fnError, errStrNum},
+		LITERAL: {handleConstValue, stateConsts},
+		NUMBER:  {handleConstValue, stateConsts},
+		UNKNOWN: {handleError, errStrNum},
 	}
 	stateTable[stateFields] = map[Token]compileState{
-		NEWLINE:    {fnFieldLine, stateFields},
-		COMMA:      {fnFieldComma, stateFields},
-		IDENTIFIER: {fnField, stateFields},
-		TYPENAME:   {fnFieldType, stateFields},
-		LITERAL:    {fnFieldTag, stateFields},
-		RBRACE:     {fnFields, stateFlagToBody},
-		UNKNOWN:    {fnError, errMustRBRACE},
+		NEWLINE:    {handleFieldLine, stateFields},
+		COMMA:      {handleFieldComma, stateFields},
+		IDENTIFIER: {handleField, stateFields},
+		TYPENAME:   {handleFieldType, stateFields},
+		LITERAL:    {handleFieldTag, stateFields},
+		RBRACE:     {handleFields, stateFlagToBody},
+		UNKNOWN:    {handleError, errMustRBRACE},
 	}
 }

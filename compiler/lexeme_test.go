@@ -1,16 +1,19 @@
-package compile
+package compiler
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 )
 
 func TestNewLexeme(t *testing.T) {
-	input := []rune(`shift int $abc action func action if elif`)
+	input := []rune("sd //*sds*/ nil shift int $abc true + action func action if elif")
 	lexer, err := NewLexer(input)
-	t.Log(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, l := range lexer {
-		fmt.Printf("lexer: %v %v [%d:%d]\n", l.Type, l.Value, l.Line, l.Column)
+		fmt.Printf("lexer: %v %v [%s]\n", l.Type, l.Value, l.Position())
 	}
 }
 
@@ -39,9 +42,9 @@ func TestNewLexer(t *testing.T) {
 			for _, l := range got {
 				fmt.Printf("%v %v [%d:%d]\n", l.Type, l.Value, l.Line, l.Column)
 			}
-			//if !reflect.DeepEqual(got, tt.want) {
-			//	t.Errorf("NewLexer() got = %v, want %v", got, tt.want)
-			//}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewLexer() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

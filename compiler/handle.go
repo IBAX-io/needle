@@ -1,4 +1,4 @@
-package compile
+package compiler
 
 import (
 	"fmt"
@@ -7,15 +7,14 @@ import (
 	"strings"
 )
 
-// identifierRegexp = unicode_letter { letter | unicode_digit }
-// letter        = unicode_letter | "_" .
-// unicode_letter = /* a Unicode code point classified as "Letter" */
-// unicode_digit  = /* a Unicode code point categorized as "Number, decimal digit" */
+// identifierRegexp is a regular expression that matches valid identifiers in the language.
+// An identifier starts with a unicode letter and can be followed by any number of letters, unicode digits, or underscores.
 var identifierRegexp = `^[\p{L}][\p{L}\p{Nd}_]*$`
 
+// canIdent checks if a string is a valid identifier according to the identifierRegexp.
 func canIdent(ident string) error {
 	if !regexp.MustCompile(identifierRegexp).MatchString(ident) {
-		var val = ident
+		val := ident
 		if len(val) > 20 {
 			val = val[:20] + "..."
 		}
@@ -24,13 +23,19 @@ func canIdent(ident string) error {
 	return nil
 }
 
+// compileFunc is a type that represents a function that can be used to compile code blocks.
+// It takes a pointer to a CodeBlocks, a stateType, and a pointer to a Lexeme, and returns an error.
 type compileFunc func(*CodeBlocks, stateType, *Lexeme) error
 
-func fnNothing(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+// handleNothing is a compileFunc that does nothing and always returns nil.
+func handleNothing(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+// handleError is a compileFunc that returns an error based on the current state and lexeme.
+// If the lexeme type is NEWLINE, it returns an error indicating an unexpected semicolon or newline.
+// Otherwise, it returns an error indicating an unexpected lexeme value.
+func handleError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	err := errTable[int(state)]
 	if lex.Type == NEWLINE {
 		return fmt.Errorf("%s, unexpected semicolon or newline", err)
@@ -39,6 +44,9 @@ func fnError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 // StateName checks the name of the contract and modifies it to @[state]name if it is necessary.
+// If the name does not start with '@', it returns the name prefixed with the state number.
+// If the name starts with '@' and the second character is not a digit, it returns the name prefixed with the state number.
+// Otherwise, it returns the name as is.
 func StateName(state uint32, name string) string {
 	if !strings.HasPrefix(name, `@`) {
 		return fmt.Sprintf(`@%d%s`, state, name)
@@ -48,8 +56,8 @@ func StateName(state uint32, name string) string {
 	return name
 }
 
-// fnBlockDecl is the function for the block declaration.
-func fnBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+// handleBlockDecl is the function for the block declaration.
+func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	var itype ObjectType
 	prev := (*buf)[len(*buf)-2]
 	fblock := buf.peek()
@@ -60,42 +68,44 @@ func fnBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 			return fmt.Errorf("%s can only be in owner", lex.Value)
 		}
 		itype = ObjContract
-		name = StateName(buf.ParentOwner().StateID, name)
-		fblock.Info = &ContractInfo{ID: uint32(len(prev.Children) - 1),
-			Name: name, Owner: buf.ParentOwner(), Used: make(map[string]bool)}
+		name = StateName(buf.ParentOwner().StateId, name)
+		fblock.Info = &ContractInfo{
+			Id:   uint32(len(prev.Children) - 1),
+			Name: name, Owner: buf.ParentOwner(), Used: make(map[string]bool),
+		}
 	default:
 		if prev.Type != ObjContract && prev.Type != ObjOwner {
 			return fmt.Errorf("%s can only be in contract or owner", lex.Value)
 		}
-		itype = ObjFunc
-		fblock.Info = &FuncInfo{ID: uint32(len(prev.Children) - 1), Name: name}
+		itype = ObjFunction
+		fblock.Info = &FunctionInfo{Id: uint32(len(prev.Children) - 1), Name: name}
 	}
 	fblock.Type = itype
 	if _, ok := prev.Objects[name]; ok {
 		return fmt.Errorf("%s '%s' redeclared in this code block", itype, name)
 	}
-	prev.Objects[name] = NewObject(itype, fblock)
+	prev.Objects[name] = NewObject(fblock)
 	return nil
 }
 
-func fnFuncResult(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleFuncResult(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	fn := buf.peek().GetFuncInfo()
 	(*fn).Results = append((*fn).Results, TypeNameReflect[lex.Value.(Token)])
 	return nil
 }
 
-func fnReturn(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleReturn(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.peek().Code.push(newByteCode(CmdReturn, lex, 0))
 	return nil
 }
 
-func fnCmdError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleCmdError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.peek().Code.push(newByteCode(CmdError, lex, lex.Value))
 	return nil
 }
 
-// fnParamName adds a new parameter name to the function or variable.
-func fnParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+// handleParamName adds a new parameter name to the function or variable.
+func handleParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	name := lex.Value.(string)
 	if err := canIdent(name); err != nil {
 		return err
@@ -110,10 +120,10 @@ func fnParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		}
 	}
 
-	block.Objects[name] = NewObject(ObjVar, &ObjInfoVariable{Name: name, Index: len(block.Vars)})
+	block.Objects[name] = NewObject(&ObjInfoVariable{Name: name, Index: len(block.Vars)})
 	block.Vars = append(block.Vars, reflect.TypeOf(nil))
 
-	if block.Type != ObjFunc || (state != stateFnParam && state != stateFnParamType) {
+	if block.Type != ObjFunction || (state != stateFnParam && state != stateFnParamType) {
 		return nil
 	}
 
@@ -130,8 +140,8 @@ func fnParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-// fnParamType sets the type of the function parameter or variable.
-func fnParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+// handleParamType sets the type of the function parameter or variable.
+func handleParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	block := buf.peek()
 	rtp := TypeNameReflect[lex.Value.(Token)]
 	for i, v := range block.Vars {
@@ -139,7 +149,7 @@ func fnParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 			block.Vars[i] = rtp
 		}
 	}
-	if block.Type != ObjFunc || state != stateFnParam {
+	if block.Type != ObjFunction || state != stateFnParam {
 		return nil
 	}
 	fblock := block.GetFuncInfo()
@@ -163,8 +173,8 @@ func fnParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-// fnDeclTail the name of the tail function.
-func fnDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+// handleDeclTail the name of the tail function.
+func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if err := canIdent(lex.Value.(string)); err != nil {
 		return err
 	}
@@ -192,8 +202,8 @@ func fnDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-// fnTailParamType sets the type of the function final parameter.
-func fnTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+// handleTailParamType sets the type of the function final parameter.
+func handleTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	block := buf.peek()
 	fblock := block.GetFuncInfo()
 	for vkey, ivar := range block.Vars {
@@ -237,28 +247,28 @@ func fnTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnIf(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleIf(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdIf, lex, buf.peek()))
 	return nil
 }
 
-func fnWhile(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleWhile(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdWhile, lex, buf.peek()))
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdContinue, lex, 0))
 	return nil
 }
 
-func fnContinue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleContinue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.peek().Code.push(newByteCode(CmdContinue, lex, 0))
 	return nil
 }
 
-func fnBreak(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleBreak(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.peek().Code.push(newByteCode(CmdBreak, lex, 0))
 	return nil
 }
 
-func fnAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	block := buf.peek()
 	var (
 		prev []*VarInfo
@@ -268,11 +278,11 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		if buf.get(0).AssertVar(lex.Value.(string)) {
 			return fmt.Errorf(eSysVar, lex.Value.(string))
 		}
-		obj := NewObject(ObjExtVar, &ObjInfoExtendVariable{Name: lex.Value.(string)})
+		obj := NewObject(&ObjInfoExtendVariable{Name: lex.Value.(string)})
 		ivar = VarInfo{Obj: obj, Owner: nil}
 	} else {
 		objInfo, tobj := findVar(lex.Value.(string), buf)
-		if objInfo == nil || objInfo.Type != ObjVar {
+		if objInfo == nil || objInfo.Type != ObjVariable {
 			return fmt.Errorf(`unknown variable %s`, lex.Value.(string))
 		}
 		ivar = VarInfo{Obj: objInfo, Owner: tobj}
@@ -291,14 +301,21 @@ func fnAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnAssign(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleAssign(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if lex.Type != OPERATOR {
 		buf.peek().Code.push(newByteCode(CmdAssign, lex, 0))
+	} else {
+		if !lex.Value.(Token).contains([]Token{
+			AddEq, SubEq, MulEq, DivEq,
+			ModEq, LshEq, RshEq, AndEq, OrEq, XorEq, Inc, Dec,
+		}) {
+			return fmt.Errorf("evaluated but not used: %s", lex.Value)
+		}
 	}
 	return nil
 }
 
-func fnTx(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleTx(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	contract := buf.peek()
 	if contract.Type != ObjContract {
 		return fmt.Errorf(`data can only be in contract`)
@@ -307,7 +324,7 @@ func fnTx(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnSettings(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleSettings(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	contract := buf.peek()
 	if contract.Type != ObjContract {
 		return fmt.Errorf(`settings can only be in contract`)
@@ -316,13 +333,13 @@ func fnSettings(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnConstName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleConstName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	sets := buf.peek().GetContractInfo().Settings
 	sets[lex.Value.(string)] = nil
 	return nil
 }
 
-func fnConstValue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleConstValue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	sets := buf.peek().GetContractInfo().Settings
 	for key, val := range sets {
 		if val == nil {
@@ -333,7 +350,7 @@ func fnConstValue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	info := buf.peek().GetContractInfo()
 	tx := info.Tx
 	if len(*tx) > 0 && (*tx)[len(*tx)-1].Type == reflect.TypeOf(nil) &&
@@ -351,7 +368,7 @@ func fnField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnFields(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleFields(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	tx := buf.peek().GetContractInfo().Tx
 	if len(*tx) > 0 && (*tx)[len(*tx)-1].Type == nil {
 		return fmt.Errorf(eDataType)
@@ -359,7 +376,7 @@ func fnFields(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnFieldComma(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleFieldComma(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	tx := buf.peek().GetContractInfo().Tx
 	if len(*tx) == 0 || (*tx)[len(*tx)-1].Type != nil {
 		return fmt.Errorf(eDataName)
@@ -368,7 +385,7 @@ func fnFieldComma(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnFieldLine(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleFieldLine(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	tx := buf.peek().GetContractInfo().Tx
 	if len(*tx) > 0 && (*tx)[len(*tx)-1].Type == nil {
 		return fmt.Errorf(eDataType)
@@ -381,7 +398,7 @@ func fnFieldLine(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnFieldType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleFieldType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	tx := buf.peek().GetContractInfo().Tx
 	if len(*tx) == 0 || (*tx)[len(*tx)-1].Type != nil {
 		return fmt.Errorf(eDataName)
@@ -395,7 +412,7 @@ func fnFieldType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnFieldTag(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleFieldTag(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	tx := buf.peek().GetContractInfo().Tx
 	if len(*tx) == 0 || (*tx)[len(*tx)-1].Type == nil || len((*tx)[len(*tx)-1].Tags) != 0 {
 		return fmt.Errorf(eDataTag)
@@ -410,7 +427,7 @@ func fnFieldTag(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	return nil
 }
 
-func fnElse(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+func handleElse(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if buf.get(len(*buf)-2).Code.peek().Cmd != CmdIf {
 		return fmt.Errorf("there is not if before %v", lex.Type)
 	}

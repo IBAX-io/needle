@@ -1,8 +1,6 @@
 package vm
 
-import (
-	"github.com/IBAX-io/needle/compile"
-)
+import "github.com/IBAX-io/needle/compiler"
 
 const (
 	// CostCall is the cost of the function calling
@@ -13,7 +11,8 @@ const (
 	CostExtend = 10
 )
 
-func ContractBaseCost(cb *compile.CodeBlock) int64 {
+// ContractBaseCost returns the base cost of the contract.
+func ContractBaseCost(cb *compiler.CodeBlock) int64 {
 	var cost int64
 	c := cb.GetContractInfo()
 	if c != nil {

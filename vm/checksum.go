@@ -2,9 +2,7 @@ package vm
 
 import "hash/crc64"
 
-var (
-	table64 *crc64.Table
-)
+var table64 *crc64.Table
 
 func init() {
 	table64 = crc64.MakeTable(crc64.ECMA)

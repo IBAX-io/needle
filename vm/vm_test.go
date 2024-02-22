@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compiler"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -354,11 +355,11 @@ func tailMain(i int).t(s string)int string{return 999 s}
 	start := time.Now()
 	vm := NewVM()
 	vm.SetExtendCost(getcost)
-	build := &compile.CompConfig{
-		Owner:     &compile.OwnerInfo{StateID: 1},
+	build := &compiler.CompConfig{
+		Owner:     &compiler.OwnerInfo{StateId: 1},
 		PreVar:    []string{"key_id"},
 		Func:      obj,
-		IgnoreObj: compile.IgnoreIdent,
+		IgnoreObj: compiler.IgnoreIdent,
 	}
 
 	for _, tt := range tests {
@@ -386,7 +387,7 @@ func getcost(name string) int64 {
 	return -1
 }
 
-var obj = []compile.ExtendFunc{
+var obj = []compiler.ExtendFunc{
 	{Name: "lenArray", Func: lenArray},
 	{Name: "str", Func: str},
 	{Name: "Int", Func: ValueToInt},

@@ -3,56 +3,62 @@ package vm
 import (
 	"fmt"
 
-	"github.com/IBAX-io/needle/compile"
+	"github.com/IBAX-io/needle/compiler"
+
 	"github.com/shopspring/decimal"
 )
 
-type opFunc func(x, y any) (any, error)
+type (
+	opFunc    func(x, y any) (any, error)
+	operation struct {
+		op string
+		f  opFunc
+	}
+)
 
-var ops = map[string]opFunc{
-	"+":  add,
-	"+=": addAssign,
-	"++": increment,
-	"-":  subtract,
-	"-=": subtractAssign,
-	"--": decrement,
-	"*":  multiply,
-	"*=": multiplyAssign,
-	"/":  divide,
-	"/=": divideAssign,
-	"%":  modulo,
-	"%=": moduloAssign,
-	"==": equal,
-	//"=":   assign,
-	"!=": notEqual,
-	//"!":   not,
-	"<<":  leftShift,
-	"<<=": leftShiftAssign,
-	"<=":  lessThanOrEqual,
-	"<":   lessThan,
-	">>":  rightShift,
-	">>=": rightShiftAssign,
-	">=":  greaterThanOrEqual,
-	">":   greaterThan,
-	"||":  logicalOr,
-	"|=":  bitwiseOrAssign,
-	"|":   bitwiseOr,
-	"&&":  logicalAnd,
-	"&=":  bitwiseAndAssign,
-	"&":   bitwiseAnd,
-	"^":   bitwiseXor,
-	"^=":  bitwiseXorAssign,
+var cmd2operation = map[compiler.Cmd]operation{
+	compiler.CmdAdd:          {"+", add},
+	compiler.CmdAssignAdd:    {"+=", addAssign},
+	compiler.CmdInc:          {"++", increment},
+	compiler.CmdSub:          {"-", subtract},
+	compiler.CmdAssignSub:    {"-=", subtractAssign},
+	compiler.CmdDec:          {"--", decrement},
+	compiler.CmdMul:          {"*", multiply},
+	compiler.CmdAssignMul:    {"*=", multiplyAssign},
+	compiler.CmdDiv:          {"/", divide},
+	compiler.CmdAssignDiv:    {"/=", divideAssign},
+	compiler.CmdMod:          {"%", modulo},
+	compiler.CmdAssignMod:    {"%=", moduloAssign},
+	compiler.CmdEqual:        {"==", equal},
+	compiler.CmdNotEq:        {"!=", notEqual},
+	compiler.CmdShiftL:       {"<<", leftShift},
+	compiler.CmdAssignLShift: {"<<=", leftShiftAssign},
+	compiler.CmdLessEq:       {"<=", lessThanOrEqual},
+	compiler.CmdLess:         {"<", lessThan},
+	compiler.CmdShiftR:       {">>", rightShift},
+	compiler.CmdAssignRShift: {">>=", rightShiftAssign},
+	compiler.CmdGrEq:         {">=", greaterThanOrEqual},
+	compiler.CmdGreat:        {">", greaterThan},
+	compiler.CmdOr:           {"||", logicalOr},
+	compiler.CmdAssignOr:     {"|=", bitwiseOrAssign},
+	compiler.CmdBitOr:        {"|", bitwiseOr},
+	compiler.CmdAnd:          {"&&", logicalAnd},
+	compiler.CmdAssignAnd:    {"&=", bitwiseAndAssign},
+	compiler.CmdBitAnd:       {"&", bitwiseAnd},
+	compiler.CmdBitXor:       {"^", bitwiseXor},
+	compiler.CmdAssignXor:    {"^=", bitwiseXorAssign},
 }
 
-func operationExpr(x, y any, op compile.CmdT) (any, error) {
-	if f, ok := ops[op.String()]; ok {
-		z, err := f(x, y)
+func operationExpr(x, y any, cmd compiler.Cmd) (any, error) {
+	opera, ok := cmd2operation[cmd]
+	if ok {
+		z, err := opera.f(x, y)
 		if err != nil {
 			return nil, fmt.Errorf("operation error: %v", err)
 		}
 		return z, nil
 	}
-	return nil, fmt.Errorf("unsupported operator: %s", op)
+	return nil, fmt.Errorf("unsupported operator: %s", opera.op)
 }
 
 func reportOpError(op string, x, y any) error {
