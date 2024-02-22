@@ -23,7 +23,7 @@ You can find the complete API documentation [here](https://pkg.go.dev/github.com
 
 ## ANTLR Grammar
 
-We are using grammar files. Link to the grammar files can be found [here](https://pkg.go.dev/github.com/IBAX-io/needle/tree/main/grammar/antlr). 
+We are using grammar files. Link to the grammar files can be found [here](https://github.com/IBAX-io/needle/tree/main/grammar/antlr). 
 
 ## Contribution
 
