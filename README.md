@@ -1,6 +1,8 @@
 # The Needle Language
 
 [![Go Reference](https://pkg.go.dev/badge/flag.svg)](https://pkg.go.dev/github.com/IBAX-io/needle)
+[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](https://opensource.org/blog/license/gpl-3-0)
+[![Go Report Card](https://goreportcard.com/badge/github.com/IBAX-io/needle)](https://goreportcard.com/report/github.com/IBAX-io/needle)
 
 Needle is a statically typed programming language for developing smart contracts to power the IBAX blockchain. It is designed to be a platform-agnostic language to enable common libraries with execution smart contracts on the blockchain.
 This repository contains the Needle compiler, virtual machines, grammar and more. then developers want to quickly write smart contracts for IBAX blockchain, it should be written in Needle.
