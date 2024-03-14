@@ -29,7 +29,9 @@ defaultFuncDef: FUNC? (CONDITIONS | ACTION) funcSignature;
 
 funcDescriptor: FUNC Identifier;
 
-funcSignature: parameterList? returnParameters?;
+funcSignature: parameterList? funcTail* returnParameters?;
+
+funcTail: '.' Identifier parameterList? ;
 
 parameterList:
 	LPAREN (parameter (COMMA? parameter)* COMMA?)? RPAREN;
