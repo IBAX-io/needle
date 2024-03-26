@@ -54,7 +54,7 @@ func init() {
 		if err = rt.SubCost(CostExtend); err != nil {
 			return
 		}
-		err = rt.extendFunc(code.Value.(string))
+		err = rt.callExtendFunc(code.Value.(string))
 		if err != nil {
 			err = fmt.Errorf("extend function '$%s' error: %v", code.Value.(string), err)
 		}
@@ -66,7 +66,7 @@ func init() {
 		}
 		val, ok := rt.extend[code.Value.(string)]
 		if !ok {
-			err = fmt.Errorf(`unknown extend identifier '$%v'`, code.Value)
+			err = fmt.Errorf("unknown extend identifier '$%v'", code.Value)
 			return
 		}
 		rt.stack.push(val)
@@ -83,7 +83,7 @@ func init() {
 				finfo := code.Object().GetExtFuncInfo()
 				if rt.vm.ExtCost != nil {
 					cost = rt.vm.ExtCost(finfo.Name)
-					if cost == -1 {
+					if cost < 0 {
 						cost = CostCall
 					}
 				}
@@ -164,7 +164,7 @@ func init() {
 	instructionTable[compiler.CmdAssign] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
 		count := len(ctx.assignVar)
 		if count > rt.stack.size() {
-			err = fmt.Errorf("assignment count mismatch")
+			err = fmt.Errorf("not enough stack to assign")
 			return
 		}
 		cut := count

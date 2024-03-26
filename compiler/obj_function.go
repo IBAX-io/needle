@@ -52,8 +52,6 @@ type ExtFuncInfo struct {
 	CanWrite bool // If the function can update DB
 }
 
-func (*ExtFuncInfo) isObjInfoValue() {}
-
 // Call executes the function with the provided parameters.
 // It takes a slice of any type as an argument which represents the parameters to be passed to the function.
 // It returns a slice of any type which represents the return values of the function.

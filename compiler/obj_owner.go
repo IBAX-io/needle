@@ -8,5 +8,3 @@ type OwnerInfo struct {
 	WalletId int64
 	TokenId  int64
 }
-
-func (*OwnerInfo) isObjInfoValue() {}

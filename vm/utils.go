@@ -97,6 +97,7 @@ func ValueToDecimal(v any) (ret decimal.Decimal, err error) {
 	return
 }
 
+// valueToBool converts interface to bool
 func valueToBool(v any) bool {
 	switch val := v.(type) {
 	case int:

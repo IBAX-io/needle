@@ -91,7 +91,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 		}
 		if nextState == stateEval {
 			if comps.hasState(stateFlagLabel) {
-				bls.peek().Code.push(newByteCode(CmdLabel, lex, 0))
+				bls.peek().Code.push(newByteCode(CmdLabel, lex, ""))
 			}
 
 			curlen := len(bls.peek().Code)
@@ -122,7 +122,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 				if len(prev.Code) > 0 && (*prev).Code[len((*prev).Code)-1].Cmd == CmdContinue {
 					(*prev).Code = (*prev).Code[:len((*prev).Code)-1]
 					prev = bls.peek()
-					(*prev).Code.push(newByteCode(CmdContinue, lex, 0))
+					(*prev).Code.push(newByteCode(CmdContinue, lex, ""))
 				}
 			}
 			bls = bls[:len(bls)-1]
@@ -550,7 +550,7 @@ main:
 				cmd = newByteCode(CmdVar, p.lex, &VarInfo{Obj: obj, Owner: owner})
 			}
 		case TAIL:
-			cmd = newByteCode(CmdUnwrapArr, p.lex, 0)
+			cmd = newByteCode(CmdUnwrapArr, p.lex, "")
 		}
 		if p.lex.Type != NEWLINE {
 			prevLex = p.lex

@@ -58,18 +58,17 @@ func StateName(state uint32, name string) string {
 
 // handleBlockDecl is the function for the block declaration.
 func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	var itype ObjectType
+	var info isCodeBlockInfo
 	prev := (*buf)[len(*buf)-2]
-	fblock := buf.peek()
+	block := buf.peek()
 	name := lex.Value.(string)
 	switch state {
 	case stateBlock:
 		if prev.Type != ObjOwner {
 			return fmt.Errorf("%s can only be in owner", lex.Value)
 		}
-		itype = ObjContract
 		name = StateName(buf.ParentOwner().StateId, name)
-		fblock.Info = &ContractInfo{
+		info = &ContractInfo{
 			Id:   uint32(len(prev.Children) - 1),
 			Name: name, Owner: buf.ParentOwner(), Used: make(map[string]bool),
 		}
@@ -77,14 +76,13 @@ func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		if prev.Type != ObjContract && prev.Type != ObjOwner {
 			return fmt.Errorf("%s can only be in contract or owner", lex.Value)
 		}
-		itype = ObjFunction
-		fblock.Info = &FunctionInfo{Id: uint32(len(prev.Children) - 1), Name: name}
+		info = &FunctionInfo{Id: uint32(len(prev.Children) - 1), Name: name}
 	}
-	fblock.Type = itype
+	block.SetInfo(info)
 	if _, ok := prev.Objects[name]; ok {
-		return fmt.Errorf("%s '%s' redeclared in this code block", itype, name)
+		return fmt.Errorf("%s '%s' redeclared in this code block", block.Type, name)
 	}
-	prev.Objects[name] = NewObject(fblock)
+	prev.Objects[name] = NewObject(block)
 	return nil
 }
 
@@ -95,7 +93,7 @@ func handleFuncResult(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleReturn(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdReturn, lex, 0))
+	buf.peek().Code.push(newByteCode(CmdReturn, lex, ""))
 	return nil
 }
 
@@ -248,23 +246,25 @@ func handleTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleIf(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+	buf.peek().SetInfo(&ObjInfoIf{})
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdIf, lex, buf.peek()))
 	return nil
 }
 
 func handleWhile(buf *CodeBlocks, state stateType, lex *Lexeme) error {
+	buf.peek().SetInfo(&ObjInfoWhile{})
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdWhile, lex, buf.peek()))
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdContinue, lex, 0))
+	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdContinue, lex, ""))
 	return nil
 }
 
 func handleContinue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdContinue, lex, 0))
+	buf.peek().Code.push(newByteCode(CmdContinue, lex, ""))
 	return nil
 }
 
 func handleBreak(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdBreak, lex, 0))
+	buf.peek().Code.push(newByteCode(CmdBreak, lex, ""))
 	return nil
 }
 
@@ -281,11 +281,11 @@ func handleAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		obj := NewObject(&ObjInfoExtendVariable{Name: lex.Value.(string)})
 		ivar = VarInfo{Obj: obj, Owner: nil}
 	} else {
-		objInfo, tobj := findVar(lex.Value.(string), buf)
-		if objInfo == nil || objInfo.Type != ObjVariable {
+		obj, owner := findVar(lex.Value.(string), buf)
+		if obj == nil || obj.Type != ObjVariable {
 			return fmt.Errorf(`unknown variable %s`, lex.Value.(string))
 		}
-		ivar = VarInfo{Obj: objInfo, Owner: tobj}
+		ivar = VarInfo{Obj: obj, Owner: owner}
 	}
 	if len(block.Code) > 0 {
 		if block.Code[len(block.Code)-1].Cmd == CmdAssignVar {
@@ -303,7 +303,7 @@ func handleAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 func handleAssign(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if lex.Type != OPERATOR {
-		buf.peek().Code.push(newByteCode(CmdAssign, lex, 0))
+		buf.peek().Code.push(newByteCode(CmdAssign, lex, ""))
 	} else {
 		if !lex.Value.(Token).contains([]Token{
 			AddEq, SubEq, MulEq, DivEq,
@@ -431,6 +431,7 @@ func handleElse(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if buf.get(len(*buf)-2).Code.peek().Cmd != CmdIf {
 		return fmt.Errorf("there is not if before %v", lex.Type)
 	}
+	buf.peek().SetInfo(&ObjInfoElse{})
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdElse, lex, buf.peek()))
 	return nil
 }

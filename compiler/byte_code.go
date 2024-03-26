@@ -6,21 +6,23 @@ import "fmt"
 type ByteCode struct {
 	Cmd    Cmd
 	Lexeme *Lexeme
-	//*FuncTailCmd, assigned to CmdFuncTail.
-	//*IndexInfo, assigned to CmdGetIndex, CmdSetIndex.
-	//*VarInfo, assigned to CmdVar.
-	//*CodeBlock, assigned to CmdIf, CmdElse, CmdWhile
-	//*Object, assigned to CmdCall, CmdCallVariadic both for ObjFunction, ObjExtFunc and ObjContract
-	//*SliceItem, assigned to CmdSliceColon
-	//*Map, assigned to CmdMapInit
-	//[]*VarInfo, assigned to CmdAssignVar
-	//[]*MapItem, assigned to CmdArrayInit
-	//Lexeme.Value, assigned to CmdPush, CmdError
-	//map[string][]any, assigned to CmdPush for function tail
-	//string, assigned to CmdPush, CmdCallExtend, CmdExtend
-	//uint32, assigned to CmdPush for OwnerInfo.StateId
-	//uint16, assigned to CmdSys, op.Cmd is operatorPriority
-	//int, assigned to CmdReturn, CmdBreak, CmdContinue, CmdWhile, CmdPush, CmdAssign, CmdUnwrapArr, CmdLabel
+	// Types that are assignable to Value:
+	//
+	//  *FuncTailCmd, assigned to CmdFuncTail.
+	//  *IndexInfo, assigned to CmdGetIndex, CmdSetIndex.
+	//	*VarInfo, assigned to CmdVar.
+	//	*CodeBlock, assigned to CmdIf, CmdElse, CmdWhile
+	//	*Object, assigned to CmdCall, CmdCallVariadic both for ObjFunction, ObjExtFunc and ObjContract
+	//	*SliceItem, assigned to CmdSliceColon
+	//	*Map, assigned to CmdMapInit
+	//	*[]*VarInfo, assigned to CmdAssignVar
+	//	*[]*MapItem, assigned to CmdArrayInit
+	//	*Lexeme.Value, assigned to CmdPush, CmdError
+	//	*map[string][]any, assigned to CmdPush for function tail
+	//	*string, assigned to CmdPush, CmdCallExtend, CmdExtend
+	//	*uint32, assigned to CmdPush for OwnerInfo.StateId
+	//	*uint16, assigned to CmdSys, op.Cmd is operatorPriority
+	//	*int, assigned to CmdReturn, CmdBreak, CmdContinue, CmdWhile, CmdPush, CmdAssign, CmdUnwrapArr, CmdLabel
 	Value any
 }
 
@@ -104,8 +106,7 @@ type ByteCodes []*ByteCode
 func (b *ByteCodes) String() string {
 	var ret string
 	for _, code := range *b {
-		ret = ret + code.Cmd.String() + " "
-		ret = ret + fmt.Sprint(code.Value) + "\n"
+		ret = ret + code.Cmd.String() + " " + fmt.Sprint(code.Value) + "\n"
 	}
 	return ret
 }

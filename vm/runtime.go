@@ -92,7 +92,7 @@ func (rt *Runtime) Run(block *compiler.CodeBlock) (ret []any, err error) {
 	)
 	genBlock = rt.loadExtendBy(ExtendGenBlock).genBlock
 	timeOver := func() {
-		rt.timeLimit = false
+		rt.timeLimit = true
 	}
 	if genBlock {
 		timer = time.AfterFunc(time.Millisecond*time.Duration(rt.loadExtendBy(ExtendTimeLimit).timeLimit), timeOver)
@@ -224,8 +224,9 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 		if err != nil {
 			break
 		}
-		if block.Type != compiler.ObjDefault && (status == statusContinue || status == statusBreak) {
-			err = fmt.Errorf(`%s is outside of loop block`, cmd.Cmd)
+
+		if !block.CheckLoop() && (status == statusContinue || status == statusBreak) {
+			err = fmt.Errorf(`%s is outside of 'while' statement`, cmd.Cmd)
 			break
 		}
 		if status == statusReturn || status == statusContinue || status == statusBreak {
@@ -263,6 +264,7 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 	return
 }
 
+// callFunc calls the function with the specified compiler.ExtFuncInfo object.
 func (rt *Runtime) callFunc(obj *compiler.Object) (err error) {
 	var count, in int
 	variadic := obj.GetVariadic()
@@ -338,9 +340,6 @@ func (rt *Runtime) callFunc(obj *compiler.Object) (err error) {
 		result = foo.CallSlice(pars)
 	} else {
 		result = foo.Call(pars)
-	}
-	if shift < 0 {
-		shift = 0
 	}
 	rt.stack.resetByIdx(shift)
 	if stack != nil {
@@ -432,7 +431,7 @@ func (rt *Runtime) callObjFunc(obj *compiler.Object) error {
 	return err
 }
 
-func (rt *Runtime) extendFunc(name string) error {
+func (rt *Runtime) callExtendFunc(name string) error {
 	f, ok := rt.extend[name]
 	foo := reflect.ValueOf(f)
 	if !ok || foo.Kind() != reflect.Func {
@@ -478,7 +477,7 @@ func (rt *Runtime) extendFunc(name string) error {
 				stack[i] = v.Elem()
 				continue
 			}
-			if reflect.PtrTo(vtyp).AssignableTo(ityp) && v.CanAddr() {
+			if reflect.PointerTo(vtyp).AssignableTo(ityp) && v.CanAddr() {
 				stack[i] = v.Addr()
 				continue
 			}
@@ -493,6 +492,7 @@ func (rt *Runtime) extendFunc(name string) error {
 		if len(stack) <= last {
 			stack = append(stack, reflect.Value{})
 		}
+
 		for i := 0; i < count; i++ {
 			if i >= last {
 				if lastType == reflect.TypeOf((*any)(nil)).Elem() {

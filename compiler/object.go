@@ -22,6 +22,12 @@ const (
 	ObjExtVar
 	// ObjOwner is an owner object.
 	ObjOwner
+	// ObjIf is an if object.
+	ObjIf
+	// ObjElse is an else object.
+	ObjElse
+	// ObjWhile is a while object.
+	ObjWhile
 )
 
 // ObjectTypeName maps the integer values of ObjectType to their string representations.
@@ -43,26 +49,30 @@ func (x ObjectType) String() string {
 	return strconv.Itoa(int(x))
 }
 
-type (
-	// Object is the common object type that can be compiled.
-	Object struct {
-		Type ObjectType
-		// Types that are valid to be assigned to Value:
-		// *CodeBlock
-		// *ExtFuncInfo
-		// *ObjInfoVariable
-		// *ObjInfoExtendVariable
-		Value isObjInfoValue
-	}
+// Object is the common object type that can be compiled.
+type Object struct {
+	Type ObjectType
+	// Types that are assignable to Value:
+	//
+	//	*CodeBlock
+	//  *ExtFuncInfo
+	//  *ObjInfoVariable
+	//  *ObjInfoExtendVariable
+	Value isObjValue
+}
 
-	// isObjInfoValue is an interface that represents the value of an Object.
-	isObjInfoValue interface {
-		isObjInfoValue()
-	}
-)
+// isObjValue is an interface that represents the value of an Object.
+type isObjValue interface {
+	isObjInfoValue()
+}
+
+func (*CodeBlock) isObjInfoValue()             {}
+func (*ExtFuncInfo) isObjInfoValue()           {}
+func (*ObjInfoVariable) isObjInfoValue()       {}
+func (*ObjInfoExtendVariable) isObjInfoValue() {}
 
 // NewObject creates a new Object with the given value and determines its ObjectType.
-func NewObject(v isObjInfoValue) *Object {
+func NewObject(v isObjValue) *Object {
 	var t ObjectType
 	switch v.(type) {
 	case *CodeBlock:
@@ -135,7 +145,7 @@ func (obj *Object) GetVariadic() bool {
 }
 
 // GetValue returns the value of the object.
-func (obj *Object) GetValue() isObjInfoValue {
+func (obj *Object) GetValue() isObjValue {
 	if obj != nil {
 		return obj.Value
 	}

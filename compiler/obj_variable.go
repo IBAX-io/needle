@@ -1,16 +1,15 @@
 package compiler
 
-// ObjInfoVariable object variable name name.
+// ObjInfoVariable is the structure for the local variable.
 type ObjInfoVariable struct {
-	Name  string
+	// Name is the name of the local variable.
+	Name string
+	// Index is the position of the variable in the current block.
 	Index int
 }
 
-func (*ObjInfoVariable) isObjInfoValue() {}
-
-// ObjInfoExtendVariable object extend variable name.
+// ObjInfoExtendVariable is the structure for the extended variable.
 type ObjInfoExtendVariable struct {
+	// Name is the name of the extended variable.
 	Name string
 }
-
-func (*ObjInfoExtendVariable) isObjInfoValue() {}

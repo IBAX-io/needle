@@ -18,8 +18,9 @@ const (
 	ExtendGenBlock         = `gen_block`         // true then we check the time limit
 	ExtendTxCost           = `txcost`            // maximum cost limit of the transaction
 	ExtendStack            = `stack`             // name of the contract stack
-	ExtendSc               = `sc`                // implements the Stacker interface of struct
-	ExtendRt               = `rt`                // runtime of the contract
+
+	ExtendSc = `sc` // implements the Stacker interface of struct
+	ExtendRt = `rt` // runtime of the contract
 
 	ExtendResult = `result` // result of the contract
 )
@@ -142,7 +143,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 			return nil, err
 		}
 	}
-	for _, method := range []string{`conditions`, `action`} {
+	for _, method := range []string{compiler.CONDITIONS.String(), compiler.ACTION.String()} {
 		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compiler.ObjFunction {
 			rtemp := NewRuntime(rt.vm, rt.extend, rt.costRemain)
 			rt.extend[ExtendParentContract] = parent

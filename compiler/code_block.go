@@ -26,11 +26,14 @@ import (
 type CodeBlock struct {
 	Objects map[string]*Object
 	Type    ObjectType
-	//Types that are valid to be assigned to Info:
-	//*FunctionInfo
-	//*ContractInfo
-	//*OwnerInfo
-	//or nil if the block is braced by {}, for example: if,else,while
+	// Types that are assignable to Info:
+	//
+	//  *FunctionInfo
+	//  *ContractInfo
+	//  *OwnerInfo
+	//  *ObjInfoIf
+	//  *ObjInfoElse
+	//  *ObjInfoWhile
 	Info   isCodeBlockInfo
 	Parent *CodeBlock
 	Vars   []reflect.Type
@@ -61,6 +64,9 @@ type isCodeBlockInfo interface {
 func (*OwnerInfo) isCodeBlockInfo()    {}
 func (*ContractInfo) isCodeBlockInfo() {}
 func (*FunctionInfo) isCodeBlockInfo() {}
+func (*ObjInfoIf) isCodeBlockInfo()    {}
+func (*ObjInfoElse) isCodeBlockInfo()  {}
+func (*ObjInfoWhile) isCodeBlockInfo() {}
 
 func (bc *CodeBlock) GetInfo() isCodeBlockInfo {
 	if bc != nil {
@@ -90,8 +96,6 @@ func (bc *CodeBlock) GetOwnerInfo() *OwnerInfo {
 	return nil
 }
 
-func (*CodeBlock) isObjInfoValue() {}
-
 func (bc *CodeBlock) resolve(name string) (*CodeBlock, bool) {
 	_, ok := bc.Objects[name]
 	if ok {
@@ -109,6 +113,40 @@ func (bc *CodeBlock) AssertVar(name string) bool {
 		if s == name {
 			return true
 		}
+	}
+	return false
+}
+
+// SetInfo sets the type of the block. It could be a function, contract, if, else or while.
+func (bc *CodeBlock) SetInfo(info isCodeBlockInfo) {
+	var t ObjectType
+	switch info.(type) {
+	case *FunctionInfo:
+		t = ObjFunction
+	case *ContractInfo:
+		t = ObjContract
+	case *OwnerInfo:
+		t = ObjOwner
+	case *ObjInfoIf:
+		t = ObjIf
+	case *ObjInfoElse:
+		t = ObjElse
+	case *ObjInfoWhile:
+		t = ObjWhile
+	}
+	bc.Type = t
+	bc.Info = info
+}
+
+// CheckLoop checks if the current block or any of its parent blocks is of
+// type 'ObjWhile', which represents a loop in the code. If a loop is found,
+// it returns true, otherwise false.
+func (bc *CodeBlock) CheckLoop() bool {
+	if bc.Type == ObjWhile {
+		return true
+	}
+	if bc.Parent != nil {
+		return bc.Parent.CheckLoop()
 	}
 	return false
 }
@@ -198,6 +236,15 @@ func (bc *CodeBlock) SetExtendFunc(ext []ExtendFunc) {
 			bc.Objects[item.Name] = NewObject(data)
 		}
 	}
+}
+
+func (bc *CodeBlock) CodeToString() string {
+	var ret string
+	ret = bc.Code.String()
+	for _, child := range bc.Children {
+		ret += child.CodeToString()
+	}
+	return ret
 }
 
 func setWritable(cbs *CodeBlocks) {
