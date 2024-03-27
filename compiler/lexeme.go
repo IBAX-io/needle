@@ -153,9 +153,9 @@ func NewLexer(input []rune) (Lexemes, error) {
 			if err != nil {
 				return nil, err
 			}
-			// if a.token != COMMENT {
-			c.lexemes = append(c.lexemes, lexeme)
-			//}
+			if a.token != COMMENT {
+				c.lexemes = append(c.lexemes, lexeme)
+			}
 		}
 		if hasPush(c.action.flag) {
 			c.startPos = c.position
