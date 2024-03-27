@@ -132,7 +132,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 		a := c.action
 		if a.state == stateError {
 			return nil, fmt.Errorf("unknown lexeme '%s' [%d:%d]",
-				string(c.input[c.startPos:c.position]), c.line, c.position-c.offsetLine+1)
+				string(c.input[c.position:c.position+1]), c.line, c.position-c.offsetLine+1)
 		}
 		if hasSkip(a.flag) {
 			c.position++
@@ -140,6 +140,7 @@ func NewLexer(input []rune) (Lexemes, error) {
 			continue
 		}
 		if a.token > UNKNOWN {
+			c.ifBufCheck(a.token)
 			startPos := c.position
 			if hasPop(a.flag) {
 				startPos = c.startPos
@@ -172,7 +173,6 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 	tk := c.action.token
 	switch tk {
 	default:
-		fmt.Println()
 	case NEWLINE:
 		if c.input[startPos] == rune(0x0a) {
 			c.line++
@@ -184,10 +184,10 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		tk = delimiter2Token[string(ch)]
 		value = string(ch)
 		if len(c.ifBuf) > 0 {
-			if ch == '{' {
+			if tk == LBRACE {
 				c.ifBuf[len(c.ifBuf)-1].pair++
 			}
-			if ch == '}' {
+			if tk == RBRACE {
 				c.ifBuf[len(c.ifBuf)-1].pair--
 				if c.ifBuf[len(c.ifBuf)-1].pair == 0 {
 					c.ifBuf[len(c.ifBuf)-1].stop = true
@@ -218,13 +218,13 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		var ok bool
 		value, ok = op2Token[val]
 		if !ok {
-			return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, c.line, c.position-c.offsetLine+1)
+			return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", val, c.line, c.startPos-c.offsetLine+1)
 		}
 	case NUMBER:
 		name := string(c.input[startPos:endPos])
 		val, err := string2Number(name)
 		if err != nil {
-			return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, c.line, c.position-c.offsetLine+1)
+			return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, c.line, c.startPos-c.offsetLine+1)
 		}
 		value = val
 	case IDENTIFIER:
@@ -243,8 +243,8 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 					return nil, fmt.Errorf("expected statement, found '%s' [%d:%d]", name, c.line, startPos-c.offsetLine+1)
 				}
 				c.lexemes = append(c.lexemes,
-					NewLexeme(ELSE, ELSE.String(), c.line, c.position-c.offsetLine+1),
-					NewLexeme(LBRACE, LBRACE.String(), c.line, c.position-c.offsetLine+1))
+					NewLexeme(ELSE, ELSE.String(), c.line, c.startPos-c.offsetLine+1),
+					NewLexeme(LBRACE, LBRACE.String(), c.line, c.startPos-c.offsetLine+1))
 				tk, value = IF, IF.String()
 				c.ifBuf[len(c.ifBuf)-1].count++
 			case ACTION, CONDITIONS:
@@ -278,6 +278,20 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		}
 	}
 	return NewLexeme(tk, value, c.line, startPos-c.offsetLine+1), nil
+}
+
+func (c *contextLexer) ifBufCheck(token Token) {
+	if len(c.ifBuf) > 0 && c.ifBuf[len(c.ifBuf)-1].stop && token != NEWLINE {
+		name := string(c.input[c.startPos:c.position])
+		if name != ELSE.String() && name != ELIF.String() {
+			for i := 0; i < c.ifBuf[len(c.ifBuf)-1].count; i++ {
+				c.lexemes = append(c.lexemes, NewLexeme(RBRACE, RBRACE.String(), c.line-1, c.startPos-c.offsetLine+1))
+			}
+			c.ifBuf = c.ifBuf[:len(c.ifBuf)-1]
+		} else {
+			c.ifBuf[len(c.ifBuf)-1].stop = false
+		}
+	}
 }
 
 func hasNext(flag int) bool {

@@ -106,7 +106,7 @@ type ByteCodes []*ByteCode
 func (b *ByteCodes) String() string {
 	var ret string
 	for _, code := range *b {
-		ret = ret + code.Cmd.String() + " " + fmt.Sprint(code.Value) + "\n"
+		ret += code.Cmd.String() + " " + fmt.Sprint(code.Value) + "\n"
 	}
 	return ret
 }
