@@ -1,9 +1,9 @@
 package compiler
 
+//go:generate stringer -type Token -output=token_string.go token.go
+
 // Token is the incoming program is implemented in this file. It is the first phase of compilation
 // where the incoming text is divided into a sequence of lexemes.
-
-//go:generate stringer -type Token -output=token_string.go token.go
 type Token uint
 
 // represents the lexical token type of the program.
