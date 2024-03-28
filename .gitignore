@@ -24,3 +24,4 @@ needle
 gen/
 proto/
 .antlr
+vm/testdb
