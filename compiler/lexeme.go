@@ -389,8 +389,8 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 			if err := canIdent(name[1:]); err != nil {
 				return nil, err
 			}
-		} else if keyId, ok := KeywordValue[name]; ok {
-			switch keyId {
+		} else if keyword, ok := KeywordValue[name]; ok {
+			switch keyword {
 			case ELIF:
 				if len(c.ifBuf) == 0 {
 					return nil, fmt.Errorf("expected statement, found '%s' [%d:%d]", name, c.line, startPos-c.offsetLine+1)
@@ -411,19 +411,18 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 				value = NewLexemeValueString(name)
 			case TRUE:
 				tk, value = NUMBER, NewLexemeValueBoolean(true)
-
 			case FALSE:
 				tk, value = NUMBER, NewLexemeValueBoolean(false)
 			case NIL:
 				tk, value = NUMBER, NewLexemeValueNil()
 			default:
-				if keyId == IF {
+				if keyword == IF {
 					c.ifBuf = append(c.ifBuf, struct {
 						count, pair int
 						stop        bool
 					}{})
 				}
-				tk, value = keyId, NewLexemeValueString(keyId.ToString())
+				tk, value = keyword, NewLexemeValueString(keyword.ToString())
 			}
 		} else if tInfo, ok := TypeNameValue[name]; ok {
 			tk, value = TYPENAME, NewLexemeValueToken(tInfo)

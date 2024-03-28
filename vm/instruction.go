@@ -218,7 +218,7 @@ func init() {
 							}
 							rt.setVar(k, d)
 						default:
-							if !v.EqualsType(val) {
+							if val != nil && !v.EqualsType(val) {
 								err = fmt.Errorf("variable '%v' (type %v) cannot be represented by the type %s",
 									item.Obj.GetName(), reflect.TypeOf(val), v.ReflectType())
 								return
