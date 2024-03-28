@@ -251,8 +251,9 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 		rt.stack.resetByIdx(start)
 		ret := local[len(local)-len(refRes):]
 		for i, v := range ret {
-			if refRes[i] != reflect.TypeOf(v) {
-				err = fmt.Errorf("func '%s' return index[%d] %v (type %v) cannot be represented by the type %s", last.Block.GetFuncInfo().Name, i, v, reflect.TypeOf(v), refRes[i])
+			if !refRes[i].EqualsType(v) {
+				err = fmt.Errorf("func '%s' return index[%d] %v (type %v) cannot be represented by the type %s",
+					last.Block.GetFuncInfo().Name, i, v, reflect.TypeOf(v), refRes[i].ReflectType())
 				return
 			}
 			rt.stack.push(v)
@@ -416,11 +417,11 @@ func (rt *Runtime) callObjFunc(obj *compiler.Object) error {
 	for i, v := range finfo.Params {
 		offset := rt.stack.size() - in + i
 		stack := rt.stack.get(offset)
-		if v.Kind() == reflect.Int64 && reflect.TypeOf(stack).Kind() == reflect.Float64 {
+		if v == compiler.INT && compiler.FLOAT.EqualsType(stack) {
 			val, _ := ValueToInt(stack)
 			rt.stack.set(offset, val)
 		}
-		if reflect.TypeOf(stack) != v {
+		if !v.EqualsType(stack) {
 			return fmt.Errorf("func '%s' param: cannot use (type %T) as the type %s", finfo.Name, stack, v)
 		}
 	}
@@ -618,10 +619,10 @@ func (rt *Runtime) addVarBy(block *compiler.CodeBlock) {
 		if block.Type == compiler.ObjFunction && key < len(block.GetFuncInfo().Params) {
 			value = rt.stack.getAndDel(rt.stack.size() - len(block.GetFuncInfo().Params) + key)
 		} else {
-			value = reflect.New(par).Elem().Interface()
-			if par == reflect.TypeOf(&compiler.Map{}) {
+			value = compiler.GetFieldDefaultValue(par)
+			if par == compiler.MAP {
 				value = compiler.NewMap()
-			} else if par == reflect.TypeOf([]any{}) {
+			} else if par == compiler.ARRAY {
 				value = make([]any, 0, len(rt.vars)+1)
 			}
 		}

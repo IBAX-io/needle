@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"reflect"
 	"strings"
 )
 
@@ -11,7 +10,7 @@ type ContractInfo struct {
 	Name     string
 	Owner    *OwnerInfo
 	Used     map[string]bool // Called contracts
-	Tx       *[]*FieldInfo   // contract fields
+	Field    *[]*FieldInfo   // contract fields
 	Settings map[string]any
 	CanWrite bool // true if the function can update DB
 }
@@ -22,10 +21,10 @@ func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 		return nil
 	}
 	m := make(map[string]*FieldInfo)
-	if c.Tx == nil {
+	if c.Field == nil {
 		return m
 	}
-	for _, n := range *c.Tx {
+	for _, n := range *c.Field {
 		m[n.Name] = n
 	}
 	return m
@@ -34,7 +33,7 @@ func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 // FieldInfo describes the field of the data structure.
 type FieldInfo struct {
 	Name     string
-	Type     reflect.Type
+	Type     Token
 	Original Token
 	Tags     string
 }

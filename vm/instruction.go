@@ -202,15 +202,15 @@ func init() {
 				for i := len(rt.blocks) - 1; i >= 0; i-- {
 					if item.Owner == rt.blocks[i].Block {
 						k := rt.blocks[i].Offset + item.Obj.GetVariable().Index
-						switch v := rt.blocks[i].Block.Vars[item.Obj.GetVariable().Index]; v.String() {
-						case "float64":
+						switch v := rt.blocks[i].Block.Vars[item.Obj.GetVariable().Index]; v {
+						case compiler.FLOAT:
 							var d float64
 							d, err = ValueToFloat(val)
 							if err != nil {
 								return
 							}
 							rt.setVar(k, d)
-						case "decimal.Decimal":
+						case compiler.MONEY:
 							var d decimal.Decimal
 							d, err = ValueToDecimal(val)
 							if err != nil {
@@ -218,9 +218,9 @@ func init() {
 							}
 							rt.setVar(k, d)
 						default:
-							if val != nil && v != reflect.TypeOf(val) {
+							if !v.EqualsType(val) {
 								err = fmt.Errorf("variable '%v' (type %v) cannot be represented by the type %s",
-									item.Obj.GetName(), reflect.TypeOf(val), v)
+									item.Obj.GetName(), reflect.TypeOf(val), v.ReflectType())
 								return
 							}
 							rt.setVar(k, val)
@@ -546,7 +546,7 @@ func init() {
 		return
 	}
 	instructionTable[compiler.CmdSign] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if code.Lexeme.Value.(compiler.Token) == compiler.Add {
+		if code.Lexeme.Token() == compiler.Add {
 			return
 		}
 		z := rt.stack.pop()

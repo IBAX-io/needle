@@ -24,7 +24,7 @@ const (
 	stateVarType
 	stateAssignEval
 	stateAssign
-	stateTX
+	stateField
 	stateSettings
 	stateConsts
 	stateConstsAssign
@@ -62,7 +62,7 @@ var stateType2Str = map[stateType]string{
 	stateVarType:      "VarType",
 	stateAssignEval:   "AssignEval",
 	stateAssign:       "Assign",
-	stateTX:           "TX",
+	stateField:        "Field",
 	stateSettings:     "Settings",
 	stateConsts:       "Consts",
 	stateConstsAssign: "ConstsAssign",
@@ -150,7 +150,7 @@ func init() {
 		WHILE:      {handleWhile, stateEval | stateFlagPush | stateFlagToBlock | stateFlagLabel | stateFlagMustEval},
 		ELSE:       {handleElse, stateBlock | stateFlagPush},
 		VAR:        {handleNothing, stateVar},
-		TX:         {handleTx, stateTX},
+		FIELD:      {handleNewField, stateField},
 		SETTINGS:   {handleSettings, stateSettings},
 		ERROR:      {handleCmdError, stateEval},
 		ERRWARNING: {handleCmdError, stateEval},
@@ -237,11 +237,10 @@ func init() {
 		OPERATOR:   {handleAssign, stateEval | stateFlagToBody},
 		UNKNOWN:    {handleError, errAssign},
 	}
-	stateTable[stateTX] = map[Token]compileState{
-		NEWLINE: {handleNothing, stateTX},
+	stateTable[stateField] = map[Token]compileState{
+		NEWLINE: {handleNothing, stateField},
 		LBRACE:  {handleNothing, stateFields},
-		// IDENTIFIER:   {stateAssign,fTX},
-		EXTEND:  {handleTx, stateAssign},
+		EXTEND:  {handleNewField, stateAssign},
 		UNKNOWN: {handleError, errMustLBRACE},
 	}
 	stateTable[stateSettings] = map[Token]compileState{

@@ -2,7 +2,6 @@ package vm
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/IBAX-io/needle/compiler"
@@ -75,9 +74,9 @@ func (rt *Runtime) loadExtendBy(key string) *extendInfo {
 	return e
 }
 
-// ExecContract runs the name contract where txs contains the list of parameters and
+// ExecContract runs the name contract where fields contains the list of parameters and
 // params are the values of parameters.
-func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
+func ExecContract(rt *Runtime, name, fields string, params ...any) (any, error) {
 	if err := rt.SubCost(CostContract); err != nil {
 		return nil, err
 	}
@@ -102,7 +101,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 		prevExtend[key] = item
 		delete(rt.extend, key)
 	}
-	extVars, err := genExtVars(obj.GetContractInfo(), txs, params)
+	extVars, err := genExtVars(obj.GetContractInfo(), fields, params)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +142,7 @@ func ExecContract(rt *Runtime, name, txs string, params ...any) (any, error) {
 			return nil, err
 		}
 	}
-	for _, method := range []string{compiler.CONDITIONS.String(), compiler.ACTION.String()} {
+	for _, method := range []string{compiler.CONDITIONS.ToString(), compiler.ACTION.ToString()} {
 		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compiler.ObjFunction {
 			rtemp := NewRuntime(rt.vm, rt.extend, rt.costRemain)
 			rt.extend[ExtendParentContract] = parent
@@ -213,8 +212,8 @@ func MemoryUsage(rt *Runtime) int64 {
 }
 
 // genExtVars generates the external variables of the contract.
-func genExtVars(contract *compiler.ContractInfo, txs string, params []any) (map[string]any, error) {
-	pars := strings.Split(txs, `,`)
+func genExtVars(contract *compiler.ContractInfo, fields string, params []any) (map[string]any, error) {
+	pars := strings.Split(fields, `,`)
 	param := make(map[string]struct{})
 	for _, par := range pars {
 		if _, ok := param[par]; ok {
@@ -227,13 +226,13 @@ func genExtVars(contract *compiler.ContractInfo, txs string, params []any) (map[
 	}
 
 	extVars := make(map[string]any)
-	txMap := contract.TxMap()
+	fieldMap := contract.TxMap()
 
 	for i, par := range pars {
 		if len(par) == 0 {
 			continue
 		}
-		_, ok := txMap[par]
+		_, ok := fieldMap[par]
 		if !ok {
 			continue
 		}
@@ -241,12 +240,12 @@ func genExtVars(contract *compiler.ContractInfo, txs string, params []any) (map[
 			extVars[par] = params[i]
 		}
 	}
-	for _, tx := range txMap {
-		if _, ok := param[tx.Name]; !ok {
-			if !strings.Contains(tx.Tags, TagOptional) {
-				return nil, fmt.Errorf(eUndefinedParam, tx.Name)
+	for _, fie := range fieldMap {
+		if _, ok := param[fie.Name]; !ok {
+			if !strings.Contains(fie.Tags, TagOptional) {
+				return nil, fmt.Errorf(eUndefinedParam, fie.Name)
 			}
-			extVars[tx.Name] = reflect.Zero(tx.Type).Interface()
+			extVars[fie.Name] = compiler.GetFieldDefaultValue(fie.Type)
 		}
 	}
 

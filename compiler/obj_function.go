@@ -6,8 +6,8 @@ import "reflect"
 type FunctionInfo struct {
 	Id      uint32
 	Name    string
-	Params  []reflect.Type
-	Results []reflect.Type
+	Params  []Token
+	Results []Token
 	// tail function
 	Tails    map[string]FuncTail
 	Variadic bool
@@ -31,14 +31,14 @@ func (e *FunctionInfo) HasTails() bool {
 // FuncTail contains the tail function information
 type FuncTail struct {
 	Name     string
-	Params   []reflect.Type
+	Params   []Token
 	Offset   []int
 	Variadic bool
 }
 
 // IsParamEmpty checks if the parameter at the given index is empty (nil).
 func (f FuncTail) IsParamEmpty(i int) bool {
-	return f.Params[i] == reflect.TypeOf(nil)
+	return f.Params[i] == UNKNOWN
 }
 
 // ExtFuncInfo is the structure for the extended golang function.

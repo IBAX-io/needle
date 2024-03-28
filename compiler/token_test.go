@@ -5,20 +5,15 @@ import (
 	"testing"
 )
 
-func TestToken_String(t *testing.T) {
-	fmt.Println(FUNC, RBRACE, Add, BOOL, EXTEND, KEYWORD, LITERAL)
-}
-
 func TestGetFieldDefaultValue(t *testing.T) {
-	for i := 0; i < 11; i++ {
-		lexeme := TYPENAME | Token((i+1)<<8)
+	for i := 1; i < 11; i++ {
+		lexeme := TYPENAME<<8 | Token(i)
 		defaultValue := GetFieldDefaultValue(lexeme)
-		fmt.Printf("%d,Type: %v, DefaultValue: %v\n", i, lexeme.String(), defaultValue)
+		fmt.Printf("%d,Type: %v, DefaultValue: %v\n", i, lexeme.ToString(), defaultValue)
 	}
 	name := "address"
-	r, _ := TypeNameReflect[TypeNameValue[name]]
 
-	fmt.Println(NewLexeme(TypeNameValue[name], r, 1, 1))
+	fmt.Println(NewLexeme(TYPENAME, NewLexemeValueToken(TypeNameValue[name]), 1, 1))
 }
 
 func TestLookup(t *testing.T) {
@@ -32,7 +27,7 @@ func TestLookup(t *testing.T) {
 		want1 bool
 	}{
 		{"TestLookup", args{"int"}, INT, true},
-		{"TestLookup", args{"data"}, TX, true},
+		{"TestLookup", args{"data"}, FIELD, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

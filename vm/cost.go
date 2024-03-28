@@ -18,8 +18,8 @@ func ContractBaseCost(cb *compiler.CodeBlock) int64 {
 	if c != nil {
 		cost += int64(len(cb.Objects) * CostCall)
 		cost += int64(len(c.Settings) * CostCall)
-		if c.Tx != nil {
-			cost += int64(len(*c.Tx) * CostExtend)
+		if c.Field != nil {
+			cost += int64(len(*c.Field) * CostExtend)
 		}
 	}
 	return cost

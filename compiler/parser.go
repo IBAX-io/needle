@@ -217,7 +217,7 @@ main:
 			break main
 		case NEWLINE:
 			if p.prevN(1).Type == COMMA || p.prevN(1).Type == OPERATOR &&
-				(p.prevN(1).Value != Inc && p.prevN(1).Value != Dec) {
+				(p.prevN(1).Token() != Inc && p.prevN(1).Token() != Dec) {
 				continue main
 			}
 			for k := len(buf) - 1; k >= 0; k-- {
@@ -299,7 +299,7 @@ main:
 				}
 				if p.nextN(1).Type == DOT && p.nextN(2).Type == IDENTIFIER {
 					names := prev.Object().GetFunctionInfo().Tails
-					if v, ok := names[p.nextN(2).Value.(string)]; ok {
+					if v, ok := names[p.nextN(2).ToString()]; ok {
 						buf.push(newByteCode(CmdFuncTail, p.nextN(2), &FuncTailCmd{FuncTail: v}))
 						count := 0
 						if p.nextN(4).Type != RPAREN {
@@ -386,7 +386,7 @@ main:
 				return p.syntaxErrorWrap(errMultiIndex)
 			}
 		case OPERATOR:
-			op, ok := operatorPriority[p.lex.Value.(Token)]
+			op, ok := operatorPriority[p.lex.Token()]
 			if !ok {
 				return p.syntaxErrorWrap(fmt.Errorf("unknown operator %v", p.lex.Value))
 			}
@@ -444,7 +444,7 @@ main:
 				return p.syntaxErrorWrap(fmt.Errorf("unexpected %v at end of expression", p.lex.Value))
 			}
 			noMap = true
-			cmd = newByteCode(CmdPush, p.lex, p.lex.Value)
+			cmd = newByteCode(CmdPush, p.lex, p.lex.Values())
 		case EXTEND:
 			noMap = true
 			if p.i < len(p.inputs)-2 {
@@ -454,19 +454,19 @@ main:
 						count++
 					}
 					parcount = append(parcount, count)
-					buf.push(newByteCode(CmdCallExtend, p.lex, p.lex.Value.(string)))
+					buf.push(newByteCode(CmdCallExtend, p.lex, p.lex.ToString()))
 					call = true
 				}
 			}
 			if !call {
-				cmd = newByteCode(CmdExtend, p.lex, p.lex.Value.(string))
+				cmd = newByteCode(CmdExtend, p.lex, p.lex.ToString())
 				if p.i < len(p.inputs)-1 && p.nextN(1).Type == LBRACK {
-					buf.push(newByteCode(CmdGetIndex, p.lex, &IndexInfo{Extend: p.lex.Value.(string)}))
+					buf.push(newByteCode(CmdGetIndex, p.lex, &IndexInfo{Extend: p.lex.ToString()}))
 				}
 			}
 		case IDENTIFIER:
 			noMap = true
-			obj, owner := p.findObj(p.lex.Value.(string), block)
+			obj, owner := p.findObj(p.lex.ToString(), block)
 			if obj == nil && (p.conf.IgnoreObj != IgnoreIdent || p.i >= len(p.inputs)-2 || p.nextN(1).Type != LPAREN) {
 				return p.syntaxErrorWrap(fmt.Errorf(eUnknownIdent, p.lex.Value))
 			}
@@ -504,7 +504,7 @@ main:
 					}
 					buf.push(newByteCode(cmd, p.lex, obj))
 					if isContract {
-						name := StateName(block.ParentOwner().StateId, p.lex.Value.(string))
+						name := StateName(block.ParentOwner().StateId, p.lex.ToString())
 						for j := len(*block) - 1; j >= 0; j-- {
 							topBlock := (*block)[j]
 							if topBlock.Type == ObjContract {
@@ -526,7 +526,7 @@ main:
 
 						count++
 					}
-					if p.lex.Value.(string) == "CallContract" {
+					if p.lex.ToString() == "CallContract" {
 						count++
 						bc.push(newByteCode(CmdPush, p.lex, block.ParentOwner().StateId))
 					}
@@ -559,7 +559,7 @@ main:
 			bc.push(cmd)
 		}
 	}
-	if prevLex.Type == OPERATOR && (prevLex.Value != Inc && prevLex.Value != Dec) {
+	if prevLex.Type == OPERATOR && (prevLex.Token() != Inc && prevLex.Token() != Dec) {
 		return prevLex.errorWrap(errEndExp)
 	}
 
@@ -586,7 +586,7 @@ func (p *Parser) parserSliceStmt(buffer, bytecode *ByteCodes) error {
 	}
 	if p.prevN(1).Type == NUMBER {
 		if (buffer.peek().Cmd == CmdSign && p.prevN(3).Type == LBRACK) || p.prevN(2).Type == LBRACK {
-			if _, ok := p.prevN(1).Value.(int64); !ok {
+			if ok := p.prevN(1).IsInteger(); !ok {
 				return p.prevN(1).errorPos("slice index must be integer")
 			}
 			low = SliceLowNum
@@ -594,13 +594,13 @@ func (p *Parser) parserSliceStmt(buffer, bytecode *ByteCodes) error {
 	}
 
 	if p.nextN(1).Type == NUMBER && p.nextN(2).Type == RBRACK {
-		if _, ok := p.nextN(1).Value.(int64); !ok {
+		if ok := p.nextN(1).IsInteger(); !ok {
 			return p.nextN(1).errorPos("slice index must be integer")
 		}
 		high = SliceHighNum
 	}
-	if (p.nextN(1).Value == Sub || p.nextN(1).Value == Add) && p.nextN(2).Type == NUMBER && p.nextN(3).Type == RBRACK {
-		if _, ok := p.nextN(2).Value.(int64); !ok {
+	if (p.nextN(1).Token() == Sub || p.nextN(1).Token() == Add) && p.nextN(2).Type == NUMBER && p.nextN(3).Type == RBRACK {
+		if ok := p.nextN(2).IsInteger(); !ok {
 			return p.nextN(2).errorPos("slice index must be integer")
 		}
 		high = SliceHighNum
@@ -649,7 +649,7 @@ func (p *Parser) parseInitValue(block *CodeBlocks) (value *MapItem, err error) {
 	case EXTEND:
 		value = &MapItem{Type: MapExtend, Value: p.lex.Value}
 	case IDENTIFIER:
-		objInfo, tobj := p.findObj(p.lex.Value.(string), block)
+		objInfo, tobj := p.findObj(p.lex.ToString(), block)
 		if objInfo == nil {
 			err = p.syntaxErrorWrap(fmt.Errorf(eUnknownIdent, p.lex.Value))
 		} else {
@@ -708,9 +708,9 @@ main:
 		case MustKey:
 			switch p.lex.Type & 0xff {
 			case IDENTIFIER, LITERAL:
-				key = p.lex.Value.(string)
+				key = p.lex.ToString()
 			case EXTEND:
-				key = "$" + p.lex.Value.(string)
+				key = "$" + p.lex.ToString()
 			case KEYWORD:
 				for ikey, v := range KeywordValue {
 					if v == p.lex.Type {

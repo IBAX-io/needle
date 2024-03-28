@@ -48,3 +48,26 @@ func TestNewLexer(t *testing.T) {
 		})
 	}
 }
+
+func TestNewLexemeValueNumber(t *testing.T) {
+	type args struct {
+		value any
+	}
+	tests := []struct {
+		name string
+		args args
+		want *LexemeValueNumber
+	}{
+		{"case1", args{int64(123)}, &LexemeValueNumber{Int64: 123, IsInteger: true}},
+		{"case2", args{123.456}, &LexemeValueNumber{Float64: 123.456}},
+		{"case3", args{int64(0)}, &LexemeValueNumber{Int64: 0, IsInteger: true}},
+		{"case4", args{0}, &LexemeValueNumber{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewLexemeValueNumber(tt.args.value); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewLexemeValueNumber() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

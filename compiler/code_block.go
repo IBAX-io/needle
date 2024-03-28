@@ -36,7 +36,7 @@ type CodeBlock struct {
 	//  *ObjInfoWhile
 	Info   isCodeBlockInfo
 	Parent *CodeBlock
-	Vars   []reflect.Type
+	Vars   []Token
 	Code   ByteCodes
 	// PredeclaredVar is a list of variables that are declared in the block
 	PredeclaredVar []string
