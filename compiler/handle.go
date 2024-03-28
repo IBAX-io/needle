@@ -97,7 +97,7 @@ func handleReturn(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleCmdError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdError, lex, lex.Value))
+	buf.peek().Code.push(newByteCode(CmdError, lex, lex.Values()))
 	return nil
 }
 
