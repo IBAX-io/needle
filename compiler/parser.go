@@ -33,7 +33,7 @@ func (p *Parser) init() {
 	}
 	p.root = &CodeBlock{
 		Objects:        make(map[string]*Object),
-		Type:           ObjOwner,
+		Type:           CodeBlockOwner,
 		Info:           p.conf.Owner,
 		PredeclaredVar: p.conf.PreVar,
 	}
@@ -143,9 +143,9 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 		return nil, handleError(&bls, errMustRBRACE, p.inputs[len(p.inputs)-1])
 	}
 	for _, item := range p.root.Objects {
-		if item.Type == ObjContract {
+		if item.IsCodeBlockContract() {
 			if cond, ok := item.GetCodeBlock().Objects[`conditions`]; ok {
-				if cond.Type == ObjFunction && cond.GetFunctionInfo().CanWrite && p.conf.IgnoreObj != IgnoreIdent {
+				if cond.IsCodeBlockFunction() && cond.GetFunctionInfo().CanWrite && p.conf.IgnoreObj != IgnoreIdent {
 					return nil, fmt.Errorf("%s %w", item.GetContractInfo().Name, errCondWrite)
 				}
 			}
@@ -289,11 +289,11 @@ main:
 				return p.syntaxError(fmt.Sprintf("function %s must return one value", objInfo.GetName()))
 			}
 
-			if (objInfo.Type == ObjFunction && objInfo.GetFunctionInfo().CanWrite) ||
+			if (objInfo.Type == ObjCodeBlock && objInfo.GetFunctionInfo().CanWrite) ||
 				(objInfo.Type == ObjExtFunc && objInfo.GetExtFuncInfo().CanWrite) {
 				setWritable(block)
 			}
-			if objInfo.Type == ObjFunction && objInfo.GetFunctionInfo().HasTails() {
+			if objInfo.IsCodeBlockFunction() && objInfo.GetFunctionInfo().HasTails() {
 				if bc.empty() || bc[len(bc)-1].Cmd != CmdFuncTail {
 					bc.push(newByteCode(CmdPush, p.lex, make(map[string][]any)))
 				}
@@ -477,14 +477,15 @@ main:
 						objContract *ContractInfo
 					)
 					if p.conf.IgnoreObj == IgnoreIdent && obj == nil {
-						obj = &Object{Type: ObjContract}
+						obj = NewObject(&CodeBlock{Type: CodeBlockContract})
 					}
-					if obj == nil || (obj.Type != ObjExtFunc && obj.Type != ObjFunction &&
-						obj.Type != ObjContract) {
+					if obj == nil || (obj.Type != ObjExtFunc &&
+						!obj.IsCodeBlockContract() &&
+						!obj.IsCodeBlockFunction()) {
 						return p.syntaxErrorWrap(fmt.Errorf("unknown function or contract %s", p.lex.Value))
 					}
 
-					if obj.Type == ObjContract {
+					if obj.IsCodeBlockContract() {
 						if obj.Value != nil {
 							objContract = obj.GetContractInfo()
 						}
@@ -507,7 +508,7 @@ main:
 						name := StateName(block.ParentOwner().StateId, p.lex.ToString())
 						for j := len(*block) - 1; j >= 0; j-- {
 							topBlock := (*block)[j]
-							if topBlock.Type == ObjContract {
+							if topBlock.Type == CodeBlockContract {
 								if name == topBlock.GetContractInfo().Name {
 									return p.syntaxErrorWrap(errRecursion)
 								}

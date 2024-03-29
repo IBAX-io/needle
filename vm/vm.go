@@ -106,14 +106,14 @@ func (vm *VM) Call(name string, extend map[string]any) (ret []any, err error) {
 	}
 	var block *compiler.CodeBlock
 	rt := NewRuntime(vm, extend, extend[ExtendTxCost].(int64))
-	switch obj.Type {
-	case compiler.ObjContract:
+	if obj.IsCodeBlockContract() {
 		block = obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock()
-	case compiler.ObjFunction:
+	} else if obj.IsCodeBlockFunction() {
 		block = obj.GetCodeBlock()
-	default:
+	} else {
 		return nil, fmt.Errorf("unknown object %s for call", name)
 	}
+
 	ret, err = rt.Run(block)
 	extend[ExtendTxCost] = rt.CostRemain()
 	fmt.Println("gas:", rt.CostUsed())
@@ -194,7 +194,7 @@ func GetContractById(vm *VM, id int32) *compiler.ContractInfo {
 	if len(vm.Children) <= int(idcont) {
 		return nil
 	}
-	if vm.Children[idcont] == nil || vm.Children[idcont].Type != compiler.ObjContract {
+	if vm.Children[idcont] == nil || vm.Children[idcont].Type != compiler.CodeBlockContract {
 		return nil
 	}
 	if tableId > 0 && vm.Children[idcont].GetContractInfo().Owner.TableId != tableId {
@@ -219,7 +219,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		return fmt.Errorf(`unknown object '%s'`, name)
 	}
 
-	if obj.Type != compiler.ObjContract {
+	if obj.IsCodeBlockContract() {
 		return fmt.Errorf(eUnknownContract, name)
 	}
 	contract := obj.GetCodeBlock()
@@ -233,7 +233,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		if !ok {
 			continue
 		}
-		if obj.Type == compiler.ObjFunction {
+		if obj.IsCodeBlockFunction() {
 			fn := obj.GetCodeBlock()
 			_, err := Run(vm, fn, extend)
 			if err != nil {
@@ -333,10 +333,10 @@ func (vm *VM) FlushBlock(root *compiler.CodeBlock) {
 	shift := len(vm.Children)
 	for key, item := range root.Objects {
 		if cur, ok := vm.Objects[key]; ok {
-			switch item.Type {
-			case compiler.ObjContract:
+			if cur.IsCodeBlockContract() {
 				item.GetContractInfo().Id = cur.GetContractInfo().Id + flushMark
-			case compiler.ObjFunction:
+			}
+			if cur.IsCodeBlockFunction() {
 				item.GetFunctionInfo().Id = cur.GetFunctionInfo().Id + flushMark
 				vm.Objects[key].Value = item.Value
 			}
@@ -348,7 +348,7 @@ func (vm *VM) FlushBlock(root *compiler.CodeBlock) {
 			continue
 		}
 		switch item.Type {
-		case compiler.ObjContract:
+		case compiler.CodeBlockContract:
 			if item.GetContractInfo().Id > flushMark {
 				item.GetContractInfo().Id -= flushMark
 				vm.Children[item.GetContractInfo().Id] = item
@@ -358,15 +358,15 @@ func (vm *VM) FlushBlock(root *compiler.CodeBlock) {
 
 			item.Parent = vm.CodeBlock
 			item.GetContractInfo().Id += uint32(shift)
-		case compiler.ObjFunction:
-			if item.GetFuncInfo().Id > flushMark {
-				item.GetFuncInfo().Id -= flushMark
-				vm.Children[item.GetFuncInfo().Id] = item
+		case compiler.CodeBlockFunction:
+			if item.GetFunctionInfo().Id > flushMark {
+				item.GetFunctionInfo().Id -= flushMark
+				vm.Children[item.GetFunctionInfo().Id] = item
 				shift--
 				continue
 			}
 			item.Parent = vm.CodeBlock
-			item.GetFuncInfo().Id += uint32(shift)
+			item.GetFunctionInfo().Id += uint32(shift)
 		}
 		vm.Children = append(vm.Children, item)
 	}

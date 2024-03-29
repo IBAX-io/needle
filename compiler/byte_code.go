@@ -12,7 +12,7 @@ type ByteCode struct {
 	//  *IndexInfo, assigned to CmdGetIndex, CmdSetIndex.
 	//	*VarInfo, assigned to CmdVar.
 	//	*CodeBlock, assigned to CmdIf, CmdElse, CmdWhile
-	//	*Object, assigned to CmdCall, CmdCallVariadic both for ObjFunction, ObjExtFunc and ObjContract
+	//	*Object, assigned to CmdCall, CmdCallVariadic both for CodeBlockFunction, ObjExtFunc and CodeBlockContract
 	//	*SliceItem, assigned to CmdSliceColon
 	//	*Map, assigned to CmdMapInit
 	//	*[]*VarInfo, assigned to CmdAssignVar

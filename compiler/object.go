@@ -1,8 +1,6 @@
 package compiler
 
-import (
-	"strconv"
-)
+import "strconv"
 
 // ObjectType Types of the compiled objects
 type ObjectType int32
@@ -10,35 +8,23 @@ type ObjectType int32
 const (
 	// ObjDefault is an default object.
 	ObjDefault ObjectType = iota
-	// ObjContract is a contract object.
-	ObjContract
-	// ObjFunction is a function object.
-	ObjFunction
+	// ObjCodeBlock is a code block object.
+	ObjCodeBlock
 	// ObjExtFunc is an extended build in function object.
 	ObjExtFunc
 	// ObjVariable is a variable object.
 	ObjVariable
 	// ObjExtVar is an extended build in variable.
 	ObjExtVar
-	// ObjOwner is an owner object.
-	ObjOwner
-	// ObjIf is an if object.
-	ObjIf
-	// ObjElse is an else object.
-	ObjElse
-	// ObjWhile is a while object.
-	ObjWhile
 )
 
 // ObjectTypeName maps the integer values of ObjectType to their string representations.
 var ObjectTypeName = map[int32]string{
 	0: "Default",
-	1: "Contract",
-	2: "Func",
-	3: "ExtFunc",
-	4: "Var",
-	5: "ExtVar",
-	6: "Owner",
+	1: "CodeBlock",
+	2: "ExtFunc",
+	3: "Variable",
+	4: "ExtVar",
 }
 
 func (x ObjectType) String() string {
@@ -61,6 +47,20 @@ type Object struct {
 	Value isObjValue
 }
 
+// ObjInfoVariable is the structure for the local variable.
+type ObjInfoVariable struct {
+	// Name is the name of the local variable.
+	Name string
+	// Index is the position of the variable in the current block.
+	Index int
+}
+
+// ObjInfoExtendVariable is the structure for the extended variable.
+type ObjInfoExtendVariable struct {
+	// Name is the name of the extended variable.
+	Name string
+}
+
 // isObjValue is an interface that represents the value of an Object.
 type isObjValue interface {
 	isObjInfoValue()
@@ -76,7 +76,7 @@ func NewObject(v isObjValue) *Object {
 	var t ObjectType
 	switch v.(type) {
 	case *CodeBlock:
-		t = v.(*CodeBlock).Type
+		t = ObjCodeBlock
 	case *ExtFuncInfo:
 		t = ObjExtFunc
 	case *ObjInfoVariable:
@@ -92,7 +92,7 @@ func (obj *Object) GetParamsLen() int {
 	if obj.Type == ObjExtFunc {
 		return len(obj.GetExtFuncInfo().Params)
 	}
-	if obj.Type == ObjFunction {
+	if obj.Type == ObjCodeBlock {
 		return len(obj.GetFunctionInfo().Params)
 	}
 	return 0
@@ -108,7 +108,7 @@ func (obj *Object) GetResultsLen() int {
 			}
 		}
 	}
-	if obj.Type == ObjFunction {
+	if obj.Type == ObjCodeBlock {
 		return len(obj.GetFunctionInfo().Results)
 	}
 	return retLen
@@ -118,12 +118,10 @@ func (obj *Object) GetResultsLen() int {
 func (obj *Object) GetName() string {
 	var name string
 	switch obj.Type {
-	case ObjContract:
-		name = obj.GetContractInfo().Name
+	case ObjCodeBlock:
+		name = obj.GetCodeBlock().GetName()
 	case ObjExtFunc:
 		name = obj.GetExtFuncInfo().Name
-	case ObjFunction:
-		name = obj.GetFunctionInfo().Name
 	case ObjVariable:
 		name = obj.GetVariable().Name
 	case ObjExtVar:
@@ -138,8 +136,22 @@ func (obj *Object) GetVariadic() bool {
 		return obj.GetExtFuncInfo().Variadic
 	}
 
-	if obj.Type == ObjFunction {
+	if obj.Type == ObjCodeBlock {
 		return obj.GetFunctionInfo().Variadic
+	}
+	return false
+}
+
+func (obj *Object) IsCodeBlockContract() bool {
+	if obj.Type == ObjCodeBlock && obj.GetCodeBlock().Type == CodeBlockContract {
+		return true
+	}
+	return false
+}
+
+func (obj *Object) IsCodeBlockFunction() bool {
+	if obj.Type == ObjCodeBlock && obj.GetCodeBlock().Type == CodeBlockFunction {
+		return true
 	}
 	return false
 }
@@ -162,22 +174,16 @@ func (obj *Object) GetCodeBlock() *CodeBlock {
 
 // GetContractInfo returns the ContractInfo of the object if it exists.
 func (obj *Object) GetContractInfo() *ContractInfo {
-	cb := obj.GetCodeBlock()
-	if cb != nil {
-		if x, ok := cb.Info.(*ContractInfo); ok {
-			return x
-		}
+	if obj.IsCodeBlockContract() {
+		return obj.GetCodeBlock().GetContractInfo()
 	}
 	return nil
 }
 
 // GetFunctionInfo returns the FunctionInfo of the object if it exists.
 func (obj *Object) GetFunctionInfo() *FunctionInfo {
-	cb := obj.GetCodeBlock()
-	if cb != nil {
-		if x, ok := cb.Info.(*FunctionInfo); ok {
-			return x
-		}
+	if obj.IsCodeBlockContract() {
+		return obj.GetCodeBlock().GetFunctionInfo()
 	}
 	return nil
 }

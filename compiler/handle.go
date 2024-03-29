@@ -63,7 +63,7 @@ func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	name := lex.ToString()
 	switch state {
 	case stateBlock:
-		if prev.Type != ObjOwner {
+		if prev.Type != CodeBlockOwner {
 			return fmt.Errorf("%s can only be in owner", lex.Value)
 		}
 		name = StateName(buf.ParentOwner().StateId, name)
@@ -72,7 +72,7 @@ func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 			Name: name, Owner: buf.ParentOwner(), Used: make(map[string]bool),
 		}
 	default:
-		if prev.Type != ObjContract && prev.Type != ObjOwner {
+		if prev.Type != CodeBlockContract && prev.Type != CodeBlockOwner {
 			return fmt.Errorf("%s can only be in contract or owner", lex.Value)
 		}
 		info = &FunctionInfo{Id: uint32(len(prev.Children) - 1), Name: name}
@@ -86,7 +86,7 @@ func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleFuncResult(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	fn := buf.peek().GetFuncInfo()
+	fn := buf.peek().GetFunctionInfo()
 	(*fn).Results = append((*fn).Results, lex.Token())
 	return nil
 }
@@ -120,11 +120,11 @@ func handleParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	block.Objects[name] = NewObject(&ObjInfoVariable{Name: name, Index: len(block.Vars)})
 	block.Vars = append(block.Vars, UNKNOWN)
 
-	if block.Type != ObjFunction || (state != stateFnParam && state != stateFnParamType) {
+	if block.Type != CodeBlockFunction || (state != stateFnParam && state != stateFnParamType) {
 		return nil
 	}
 
-	fblock := block.GetFuncInfo()
+	fblock := block.GetFunctionInfo()
 	if !fblock.HasTails() {
 		fblock.Params = append(fblock.Params, UNKNOWN)
 		return nil
@@ -146,10 +146,10 @@ func handleParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 			block.Vars[i] = rtp
 		}
 	}
-	if block.Type != ObjFunction || state != stateFnParam {
+	if block.Type != CodeBlockFunction || state != stateFnParam {
 		return nil
 	}
-	fblock := block.GetFuncInfo()
+	fblock := block.GetFunctionInfo()
 	if !fblock.HasTails() {
 		for pkey, param := range fblock.Params {
 			if param == UNKNOWN {
@@ -176,7 +176,7 @@ func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		return err
 	}
 
-	info := buf.peek().GetFuncInfo()
+	info := buf.peek().GetFunctionInfo()
 	if !info.HasTails() {
 		info.Tails = make(map[string]FuncTail)
 	}
@@ -202,7 +202,7 @@ func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 // handleTailParamType sets the type of the function final parameter.
 func handleTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	block := buf.peek()
-	fblock := block.GetFuncInfo()
+	fblock := block.GetFunctionInfo()
 	for vkey, ivar := range block.Vars {
 		if ivar == UNKNOWN {
 			block.Vars[vkey] = ARRAY
@@ -245,13 +245,13 @@ func handleTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleIf(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().SetInfo(&ObjInfoIf{})
+	buf.peek().SetInfo(&CodeBlockIfInfo{})
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdIf, lex, buf.peek()))
 	return nil
 }
 
 func handleWhile(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().SetInfo(&ObjInfoWhile{})
+	buf.peek().SetInfo(&CodeBlockWhileInfo{})
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdWhile, lex, buf.peek()))
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdContinue, lex, ""))
 	return nil
@@ -316,7 +316,7 @@ func handleAssign(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 func handleNewField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	contract := buf.peek()
-	if contract.Type != ObjContract {
+	if contract.Type != CodeBlockContract {
 		return fmt.Errorf(`data can only be in contract`)
 	}
 	(*contract).GetContractInfo().Field = new([]*FieldInfo)
@@ -325,7 +325,7 @@ func handleNewField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 func handleSettings(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	contract := buf.peek()
-	if contract.Type != ObjContract {
+	if contract.Type != CodeBlockContract {
 		return fmt.Errorf(`settings can only be in contract`)
 	}
 	(*contract).GetContractInfo().Settings = make(map[string]any)
@@ -430,7 +430,7 @@ func handleElse(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if buf.get(len(*buf)-2).Code.peek().Cmd != CmdIf {
 		return fmt.Errorf("there is not if before %v", lex.Type)
 	}
-	buf.peek().SetInfo(&ObjInfoElse{})
+	buf.peek().SetInfo(&CodeBlockElseInfo{})
 	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdElse, lex, buf.peek()))
 	return nil
 }

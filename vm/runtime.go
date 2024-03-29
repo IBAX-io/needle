@@ -82,7 +82,7 @@ func (rt *Runtime) Run(block *compiler.CodeBlock) (ret []any, err error) {
 			err = fmt.Errorf("runtime panic: %v", r)
 		}
 	}()
-	info := block.GetFuncInfo()
+	info := block.GetFunctionInfo()
 	if info == nil {
 		return nil, fmt.Errorf("the block is not a function")
 	}
@@ -131,11 +131,11 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 		if err != nil {
 			if !errors.As(err, &VMError{}) {
 				var name, line string
-				if block.Parent != nil && block.Parent.Type == compiler.ObjFunction {
-					name = block.Parent.GetFuncInfo().Name
+				if block.Parent != nil && block.Parent.Type == compiler.CodeBlockFunction {
+					name = block.Parent.GetFunctionInfo().Name
 				}
-				if block.Type == compiler.ObjFunction {
-					name = block.GetFuncInfo().Name
+				if block.Type == compiler.CodeBlockFunction {
+					name = block.GetFunctionInfo().Name
 				}
 				if block.IsParentContract() {
 					stack := block.Parent.GetContractInfo()
@@ -177,7 +177,7 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 	}()
 	rt.pushBlock(&blockStack{Block: block, Offset: len(rt.vars)})
 	var names map[string][]any
-	if block.Type == compiler.ObjFunction && block.GetFuncInfo().HasTails() {
+	if block.Type == compiler.CodeBlockFunction && block.GetFunctionInfo().HasTails() {
 		ret := rt.stack.pop()
 		if ret != nil {
 			names, _ = ret.(map[string][]any)
@@ -193,8 +193,8 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 	if err != nil {
 		return
 	}
-	if block.Type == compiler.ObjFunction {
-		start -= len(block.GetFuncInfo().Params)
+	if block.Type == compiler.CodeBlockFunction {
+		start -= len(block.GetFunctionInfo().Params)
 	}
 	if start < 0 {
 		err = fmt.Errorf("not enough arguments in call to")
@@ -238,10 +238,10 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 	}
 	last := rt.popBlock()
 	if status == statusReturn {
-		if last.Block.Type != compiler.ObjFunction {
+		if last.Block.Type != compiler.CodeBlockFunction {
 			return
 		}
-		funcInfo := last.Block.GetFuncInfo()
+		funcInfo := last.Block.GetFunctionInfo()
 		refRes := funcInfo.Results
 		local := rt.stack.peekFromTo(start, rt.stack.size())
 		if len(refRes) > len(local) {
@@ -253,7 +253,7 @@ func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
 		for i, v := range ret {
 			if !refRes[i].EqualsType(v) {
 				err = fmt.Errorf("func '%s' return index[%d] %v (type %v) cannot be represented by the type %s",
-					last.Block.GetFuncInfo().Name, i, v, reflect.TypeOf(v), refRes[i].ReflectType())
+					last.Block.GetFunctionInfo().Name, i, v, reflect.TypeOf(v), refRes[i].ReflectType())
 				return
 			}
 			rt.stack.push(v)
@@ -616,8 +616,8 @@ func (rt *Runtime) getResultMap(cmd *compiler.Map) (*compiler.Map, error) {
 func (rt *Runtime) addVarBy(block *compiler.CodeBlock) {
 	for key, par := range block.Vars {
 		var value any
-		if block.Type == compiler.ObjFunction && key < len(block.GetFuncInfo().Params) {
-			value = rt.stack.getAndDel(rt.stack.size() - len(block.GetFuncInfo().Params) + key)
+		if block.Type == compiler.CodeBlockFunction && key < len(block.GetFunctionInfo().Params) {
+			value = rt.stack.getAndDel(rt.stack.size() - len(block.GetFunctionInfo().Params) + key)
 		} else {
 			value = compiler.GetFieldDefaultValue(par)
 			if par == compiler.MAP {
@@ -633,7 +633,7 @@ func (rt *Runtime) addVarBy(block *compiler.CodeBlock) {
 func (rt *Runtime) setVarBy(block *compiler.CodeBlock, names map[string][]any) error {
 	varoff := len(rt.vars) - len(block.Vars)
 	for key, item := range names {
-		params := block.GetFuncInfo().Tails[key]
+		params := block.GetFunctionInfo().Tails[key]
 		for i, value := range item {
 			var ind int
 			if params.Variadic && i >= len(params.Params)-1 {

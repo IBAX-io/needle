@@ -82,7 +82,7 @@ func ExecContract(rt *Runtime, name, fields string, params ...any) (any, error) 
 	}
 
 	obj, ok := rt.vm.Objects[name]
-	if !ok || obj.Type != compiler.ObjContract {
+	if !ok || obj.IsCodeBlockContract() {
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
 
@@ -119,9 +119,9 @@ func ExecContract(rt *Runtime, name, fields string, params ...any) (any, error) 
 	parent := ``
 	for i := len(rt.blocks) - 1; i >= 0; i-- {
 		b := rt.blocks[i].Block
-		if b.Type == compiler.ObjFunction &&
+		if b.Type == compiler.CodeBlockFunction &&
 			b.Parent != nil &&
-			b.Parent.Type == compiler.ObjContract {
+			b.Parent.Type == compiler.CodeBlockContract {
 			parent = b.Parent.GetContractInfo().Name
 			fid, fname := ParseName(parent)
 			cid, _ := ParseName(name)
@@ -143,7 +143,7 @@ func ExecContract(rt *Runtime, name, fields string, params ...any) (any, error) 
 		}
 	}
 	for _, method := range []string{compiler.CONDITIONS.ToString(), compiler.ACTION.ToString()} {
-		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.Type == compiler.ObjFunction {
+		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.IsCodeBlockFunction() {
 			rtemp := NewRuntime(rt.vm, rt.extend, rt.costRemain)
 			rt.extend[ExtendParentContract] = parent
 			rtemp.used = rt.used

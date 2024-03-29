@@ -101,7 +101,7 @@ func init() {
 				rt.callDepth--
 			}()
 			obj := code.Object()
-			if obj.Type == compiler.ObjFunction {
+			if obj.IsCodeBlockFunction() {
 				err = rt.callObjFunc(obj)
 				return
 			}
@@ -172,7 +172,7 @@ func init() {
 		if preCode.Cmd == compiler.CmdCall || preCode.Cmd == compiler.CmdCallVariadic {
 			objInfo := preCode.Object()
 			resultsLen := objInfo.GetResultsLen()
-			if objInfo.Type == compiler.ObjExtFunc || objInfo.Type == compiler.ObjFunction {
+			if objInfo.Type == compiler.ObjExtFunc || objInfo.IsCodeBlockFunction() {
 				if count > resultsLen {
 					err = fmt.Errorf("assignments count mismatch: %d = %d", count, resultsLen)
 					return

@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -22,18 +23,48 @@ import (
 	 a cycle.
 */
 
+type CodeBlockType int32
+
+const (
+	CodeBlockDefault CodeBlockType = iota + 1
+	CodeBlockOwner
+	CodeBlockContract
+	CodeBlockFunction
+	CodeBlockIf
+	CodeBlockElse
+	CodeBlockWhile
+)
+
+var CodeBlockTypeName = map[int32]string{
+	1: "CodeBlockDefault",
+	2: "CodeBlockOwner",
+	3: "CodeBlockContract",
+	4: "CodeBlockFunction",
+	5: "CodeBlockIf",
+	6: "CodeBlockElse",
+	7: "CodeBlockWhile",
+}
+
+func (c CodeBlockType) String() string {
+	s, ok := CodeBlockTypeName[int32(c)]
+	if ok {
+		return s
+	}
+	return strconv.Itoa(int(c))
+}
+
 // CodeBlock contains all information about compiled block {...} and its children
 type CodeBlock struct {
 	Objects map[string]*Object
-	Type    ObjectType
+	Type    CodeBlockType
 	// Types that are assignable to Info:
 	//
 	//  *FunctionInfo
 	//  *ContractInfo
 	//  *OwnerInfo
-	//  *ObjInfoIf
-	//  *ObjInfoElse
-	//  *ObjInfoWhile
+	//  *CodeBlockIfInfo
+	//  *CodeBlockElseInfo
+	//  *CodeBlockWhileInfo
 	Info   isCodeBlockInfo
 	Parent *CodeBlock
 	Vars   []Token
@@ -51,7 +82,7 @@ func NewCodeBlock(conf *CompConfig) *CodeBlock {
 		Objects: conf.MakeExtFunc(),
 		// Reserved 256 indexes for system purposes
 		Children:       make(CodeBlocks, 256, 1024),
-		Type:           ObjOwner,
+		Type:           CodeBlockOwner,
 		Info:           conf.Owner,
 		PredeclaredVar: conf.PreVar,
 	}
@@ -61,12 +92,12 @@ type isCodeBlockInfo interface {
 	isCodeBlockInfo()
 }
 
-func (*OwnerInfo) isCodeBlockInfo()    {}
-func (*ContractInfo) isCodeBlockInfo() {}
-func (*FunctionInfo) isCodeBlockInfo() {}
-func (*ObjInfoIf) isCodeBlockInfo()    {}
-func (*ObjInfoElse) isCodeBlockInfo()  {}
-func (*ObjInfoWhile) isCodeBlockInfo() {}
+func (*OwnerInfo) isCodeBlockInfo()          {}
+func (*ContractInfo) isCodeBlockInfo()       {}
+func (*FunctionInfo) isCodeBlockInfo()       {}
+func (*CodeBlockIfInfo) isCodeBlockInfo()    {}
+func (*CodeBlockElseInfo) isCodeBlockInfo()  {}
+func (*CodeBlockWhileInfo) isCodeBlockInfo() {}
 
 func (bc *CodeBlock) GetInfo() isCodeBlockInfo {
 	if bc != nil {
@@ -75,7 +106,7 @@ func (bc *CodeBlock) GetInfo() isCodeBlockInfo {
 	return nil
 }
 
-func (bc *CodeBlock) GetFuncInfo() *FunctionInfo {
+func (bc *CodeBlock) GetFunctionInfo() *FunctionInfo {
 	if x, ok := bc.GetInfo().(*FunctionInfo); ok {
 		return x
 	}
@@ -119,20 +150,20 @@ func (bc *CodeBlock) AssertVar(name string) bool {
 
 // SetInfo sets the type of the block. It could be a function, contract, if, else or while.
 func (bc *CodeBlock) SetInfo(info isCodeBlockInfo) {
-	var t ObjectType
+	var t CodeBlockType
 	switch info.(type) {
 	case *FunctionInfo:
-		t = ObjFunction
+		t = CodeBlockFunction
 	case *ContractInfo:
-		t = ObjContract
+		t = CodeBlockContract
 	case *OwnerInfo:
-		t = ObjOwner
-	case *ObjInfoIf:
-		t = ObjIf
-	case *ObjInfoElse:
-		t = ObjElse
-	case *ObjInfoWhile:
-		t = ObjWhile
+		t = CodeBlockOwner
+	case *CodeBlockIfInfo:
+		t = CodeBlockIf
+	case *CodeBlockElseInfo:
+		t = CodeBlockElse
+	case *CodeBlockWhileInfo:
+		t = CodeBlockWhile
 	}
 	bc.Type = t
 	bc.Info = info
@@ -142,13 +173,30 @@ func (bc *CodeBlock) SetInfo(info isCodeBlockInfo) {
 // type 'ObjWhile', which represents a loop in the code. If a loop is found,
 // it returns true, otherwise false.
 func (bc *CodeBlock) CheckLoop() bool {
-	if bc.Type == ObjWhile {
+	if bc.Type == CodeBlockWhile {
 		return true
 	}
 	if bc.Parent != nil {
 		return bc.Parent.CheckLoop()
 	}
 	return false
+}
+
+// GetName returns the name of the block.
+func (bc *CodeBlock) GetName() string {
+	var name string
+	switch bc.Type {
+	case CodeBlockContract:
+		name = bc.GetContractInfo().Name
+	case CodeBlockFunction:
+		name = bc.GetFunctionInfo().Name
+	}
+	return name
+}
+
+// GetType returns the type of the block.
+func (bc *CodeBlock) GetType() CodeBlockType {
+	return bc.Type
 }
 
 // CodeBlocks is a slice of blocks
@@ -195,7 +243,7 @@ func (bc *CodeBlock) GetObjByName(name string) (ret *Object) {
 		if i == len(names)-1 {
 			return
 		}
-		if ret.Type != ObjContract && ret.Type != ObjFunction {
+		if !ret.IsCodeBlockContract() && !ret.IsCodeBlockFunction() {
 			return nil
 		}
 		bc = ret.GetCodeBlock()
@@ -204,7 +252,7 @@ func (bc *CodeBlock) GetObjByName(name string) (ret *Object) {
 }
 
 func (bc *CodeBlock) IsParentContract() bool {
-	if bc.Parent != nil && bc.Parent.Type == ObjContract {
+	if bc.Parent != nil && bc.Parent.Type == CodeBlockContract {
 		return true
 	}
 	return false
@@ -250,10 +298,10 @@ func (bc *CodeBlock) CodeToString() string {
 func setWritable(cbs *CodeBlocks) {
 	for i := len(*cbs) - 1; i >= 0; i-- {
 		cb := (*cbs)[i]
-		if cb.Type == ObjFunction {
-			cb.GetFuncInfo().CanWrite = true
+		if cb.Type == CodeBlockFunction {
+			cb.GetFunctionInfo().CanWrite = true
 		}
-		if cb.Type == ObjContract {
+		if cb.Type == CodeBlockContract {
 			cb.GetContractInfo().CanWrite = true
 		}
 	}
