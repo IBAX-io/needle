@@ -14,11 +14,11 @@ type Lexeme struct {
 	Type Token
 	// Types that are assignable to Value:
 	//
-	//  *LexemeValueString
-	//  *LexemeValueNumber
-	//  *LexemeValueToken
-	//  *LexemeValueBoolean
-	//  *LexemeValueNil
+	//  *LexemeString
+	//  *LexemeNumber
+	//  *LexemeToken
+	//  *LexemeBoolean
+	//  *LexemeNil
 	Value  isLexemeValue
 	Line   int
 	Column int
@@ -28,83 +28,83 @@ type isLexemeValue interface {
 	isLexemeValue()
 }
 
-type LexemeValueString struct {
+type LexemeString struct {
 	Value string
 }
 
-func (s *LexemeValueString) String() string {
+func (s *LexemeString) String() string {
 	return s.Value
 }
 
-type LexemeValueNumber struct {
+type LexemeNumber struct {
 	Int64     int64
 	Float64   float64
 	IsInteger bool
 }
 
-func (n *LexemeValueNumber) String() string {
+func (n *LexemeNumber) String() string {
 	if n.IsInteger {
 		return strconv.FormatInt(n.Int64, 10)
 	}
 	return strconv.FormatFloat(n.Float64, 'f', -1, 64)
 }
 
-type LexemeValueToken struct {
+type LexemeToken struct {
 	Value Token
 }
 
-func (t *LexemeValueToken) String() string {
+func (t *LexemeToken) String() string {
 	return t.Value.String()
 }
 
-type LexemeValueBoolean struct {
+type LexemeBoolean struct {
 	Value bool
 }
 
-func (b *LexemeValueBoolean) String() string {
+func (b *LexemeBoolean) String() string {
 	return strconv.FormatBool(b.Value)
 }
 
-type LexemeValueNil struct{}
+type LexemeNil struct{}
 
-func (n *LexemeValueNil) String() string {
+func (n *LexemeNil) String() string {
 	return "nil"
 }
 
-func (*LexemeValueString) isLexemeValue()  {}
-func (*LexemeValueNumber) isLexemeValue()  {}
-func (*LexemeValueToken) isLexemeValue()   {}
-func (*LexemeValueBoolean) isLexemeValue() {}
-func (*LexemeValueNil) isLexemeValue()     {}
+func (*LexemeString) isLexemeValue()  {}
+func (*LexemeNumber) isLexemeValue()  {}
+func (*LexemeToken) isLexemeValue()   {}
+func (*LexemeBoolean) isLexemeValue() {}
+func (*LexemeNil) isLexemeValue()     {}
 
-func NewLexemeValueString(value string) *LexemeValueString {
-	return &LexemeValueString{Value: value}
+func NewLexemeString(value string) *LexemeString {
+	return &LexemeString{Value: value}
 }
 
-func NewLexemeValueNumber(value any) *LexemeValueNumber {
+func NewLexemeNumber(value any) *LexemeNumber {
 	switch value.(type) {
 	case int64:
-		return &LexemeValueNumber{Int64: value.(int64), IsInteger: true}
+		return &LexemeNumber{Int64: value.(int64), IsInteger: true}
 	case float64:
-		return &LexemeValueNumber{Float64: value.(float64)}
+		return &LexemeNumber{Float64: value.(float64)}
 	}
-	return &LexemeValueNumber{}
+	return &LexemeNumber{}
 }
 
-func NewLexemeValueBoolean(value bool) *LexemeValueBoolean {
-	return &LexemeValueBoolean{Value: value}
+func NewLexemeValueBoolean(value bool) *LexemeBoolean {
+	return &LexemeBoolean{Value: value}
 }
 
-func NewLexemeValueToken(value Token) *LexemeValueToken {
-	return &LexemeValueToken{Value: value}
+func NewLexemeValueToken(value Token) *LexemeToken {
+	return &LexemeToken{Value: value}
 }
 
-func NewLexemeValueNil() *LexemeValueNil {
-	return &LexemeValueNil{}
+func NewLexemeValueNil() *LexemeNil {
+	return &LexemeNil{}
 }
 
 func (l *Lexeme) ToString() string {
-	v, ok := l.Value.(*LexemeValueString)
+	v, ok := l.Value.(*LexemeString)
 	if !ok {
 		return ""
 	}
@@ -112,7 +112,7 @@ func (l *Lexeme) ToString() string {
 }
 
 func (l *Lexeme) Int64() int64 {
-	v, ok := l.Value.(*LexemeValueNumber)
+	v, ok := l.Value.(*LexemeNumber)
 	if !ok {
 		return 0
 	}
@@ -120,7 +120,7 @@ func (l *Lexeme) Int64() int64 {
 }
 
 func (l *Lexeme) IsInteger() bool {
-	v, ok := l.Value.(*LexemeValueNumber)
+	v, ok := l.Value.(*LexemeNumber)
 	if !ok {
 		return false
 	}
@@ -128,7 +128,7 @@ func (l *Lexeme) IsInteger() bool {
 }
 
 func (l *Lexeme) Float64() float64 {
-	v, ok := l.Value.(*LexemeValueNumber)
+	v, ok := l.Value.(*LexemeNumber)
 	if !ok {
 		return 0
 	}
@@ -136,7 +136,7 @@ func (l *Lexeme) Float64() float64 {
 }
 
 func (l *Lexeme) Boolean() bool {
-	v, ok := l.Value.(*LexemeValueBoolean)
+	v, ok := l.Value.(*LexemeBoolean)
 	if !ok {
 		return false
 	}
@@ -144,7 +144,7 @@ func (l *Lexeme) Boolean() bool {
 }
 
 func (l *Lexeme) Token() Token {
-	v, ok := l.Value.(*LexemeValueToken)
+	v, ok := l.Value.(*LexemeToken)
 	if !ok {
 		return UNKNOWN
 	}
@@ -153,18 +153,18 @@ func (l *Lexeme) Token() Token {
 
 func (l *Lexeme) Interface() any {
 	switch v := l.Value.(type) {
-	case *LexemeValueString:
+	case *LexemeString:
 		return v.Value
-	case *LexemeValueNumber:
+	case *LexemeNumber:
 		if v.IsInteger {
 			return v.Int64
 		}
 		return v.Float64
-	case *LexemeValueBoolean:
+	case *LexemeBoolean:
 		return v.Value
-	case *LexemeValueToken:
+	case *LexemeToken:
 		return v.Value
-	case *LexemeValueNil:
+	case *LexemeNil:
 		return nil
 	}
 	return nil
@@ -336,11 +336,11 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 			c.line++
 			c.offsetLine = c.position
 		}
-		value = NewLexemeValueString(string(c.input[startPos]))
+		value = NewLexemeString(string(c.input[startPos]))
 	case DELIMITER:
 		ch := c.input[startPos]
 		tk = delimiter2Token[string(ch)]
-		value = NewLexemeValueString(string(ch))
+		value = NewLexemeString(string(ch))
 		if len(c.ifBuf) > 0 {
 			if tk == LBRACE {
 				c.ifBuf[len(c.ifBuf)-1].pair++
@@ -370,7 +370,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		if c.input[startPos] == '"' && c.input[endPos-1] == '"' {
 			val = strings.ReplaceAll(val, `\n`, "\n")
 		}
-		value = NewLexemeValueString(val)
+		value = NewLexemeString(val)
 	case OPERATOR:
 		ch := string(c.input[startPos:endPos])
 		val, ok := op2Token[ch]
@@ -384,12 +384,12 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid number: %s [%d:%d]", err, c.line, c.startPos-c.offsetLine+1)
 		}
-		value = NewLexemeValueNumber(val)
+		value = NewLexemeNumber(val)
 	case IDENTIFIER:
 		name := string(c.input[startPos:endPos])
 		if name[0] == '$' {
 			tk = EXTEND
-			value = NewLexemeValueString(name[1:])
+			value = NewLexemeString(name[1:])
 			if err := canIdent(name[1:]); err != nil {
 				return nil, err
 			}
@@ -400,9 +400,9 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 					return nil, fmt.Errorf("expected statement, found '%s' [%d:%d]", name, c.line, startPos-c.offsetLine+1)
 				}
 				c.lexemes = append(c.lexemes,
-					NewLexeme(ELSE, NewLexemeValueString(ELSE.ToString()), c.line, c.startPos-c.offsetLine+1),
-					NewLexeme(LBRACE, NewLexemeValueString(LBRACE.ToString()), c.line, c.startPos-c.offsetLine+1))
-				tk, value = IF, NewLexemeValueString(IF.ToString())
+					NewLexeme(ELSE, NewLexemeString(ELSE.ToString()), c.line, c.startPos-c.offsetLine+1),
+					NewLexeme(LBRACE, NewLexemeString(LBRACE.ToString()), c.line, c.startPos-c.offsetLine+1))
+				tk, value = IF, NewLexemeString(IF.ToString())
 				c.ifBuf[len(c.ifBuf)-1].count++
 			case ACTION, CONDITIONS:
 				if len(c.lexemes) == 0 {
@@ -410,9 +410,9 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 				}
 				lexf := c.lexemes[len(c.lexemes)-1]
 				if lexf.Type&0xff != KEYWORD || lexf.ToString() != FUNC.ToString() {
-					c.lexemes = append(c.lexemes, NewLexeme(FUNC, NewLexemeValueString(FUNC.ToString()), c.line, startPos-c.offsetLine+1))
+					c.lexemes = append(c.lexemes, NewLexeme(FUNC, NewLexemeString(FUNC.ToString()), c.line, startPos-c.offsetLine+1))
 				}
-				value = NewLexemeValueString(name)
+				value = NewLexemeString(name)
 			case TRUE:
 				tk, value = NUMBER, NewLexemeValueBoolean(true)
 			case FALSE:
@@ -426,12 +426,12 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 						stop        bool
 					}{})
 				}
-				tk, value = keyword, NewLexemeValueString(keyword.ToString())
+				tk, value = keyword, NewLexemeString(keyword.ToString())
 			}
 		} else if tInfo, ok := TypeNameValue[name]; ok {
 			tk, value = TYPENAME, NewLexemeValueToken(tInfo)
 		} else {
-			value = NewLexemeValueString(name)
+			value = NewLexemeString(name)
 		}
 	}
 	return NewLexeme(tk, value, c.line, startPos-c.offsetLine+1), nil
@@ -442,7 +442,7 @@ func (c *contextLexer) ifBufCheck(token Token) {
 		name := string(c.input[c.startPos:c.position])
 		if name != ELSE.ToString() && name != ELIF.ToString() {
 			for i := 0; i < c.ifBuf[len(c.ifBuf)-1].count; i++ {
-				c.lexemes = append(c.lexemes, NewLexeme(RBRACE, NewLexemeValueString(RBRACE.ToString()), c.line-1, c.startPos-c.offsetLine+1))
+				c.lexemes = append(c.lexemes, NewLexeme(RBRACE, NewLexemeString(RBRACE.ToString()), c.line-1, c.startPos-c.offsetLine+1))
 			}
 			c.ifBuf = c.ifBuf[:len(c.ifBuf)-1]
 		} else {
