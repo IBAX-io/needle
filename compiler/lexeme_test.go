@@ -49,7 +49,7 @@ func TestNewLexer(t *testing.T) {
 	}
 }
 
-func TestNewLexemeValueNumber(t *testing.T) {
+func TestNewLexemeNumber(t *testing.T) {
 	type args struct {
 		value any
 	}

@@ -13,7 +13,7 @@ func TestGetFieldDefaultValue(t *testing.T) {
 	}
 	name := "address"
 
-	fmt.Println(NewLexeme(TYPENAME, NewLexemeValueToken(TypeNameValue[name]), 1, 1))
+	fmt.Println(NewLexeme(TYPENAME, NewLexemeToken(TypeNameValue[name]), 1, 1))
 }
 
 func TestLookup(t *testing.T) {

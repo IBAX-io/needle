@@ -91,15 +91,15 @@ func NewLexemeNumber(value any) *LexemeNumber {
 	return &LexemeNumber{}
 }
 
-func NewLexemeValueBoolean(value bool) *LexemeBoolean {
+func NewLexemeBoolean(value bool) *LexemeBoolean {
 	return &LexemeBoolean{Value: value}
 }
 
-func NewLexemeValueToken(value Token) *LexemeToken {
+func NewLexemeToken(value Token) *LexemeToken {
 	return &LexemeToken{Value: value}
 }
 
-func NewLexemeValueNil() *LexemeNil {
+func NewLexemeNil() *LexemeNil {
 	return &LexemeNil{}
 }
 
@@ -377,7 +377,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 		if !ok {
 			return nil, fmt.Errorf("unknown operator '%s' [%d:%d]", ch, c.line, c.startPos-c.offsetLine+1)
 		}
-		value = NewLexemeValueToken(val)
+		value = NewLexemeToken(val)
 	case NUMBER:
 		name := string(c.input[startPos:endPos])
 		val, err := string2Number(name)
@@ -414,11 +414,11 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 				}
 				value = NewLexemeString(name)
 			case TRUE:
-				tk, value = NUMBER, NewLexemeValueBoolean(true)
+				tk, value = NUMBER, NewLexemeBoolean(true)
 			case FALSE:
-				tk, value = NUMBER, NewLexemeValueBoolean(false)
+				tk, value = NUMBER, NewLexemeBoolean(false)
 			case NIL:
-				tk, value = NUMBER, NewLexemeValueNil()
+				tk, value = NUMBER, NewLexemeNil()
 			default:
 				if keyword == IF {
 					c.ifBuf = append(c.ifBuf, struct {
@@ -429,7 +429,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 				tk, value = keyword, NewLexemeString(keyword.ToString())
 			}
 		} else if tInfo, ok := TypeNameValue[name]; ok {
-			tk, value = TYPENAME, NewLexemeValueToken(tInfo)
+			tk, value = TYPENAME, NewLexemeToken(tInfo)
 		} else {
 			value = NewLexemeString(name)
 		}
