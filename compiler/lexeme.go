@@ -28,48 +28,29 @@ type isLexemeValue interface {
 	isLexemeValue()
 }
 
+// LexemeString is a string lexeme.
 type LexemeString struct {
 	Value string
 }
 
-func (s *LexemeString) String() string {
-	return s.Value
-}
-
+// LexemeNumber is a number lexeme.
 type LexemeNumber struct {
 	Int64     int64
 	Float64   float64
 	IsInteger bool
 }
 
-func (n *LexemeNumber) String() string {
-	if n.IsInteger {
-		return strconv.FormatInt(n.Int64, 10)
-	}
-	return strconv.FormatFloat(n.Float64, 'f', -1, 64)
-}
-
+// LexemeToken is a token lexeme.
 type LexemeToken struct {
 	Value Token
 }
 
-func (t *LexemeToken) String() string {
-	return t.Value.String()
-}
-
+// LexemeBoolean is a boolean lexeme.
 type LexemeBoolean struct {
 	Value bool
 }
 
-func (b *LexemeBoolean) String() string {
-	return strconv.FormatBool(b.Value)
-}
-
 type LexemeNil struct{}
-
-func (n *LexemeNil) String() string {
-	return "nil"
-}
 
 func (*LexemeString) isLexemeValue()  {}
 func (*LexemeNumber) isLexemeValue()  {}
@@ -79,6 +60,10 @@ func (*LexemeNil) isLexemeValue()     {}
 
 func NewLexemeString(value string) *LexemeString {
 	return &LexemeString{Value: value}
+}
+
+func (s *LexemeString) String() string {
+	return s.Value
 }
 
 func NewLexemeNumber(value any) *LexemeNumber {
@@ -91,19 +76,39 @@ func NewLexemeNumber(value any) *LexemeNumber {
 	return &LexemeNumber{}
 }
 
+func (n *LexemeNumber) String() string {
+	if n.IsInteger {
+		return strconv.FormatInt(n.Int64, 10)
+	}
+	return strconv.FormatFloat(n.Float64, 'f', -1, 64)
+}
+
 func NewLexemeBoolean(value bool) *LexemeBoolean {
 	return &LexemeBoolean{Value: value}
+}
+
+func (b *LexemeBoolean) String() string {
+	return strconv.FormatBool(b.Value)
 }
 
 func NewLexemeToken(value Token) *LexemeToken {
 	return &LexemeToken{Value: value}
 }
 
+func (t *LexemeToken) String() string {
+	return t.Value.String()
+}
+
 func NewLexemeNil() *LexemeNil {
 	return &LexemeNil{}
 }
 
-func (l *Lexeme) ToString() string {
+func (n *LexemeNil) String() string {
+	return "nil"
+}
+
+// GetString returns the string value of the lexeme.
+func (l *Lexeme) GetString() string {
 	v, ok := l.Value.(*LexemeString)
 	if !ok {
 		return ""
@@ -111,7 +116,8 @@ func (l *Lexeme) ToString() string {
 	return v.Value
 }
 
-func (l *Lexeme) Int64() int64 {
+// GetInt64 returns the int64 value of the lexeme.
+func (l *Lexeme) GetInt64() int64 {
 	v, ok := l.Value.(*LexemeNumber)
 	if !ok {
 		return 0
@@ -119,6 +125,7 @@ func (l *Lexeme) Int64() int64 {
 	return v.Int64
 }
 
+// IsInteger returns true if the lexeme is an integer.
 func (l *Lexeme) IsInteger() bool {
 	v, ok := l.Value.(*LexemeNumber)
 	if !ok {
@@ -127,7 +134,8 @@ func (l *Lexeme) IsInteger() bool {
 	return v.IsInteger
 }
 
-func (l *Lexeme) Float64() float64 {
+// GetFloat64 returns the float64 value of the lexeme.
+func (l *Lexeme) GetFloat64() float64 {
 	v, ok := l.Value.(*LexemeNumber)
 	if !ok {
 		return 0
@@ -135,7 +143,8 @@ func (l *Lexeme) Float64() float64 {
 	return v.Float64
 }
 
-func (l *Lexeme) Boolean() bool {
+// GetBoolean returns the boolean value of the lexeme.
+func (l *Lexeme) GetBoolean() bool {
 	v, ok := l.Value.(*LexemeBoolean)
 	if !ok {
 		return false
@@ -143,7 +152,8 @@ func (l *Lexeme) Boolean() bool {
 	return v.Value
 }
 
-func (l *Lexeme) Token() Token {
+// GetToken returns the token of the lexeme.
+func (l *Lexeme) GetToken() Token {
 	v, ok := l.Value.(*LexemeToken)
 	if !ok {
 		return UNKNOWN
@@ -151,6 +161,7 @@ func (l *Lexeme) Token() Token {
 	return v.Value
 }
 
+// Interface returns the value of the lexeme as an interface{}.
 func (l *Lexeme) Interface() any {
 	switch v := l.Value.(type) {
 	case *LexemeString:
@@ -225,7 +236,7 @@ func (lexemes Lexemes) nameList(tok Token) []string {
 			lvl--
 		case tok:
 			if lvl == 0 && i+1 < len(lexemes) && lexemes[i+1].Type == IDENTIFIER {
-				names = append(names, lexemes[i+1].ToString())
+				names = append(names, lexemes[i+1].GetString())
 			}
 		}
 	}
@@ -409,7 +420,7 @@ func (c *contextLexer) getLexeme(startPos, endPos int) (*Lexeme, error) {
 					return nil, fmt.Errorf("'%s' can't be the first statement [%d:%d]", name, c.line, startPos-c.offsetLine+1)
 				}
 				lexf := c.lexemes[len(c.lexemes)-1]
-				if lexf.Type&0xff != KEYWORD || lexf.ToString() != FUNC.ToString() {
+				if lexf.Type&0xff != KEYWORD || lexf.GetString() != FUNC.ToString() {
 					c.lexemes = append(c.lexemes, NewLexeme(FUNC, NewLexemeString(FUNC.ToString()), c.line, startPos-c.offsetLine+1))
 				}
 				value = NewLexemeString(name)

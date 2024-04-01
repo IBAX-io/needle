@@ -546,7 +546,7 @@ func init() {
 		return
 	}
 	instructionTable[compiler.CmdSign] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
-		if code.Lexeme.Token() == compiler.Add {
+		if code.Lexeme.GetToken() == compiler.Add {
 			return
 		}
 		z := rt.stack.pop()

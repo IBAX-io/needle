@@ -564,7 +564,7 @@ func (rt *Runtime) getResultValue(item *compiler.MapItem) (value any, err error)
 		value = item.GetLexeme().Interface()
 	case compiler.MapExtend:
 		var ok bool
-		value, ok = rt.extend[item.GetLexeme().ToString()]
+		value, ok = rt.extend[item.GetLexeme().GetString()]
 		if !ok {
 			err = fmt.Errorf(`unknown extend identifier '$%s'`, item.Value)
 		}

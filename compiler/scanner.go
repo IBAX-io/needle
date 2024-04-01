@@ -18,7 +18,7 @@ func (p *Parser) nextN(n int) *Lexeme {
 		return p.lex
 	}
 	for _, lex := range p.inputs[p.i+1:] {
-		if lex.Type == NEWLINE && lex.ToString() == "\n" {
+		if lex.Type == NEWLINE && lex.GetString() == "\n" {
 			continue
 		}
 		count++
@@ -37,7 +37,7 @@ func (p *Parser) prevN(n int) *Lexeme {
 	}
 	for i := p.i - 1; i >= 0; i-- {
 		lex := p.inputs[i]
-		if lex.Type == NEWLINE && lex.ToString() == "\n" {
+		if lex.Type == NEWLINE && lex.GetString() == "\n" {
 			continue
 		}
 		count--

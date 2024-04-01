@@ -60,7 +60,7 @@ func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	var info isCodeBlockInfo
 	prev := (*buf)[len(*buf)-2]
 	block := buf.peek()
-	name := lex.ToString()
+	name := lex.GetString()
 	switch state {
 	case stateBlock:
 		if prev.Type != CodeBlockOwner {
@@ -87,7 +87,7 @@ func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 func handleFuncResult(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	fn := buf.peek().GetFunctionInfo()
-	(*fn).Results = append((*fn).Results, lex.Token())
+	(*fn).Results = append((*fn).Results, lex.GetToken())
 	return nil
 }
 
@@ -103,7 +103,7 @@ func handleCmdError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 // handleParamName adds a new parameter name to the function or variable.
 func handleParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	name := lex.ToString()
+	name := lex.GetString()
 	if err := canIdent(name); err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func handleParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 // handleParamType sets the type of the function parameter or variable.
 func handleParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	block := buf.peek()
-	rtp := lex.Token()
+	rtp := lex.GetToken()
 	for i, v := range block.Vars {
 		if v == UNKNOWN {
 			block.Vars[i] = rtp
@@ -172,7 +172,7 @@ func handleParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 // handleDeclTail the name of the tail function.
 func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	if err := canIdent(lex.ToString()); err != nil {
+	if err := canIdent(lex.GetString()); err != nil {
 		return err
 	}
 
@@ -180,7 +180,7 @@ func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if !info.HasTails() {
 		info.Tails = make(map[string]FuncTail)
 	}
-	if _, ok := info.Tails[lex.ToString()]; ok {
+	if _, ok := info.Tails[lex.GetString()]; ok {
 		return fmt.Errorf("tail func redeclared '%s'", lex.Value)
 	}
 	for k, name := range info.Tails {
@@ -191,8 +191,8 @@ func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 			Variadic: name.Variadic,
 		}
 	}
-	info.Tails[lex.ToString()] = FuncTail{
-		Name:   lex.ToString(),
+	info.Tails[lex.GetString()] = FuncTail{
+		Name:   lex.GetString(),
 		Params: make([]Token, 0),
 		Offset: make([]int, 0),
 	}
@@ -274,15 +274,15 @@ func handleAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		ivar VarInfo
 	)
 	if lex.Type == EXTEND {
-		if buf.get(0).AssertVar(lex.ToString()) {
-			return fmt.Errorf(eSysVar, lex.ToString())
+		if buf.get(0).AssertVar(lex.GetString()) {
+			return fmt.Errorf(eSysVar, lex.GetString())
 		}
-		obj := NewObject(&ObjInfoExtendVariable{Name: lex.ToString()})
+		obj := NewObject(&ObjInfoExtendVariable{Name: lex.GetString()})
 		ivar = VarInfo{Obj: obj, Owner: nil}
 	} else {
-		obj, owner := findVar(lex.ToString(), buf)
+		obj, owner := findVar(lex.GetString(), buf)
 		if obj == nil || obj.Type != ObjVariable {
-			return fmt.Errorf(`unknown variable %s`, lex.ToString())
+			return fmt.Errorf(`unknown variable %s`, lex.GetString())
 		}
 		ivar = VarInfo{Obj: obj, Owner: owner}
 	}
@@ -304,7 +304,7 @@ func handleAssign(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if lex.Type != OPERATOR {
 		buf.peek().Code.push(newByteCode(CmdAssign, lex, ""))
 	} else {
-		if !lex.Token().Contains([]Token{
+		if !lex.GetToken().Contains([]Token{
 			AddEq, SubEq, MulEq, DivEq,
 			ModEq, LshEq, RshEq, AndEq, OrEq, XorEq, Inc, Dec,
 		}) {
@@ -334,7 +334,7 @@ func handleSettings(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 func handleConstName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	sets := buf.peek().GetContractInfo().Settings
-	sets[lex.ToString()] = nil
+	sets[lex.GetString()] = nil
 	return nil
 }
 
@@ -350,7 +350,7 @@ func handleConstValue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	if err := canIdent(lex.ToString()); err != nil {
+	if err := canIdent(lex.GetString()); err != nil {
 		return err
 	}
 	info := buf.peek().GetContractInfo()
@@ -360,10 +360,10 @@ func handleField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		return fmt.Errorf(eDataType)
 	}
 
-	if buf.get(0).AssertVar(lex.ToString()) {
-		return fmt.Errorf(eDataParamVarCollides, lex.ToString(), info.Name)
+	if buf.get(0).AssertVar(lex.GetString()) {
+		return fmt.Errorf(eDataParamVarCollides, lex.GetString(), info.Name)
 	}
-	*field = append(*field, &FieldInfo{Name: lex.ToString(), Type: UNKNOWN})
+	*field = append(*field, &FieldInfo{Name: lex.GetString(), Type: UNKNOWN})
 	return nil
 }
 
@@ -404,8 +404,8 @@ func handleFieldType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	}
 	for i, fie := range *field {
 		if fie.Type == UNKNOWN {
-			(*field)[i].Type = lex.Token()
-			(*field)[i].Original = lex.Token()
+			(*field)[i].Type = lex.GetToken()
+			(*field)[i].Original = lex.GetToken()
 		}
 	}
 	return nil
@@ -418,7 +418,7 @@ func handleFieldTag(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	}
 	for i := len(*field) - 1; i >= 0; i-- {
 		if i == len(*field)-1 || (*field)[i].Tags == `_` {
-			(*field)[i].Tags = lex.ToString()
+			(*field)[i].Tags = lex.GetString()
 			continue
 		}
 		break
