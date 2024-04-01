@@ -561,15 +561,15 @@ func (rt *Runtime) recalculateMemVar(k int) {
 func (rt *Runtime) getResultValue(item *compiler.MapItem) (value any, err error) {
 	switch item.Type {
 	case compiler.MapConst:
-		value = item.Value
+		value = item.GetLexeme().Interface()
 	case compiler.MapExtend:
 		var ok bool
-		value, ok = rt.extend[item.Value.(string)]
+		value, ok = rt.extend[item.GetLexeme().ToString()]
 		if !ok {
 			err = fmt.Errorf(`unknown extend identifier '$%s'`, item.Value)
 		}
 	case compiler.MapVar:
-		ivar := item.Value.(*compiler.VarInfo)
+		ivar := item.GetVarInfo()
 		var i int
 		for i = len(rt.blocks) - 1; i >= 0; i-- {
 			if ivar.Owner == rt.blocks[i].Block {
@@ -581,16 +581,16 @@ func (rt *Runtime) getResultValue(item *compiler.MapItem) (value any, err error)
 			err = fmt.Errorf(eWrongVar, ivar.Obj.Value)
 		}
 	case compiler.MapMap:
-		value, err = rt.getResultMap(item.Value.(*compiler.Map))
+		value, err = rt.getResultMap(item.GetMap())
 	case compiler.MapArray:
-		value, err = rt.getResultArray(item.Value.([]*compiler.MapItem))
+		value, err = rt.getResultArray(item.GetMapItemList())
 	}
 	return
 }
 
-func (rt *Runtime) getResultArray(cmd []*compiler.MapItem) ([]any, error) {
+func (rt *Runtime) getResultArray(cmd *compiler.MapItemList) ([]any, error) {
 	initArr := make([]any, 0)
-	for _, val := range cmd {
+	for _, val := range *cmd {
 		value, err := rt.getResultValue(val)
 		if err != nil {
 			return nil, err

@@ -151,7 +151,7 @@ func (l *Lexeme) Token() Token {
 	return v.Value
 }
 
-func (l *Lexeme) Values() any {
+func (l *Lexeme) Interface() any {
 	switch v := l.Value.(type) {
 	case *LexemeValueString:
 		return v.Value
@@ -168,6 +168,10 @@ func (l *Lexeme) Values() any {
 		return nil
 	}
 	return nil
+}
+
+func (l *Lexeme) String() string {
+	return fmt.Sprintf("%s", l.Value)
 }
 
 // NewLexeme creates a new Lexeme with the given parameters.

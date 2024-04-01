@@ -444,7 +444,7 @@ main:
 				return p.syntaxErrorWrap(fmt.Errorf("unexpected %v at end of expression", p.lex.Value))
 			}
 			noMap = true
-			cmd = newByteCode(CmdPush, p.lex, p.lex.Values())
+			cmd = newByteCode(CmdPush, p.lex, p.lex.Interface())
 		case EXTEND:
 			noMap = true
 			if p.i < len(p.inputs)-2 {
@@ -633,31 +633,29 @@ func (p *Parser) findObj(name string, block *CodeBlocks) (obj *Object, owner *Co
 // parseInitValue handles the parsing of a value initialization from the lexemes.
 func (p *Parser) parseInitValue(block *CodeBlocks) (value *MapItem, err error) {
 	var (
-		subArr []*MapItem
+		subArr *MapItemList
 		subMap *Map
 	)
 	switch p.lex.Type {
 	case LBRACK:
 		subArr, err = p.parseInitArray(block)
 		if err == nil {
-			value = &MapItem{Type: MapArray, Value: subArr}
+			value = NewMapItem(subArr)
 		}
 	case LBRACE:
 		subMap, err = p.parseInitMap(block, false)
 		if err == nil {
-			value = &MapItem{Type: MapMap, Value: subMap}
+			value = NewMapItem(subMap)
 		}
-	case EXTEND:
-		value = &MapItem{Type: MapExtend, Value: p.lex.Value}
+	case EXTEND, NUMBER, LITERAL:
+		value = NewMapItem(p.lex)
 	case IDENTIFIER:
-		objInfo, tobj := p.findObj(p.lex.ToString(), block)
+		objInfo, owner := p.findObj(p.lex.ToString(), block)
 		if objInfo == nil {
 			err = p.syntaxErrorWrap(fmt.Errorf(eUnknownIdent, p.lex.Value))
-		} else {
-			value = &MapItem{Type: MapVar, Value: &VarInfo{Obj: objInfo, Owner: tobj}}
+			return
 		}
-	case NUMBER, LITERAL:
-		value = &MapItem{Type: MapConst, Value: p.lex.Value}
+		value = NewMapItem(&VarInfo{Obj: objInfo, Owner: owner})
 	default:
 		err = p.syntaxErrorExpected("expected string, int value or variable")
 	}
@@ -746,9 +744,9 @@ main:
 }
 
 // parseInitArray handles the parsing of an array initialization from the lexemes.
-func (p *Parser) parseInitArray(block *CodeBlocks) ([]*MapItem, error) {
+func (p *Parser) parseInitArray(block *CodeBlocks) (*MapItemList, error) {
 	p.i++
-	ret := make([]*MapItem, 0)
+	ret := make(MapItemList, 0)
 	state := MustValue
 main:
 	for ; p.i < len(p.inputs); p.i++ {
@@ -771,7 +769,7 @@ main:
 				if err != nil {
 					return nil, err
 				}
-				ret = append(ret, &MapItem{Type: MapMap, Value: subMap})
+				ret = append(ret, NewMapItem(subMap))
 			} else {
 				arri, err := p.parseInitValue(block)
 				if err != nil {
@@ -788,5 +786,5 @@ main:
 	if p.i == len(p.inputs) {
 		return nil, p.syntaxErrorWrap(errUnclosedArray)
 	}
-	return ret, nil
+	return &ret, nil
 }

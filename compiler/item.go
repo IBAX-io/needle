@@ -16,7 +16,66 @@ const (
 // MapItem represents a map item with a type and value.
 type MapItem struct {
 	Type  int
-	Value any
+	Value isMapItemValue
+}
+
+type MapItemList []*MapItem
+
+type isMapItemValue interface {
+	isMapItemValue()
+}
+
+func (*Map) isMapItemValue()         {}
+func (*VarInfo) isMapItemValue()     {}
+func (*MapItemList) isMapItemValue() {}
+func (*Lexeme) isMapItemValue()      {}
+
+func NewMapItem(v isMapItemValue) *MapItem {
+	var t int
+	switch v.(type) {
+	case *Map:
+		t = MapMap
+	case *MapItemList:
+		t = MapArray
+	case *Lexeme:
+		switch v.(*Lexeme).Type {
+		case EXTEND:
+			t = MapExtend
+		case NUMBER, LITERAL:
+			t = MapConst
+		}
+	case *VarInfo:
+		t = MapVar
+	}
+	return &MapItem{Type: t, Value: v}
+}
+
+func (m *MapItem) GetMap() *Map {
+	if x, ok := m.Value.(*Map); ok {
+		return x
+	}
+	return nil
+}
+
+func (m *MapItem) GetVarInfo() *VarInfo {
+	if x, ok := m.Value.(*VarInfo); ok {
+		return x
+	}
+	return nil
+}
+
+func (m *MapItem) GetMapItemList() *MapItemList {
+	if x, ok := m.Value.(*MapItemList); ok {
+		return x
+	}
+	return nil
+}
+
+func (m *MapItem) GetLexeme() *Lexeme {
+	if x, ok := m.Value.(*Lexeme); ok {
+		return x
+	}
+	return nil
 }
 
 const (

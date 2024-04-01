@@ -530,7 +530,7 @@ func init() {
 	}
 	instructionTable[compiler.CmdArrayInit] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
 		var initArray []any
-		initArray, err = rt.getResultArray(code.MapItems())
+		initArray, err = rt.getResultArray(code.MapItemList())
 		if err != nil {
 			return
 		}

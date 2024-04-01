@@ -86,11 +86,11 @@ func (b *ByteCode) Object() *Object {
 	return nil
 }
 
-func (b *ByteCode) MapItems() []*MapItem {
-	if x, ok := b.Value.([]*MapItem); ok {
+func (b *ByteCode) MapItemList() *MapItemList {
+	if x, ok := b.Value.(*MapItemList); ok {
 		return x
 	}
-	return []*MapItem{}
+	return &MapItemList{}
 }
 
 func (b *ByteCode) VarInfos() []*VarInfo {
