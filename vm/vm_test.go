@@ -226,11 +226,20 @@ contract control{
 		{"case_map_init", "@1map_init.action", []rune(`
 contract map_init {
     action{
-		var m map
-		$a = "222"
-		m = {inst:"is", "b":{if:"d"},d:"e"}
-		m[$a] = 123233 
-		Println(m)
+        var m map c string f string
+        $a = "a-key"
+        c = "c-key"
+        f = "f-key"
+        m = {
+            $a: 123,
+            "b-key": $a,
+            "c-key": "890",
+            "c": "c-value",
+            c: 567,
+            "f": [123.456,{c: 111}],
+            f: {"f": 123},
+        }
+        Println(m)
     }
 }`), assert.NoError},
 		{"case_error_test", "@1error_test.action", []rune(`

@@ -571,7 +571,7 @@ main:
 		bc.push(buf[i])
 	}
 	if setIndex {
-		bc.push(newByteCode(CmdSetIndex, &Lexeme{Line: bc[len(bc)-1].Lexeme.Line}, indexInfo))
+		bc.push(newByteCode(CmdSetIndex, bc[len(bc)-2].Lexeme, indexInfo))
 	}
 	curBlock.Code = append(curBlock.Code, bc...)
 	return nil
@@ -667,13 +667,16 @@ func (p *Parser) parseInitMap(block *CodeBlocks, oneItem bool) (*Map, error) {
 	if !oneItem {
 		p.i++
 	}
-	key := ``
+	var key string
+	var keyType int
+	var keyValue *VarInfo
 	ret := NewMap()
 	state := MustKey
 main:
 	for ; p.i < len(p.inputs); p.i++ {
 		p.set(p.i)
 		switch p.lex.Type {
+		default:
 		case NEWLINE:
 			continue
 		case RBRACE:
@@ -683,9 +686,6 @@ main:
 			if state == MustValue {
 				return nil, p.syntaxErrorExpected("expected string, int value or variable")
 			}
-			if state == MustKey {
-				return nil, p.syntaxErrorExpected("expected string key")
-			}
 			break main
 		case COMMA, RBRACK:
 			if oneItem {
@@ -694,48 +694,52 @@ main:
 			}
 		}
 		switch state {
+		default:
 		case MustComma:
 			if p.lex.Type != COMMA {
 				return nil, p.syntaxErrorExpected("expected comma or ]")
 			}
 			state = MustKey
-		case MustColon:
-			if p.lex.Type != COLON {
-				return nil, p.syntaxErrorExpected("expected colon")
-			}
-			state = MustValue
 		case MustKey:
-			switch p.lex.Type & 0xff {
-			case IDENTIFIER, LITERAL:
+			keyType = MapConst
+			keyValue = &VarInfo{}
+			switch p.lex.Type.Kind() {
+			case IDENTIFIER:
+				objInfo, owner := p.findObj(p.lex.GetString(), block)
+				if objInfo == nil {
+					return nil, p.syntaxErrorWrap(fmt.Errorf(eUnknownIdent, p.lex.Value))
+				}
+				keyType = MapVar
+				keyValue = &VarInfo{Obj: objInfo, Owner: owner}
+				key = "#" + p.lex.GetString()
+			case LITERAL:
 				key = p.lex.GetString()
 			case EXTEND:
+				keyType = MapExtend
 				key = "$" + p.lex.GetString()
-			case KEYWORD:
-				for ikey, v := range KeywordValue {
-					if v == p.lex.Type {
-						key = ikey
-						if v == FUNC && p.i < len(p.inputs)-1 && p.nextN(1).Type&0xff == IDENTIFIER {
-							continue main
-						}
-						break
-					}
-				}
 			default:
 				return nil, p.syntaxErrorExpected("expected string key")
 			}
 
 			state = MustColon
+		case MustColon:
+			if p.lex.Type != COLON {
+				return nil, p.syntaxErrorExpected("expected colon")
+			}
+			state = MustValue
 		case MustValue:
 			mapi, err := p.parseInitValue(block)
 			if err != nil {
 				return nil, err
 			}
+			mapi.KeyType = keyType
+			mapi.KeyValue = keyValue
 			ret.Set(key, mapi)
 			state = MustComma
 		}
 	}
-	if ret.IsEmpty() && (state == MustKey) {
-		return nil, p.syntaxErrorExpected("expected string key")
+	if ret.IsEmpty() && state == MustKey {
+		return nil, p.syntaxError("empty map literal")
 	}
 	if p.i == len(p.inputs) {
 		return nil, p.syntaxErrorWrap(errUnclosedMap)

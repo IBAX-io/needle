@@ -138,7 +138,7 @@ func (tok Token) ToString() string {
 	var tokenMap map[string]Token
 	if 0 <= tok {
 		s = tok.String()
-		switch (tok & 0xFF00) >> 8 {
+		switch tok.Kind() {
 		default:
 		case TYPENAME:
 			tokenMap = TypeNameValue
@@ -169,4 +169,12 @@ func (tok Token) Contains(list []Token) bool {
 		}
 	}
 	return false
+}
+
+// Kind returns the kind of token
+func (tok Token) Kind() Token {
+	if UNKNOWN <= tok && tok <= EXTEND {
+		return tok
+	}
+	return (tok & 0xFF00) >> 8
 }

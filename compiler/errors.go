@@ -34,5 +34,5 @@ func (p *Parser) syntaxErrorWrap(err error) error {
 }
 
 func (p *Parser) syntaxErrorExpected(msg string) error {
-	return p.lex.errorPos(fmt.Sprintf("unexpected %s, %s", p.lex.Value, msg))
+	return p.lex.errorPos(fmt.Sprintf("unexpected '%s', %s", p.lex.Value, msg))
 }

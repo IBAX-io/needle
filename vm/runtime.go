@@ -604,7 +604,39 @@ func (rt *Runtime) getResultMap(cmd *compiler.Map) (*compiler.Map, error) {
 	initMap := compiler.NewMap()
 	for _, key := range cmd.Keys() {
 		val, _ := cmd.Get(key)
-		value, err := rt.getResultValue(val.(*compiler.MapItem))
+		item := val.(*compiler.MapItem)
+		if item.KeyType == compiler.MapVar {
+			var varKey any
+			ivar := item.KeyValue
+			var i int
+			for i = len(rt.blocks) - 1; i >= 0; i-- {
+				if ivar.Owner == rt.blocks[i].Block {
+					varKey = rt.vars[rt.blocks[i].Offset+ivar.Obj.GetVariable().Index]
+					break
+				}
+			}
+			if i < 0 {
+				return nil, fmt.Errorf(eWrongVar, ivar.Obj.Value)
+			}
+			if !compiler.STRING.EqualsType(varKey) {
+				return nil, fmt.Errorf("locale variable '%s' value is not a string", key)
+			}
+			key = varKey.(string)
+		}
+		if item.KeyType == compiler.MapExtend {
+			extendKey, ok := rt.extend[key[1:]]
+			if !ok {
+				return nil, fmt.Errorf("unknown extend variable '$%s'", key[1:])
+			}
+			if extendKey == nil {
+				return nil, fmt.Errorf("extend variable '$%s' is nil", key[1:])
+			}
+			if !compiler.STRING.EqualsType(extendKey) {
+				return nil, fmt.Errorf("extend variable '$%s' value is not a string", key[1:])
+			}
+			key = extendKey.(string)
+		}
+		value, err := rt.getResultValue(item)
 		if err != nil {
 			return nil, err
 		}

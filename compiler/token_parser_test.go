@@ -2,8 +2,9 @@ package compiler
 
 import "testing"
 
-func TestToken_ToString(t *testing.T) {
-	var toksBase, delimiters, operators, keyword, typename []Token
+var toksBase, delimiters, operators, keyword, typename []Token
+
+func init() {
 	for tok := range EXTEND {
 		toksBase = append(toksBase, tok)
 	}
@@ -19,7 +20,9 @@ func TestToken_ToString(t *testing.T) {
 	for i := BOOL; i < FILE; i++ {
 		typename = append(typename, i)
 	}
+}
 
+func TestToken_ToString(t *testing.T) {
 	tests := []struct {
 		name string
 		tok  []Token
@@ -52,6 +55,35 @@ func TestToken_ToString(t *testing.T) {
 			for i, tok := range tt.tok {
 				if got := tok.ToString(); got != tt.want[i] {
 					t.Errorf("ToString() = %v, want %v", got, tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestToken_Kind(t *testing.T) {
+	tests := []struct {
+		name string
+		tok  []Token
+		want Token
+	}{
+		// TODO: Add test cases.
+		{"case_UNKNOWN", []Token{UNKNOWN}, UNKNOWN},
+		{"case_DELIMITER", append(delimiters, DELIMITER), DELIMITER},
+		{"case_OPERATOR", append(operators, OPERATOR), OPERATOR},
+		{"case_NUMBER", []Token{NUMBER}, NUMBER},
+		{"case_IDENTIFIER", []Token{IDENTIFIER}, IDENTIFIER},
+		{"case_NEWLINE", []Token{NEWLINE}, NEWLINE},
+		{"case_LITERAL", []Token{LITERAL}, LITERAL},
+		{"case_COMMENT", []Token{COMMENT}, COMMENT},
+		{"case_KEYWORD", append(keyword, KEYWORD), KEYWORD},
+		{"case_TYPENAME", append(typename, TYPENAME), TYPENAME},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, tok := range tt.tok {
+				if got := tok.Kind(); got != tt.want {
+					t.Errorf("Kind() = %v, want %v", got, tt.want)
 				}
 			}
 		})

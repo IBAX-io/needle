@@ -1,22 +1,35 @@
 package compiler
 
 const (
+	// MapConst represents a constant value.
 	MapConst = iota
+	// MapVar represents a variable.
 	MapVar
+	// MapMap represents a map.
 	MapMap
+	// MapExtend represents an extended variable.
 	MapExtend
+	// MapArray represents an array.
 	MapArray
+)
 
-	MustKey
+const (
+	// MustKey represents a key.
+	MustKey = iota
+	// MustColon represents a colon.
 	MustColon
+	// MustComma represents a comma.
 	MustComma
+	// MustValue represents a value.
 	MustValue
 )
 
 // MapItem represents a map item with a type and value.
 type MapItem struct {
-	Type  int
-	Value isMapItemValue
+	KeyType  int
+	KeyValue *VarInfo
+	Type     int
+	Value    isMapItemValue
 }
 
 type MapItemList []*MapItem
