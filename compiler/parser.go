@@ -579,33 +579,45 @@ main:
 
 func (p *Parser) parserSliceStmt(buffer, bytecode *ByteCodes) error {
 	low, high := -1, -1
-	if p.prevN(1).Type == LBRACK {
+	switch p.prevN(1).Type {
+	case LBRACK:
 		low = SliceLow
-	}
-	if p.nextN(1).Type == RBRACK {
-		high = SliceHigh
-	}
-	if p.prevN(1).Type == NUMBER {
+	case NUMBER:
 		if (buffer.peek().Cmd == CmdSign && p.prevN(3).Type == LBRACK) || p.prevN(2).Type == LBRACK {
 			if ok := p.prevN(1).IsInteger(); !ok {
 				return p.prevN(1).errorPos("slice index must be integer")
 			}
 			low = SliceLowNum
 		}
+	case IDENTIFIER, EXTEND:
+		if p.prevN(2).Type == LBRACK {
+			low = SliceLowNum
+		}
 	}
 
-	if p.nextN(1).Type == NUMBER && p.nextN(2).Type == RBRACK {
-		if ok := p.nextN(1).IsInteger(); !ok {
-			return p.nextN(1).errorPos("slice index must be integer")
+	switch p.nextN(1).Type {
+	case RBRACK:
+		high = SliceHigh
+	case Sub, Add:
+		if p.nextN(2).Type == NUMBER && p.nextN(3).Type == RBRACK {
+			if ok := p.nextN(2).IsInteger(); !ok {
+				return p.nextN(2).errorPos("slice index must be integer")
+			}
+			high = SliceHighNum
 		}
-		high = SliceHighNum
-	}
-	if (p.nextN(1).GetToken() == Sub || p.nextN(1).GetToken() == Add) && p.nextN(2).Type == NUMBER && p.nextN(3).Type == RBRACK {
-		if ok := p.nextN(2).IsInteger(); !ok {
-			return p.nextN(2).errorPos("slice index must be integer")
+	case NUMBER:
+		if p.nextN(2).Type == RBRACK {
+			if ok := p.nextN(1).IsInteger(); !ok {
+				return p.nextN(1).errorPos("slice index must be integer")
+			}
+			high = SliceHighNum
 		}
-		high = SliceHighNum
+	case IDENTIFIER, EXTEND:
+		if p.nextN(2).Type == RBRACK {
+			high = SliceHighNum
+		}
 	}
+
 	if low != -1 && high != -1 {
 		bytecode.push(newByteCode(CmdSliceColon, p.lex, &SliceItem{Index: [2]int{low, high}}))
 		return nil

@@ -86,7 +86,7 @@ func scope(){
 }`), assert.NoError},
 		{"case_slice", "slice", []rune(`
 func slice(){
-	var a b c d e array f bytes
+	var a b c d e array f bytes i int
 	a = [1,2,3,4,5,6,7,8,9,10]
 	b = a[1:3]
 	c = a[1:]
@@ -94,6 +94,9 @@ func slice(){
 	e = a[:]
 	f = Bytes("1234567890")
 	Println(b,c,d,e)
+	i = 4
+	a = a[:i]
+	Println(a)
 }`), assert.NoError},
 		{"case_return", "returnF", []rune(`
 func returnF(){
