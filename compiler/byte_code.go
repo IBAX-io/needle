@@ -16,7 +16,7 @@ type ByteCode struct {
 	//	*SliceItem, assigned to CmdSliceColon
 	//	*Map, assigned to CmdMapInit
 	//	*[]*VarInfo, assigned to CmdAssignVar
-	//	*[]*MapItem, assigned to CmdArrayInit
+	//	*MapItemList, assigned to CmdArrayInit
 	//	*Lexeme.Value, assigned to CmdPush, CmdError
 	//	*map[string][]any, assigned to CmdPush for function tail
 	//	*string, assigned to CmdPush, CmdCallExtend, CmdExtend

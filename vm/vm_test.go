@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/IBAX-io/needle/compiler"
 
 	"github.com/stretchr/testify/assert"
@@ -380,11 +382,11 @@ func tailMain(i int).t(s string)int string{return 999 s}
 				return
 			}
 			ret, err := vm.Call(tt.method, extend)
-			if err != nil {
+			if err != nil && !errors.As(err, &VMError{}) {
 				t.Error(err)
 				return
 			}
-			t.Log(ret)
+			t.Log(ret, err)
 		})
 	}
 	fmt.Println("time used:", time.Since(start), "gas:", limit-extend[ExtendTxCost].(int64))

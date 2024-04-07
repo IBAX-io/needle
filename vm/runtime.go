@@ -380,7 +380,7 @@ func (rt *Runtime) callObjFunc(obj *compiler.Object) error {
 		variadic = finfo.Variadic
 	)
 	if rt.unwrap && variadic && rt.stack.size() > 1 &&
-		reflect.TypeOf(rt.stack.get(rt.stack.size()-2)).String() == `[]interface {}` {
+		reflect.TypeOf(rt.stack.get(rt.stack.size()-2)).String() == "[]interface {}" {
 		count = rt.stack.pop().(int)
 		arr := rt.stack.pop().([]any)
 		rt.stack.pushN(arr)

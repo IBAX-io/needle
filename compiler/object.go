@@ -182,7 +182,7 @@ func (obj *Object) GetContractInfo() *ContractInfo {
 
 // GetFunctionInfo returns the FunctionInfo of the object if it exists.
 func (obj *Object) GetFunctionInfo() *FunctionInfo {
-	if obj.IsCodeBlockContract() {
+	if obj.IsCodeBlockFunction() {
 		return obj.GetCodeBlock().GetFunctionInfo()
 	}
 	return nil

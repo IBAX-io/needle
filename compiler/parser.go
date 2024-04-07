@@ -197,8 +197,8 @@ main:
 		switch p.lex.Type {
 		default:
 		case DOT:
-			if p.nextN(1).Type != IDENTIFIER {
-				return p.syntaxError("must be the name of the dot")
+			if p.nextN(1).Type != IDENTIFIER && !(p.nextN(1).Type == FUNC && p.nextN(2).Type == IDENTIFIER) {
+				return p.nextN(1).errorExpected("must be the name of the dot")
 			}
 		case EQ:
 			if prevLex.Type == LPAREN || prevLex.Type == COMMA {

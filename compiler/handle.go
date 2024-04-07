@@ -124,15 +124,15 @@ func handleParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		return nil
 	}
 
-	fblock := block.GetFunctionInfo()
-	if !fblock.HasTails() {
-		fblock.Params = append(fblock.Params, UNKNOWN)
+	info := block.GetFunctionInfo()
+	if !info.HasTails() {
+		info.Params = append(info.Params, UNKNOWN)
 		return nil
 	}
-	for name, f := range fblock.Tails {
-		params := append(fblock.Tails[name].Params, UNKNOWN)
-		offset := append(fblock.Tails[name].Offset, len(block.Vars)-1)
-		fblock.Tails[name] = FuncTail{Name: f.Name, Params: params, Offset: offset}
+	for name, f := range info.Tails {
+		params := append(info.Tails[name].Params, UNKNOWN)
+		offset := append(info.Tails[name].Offset, len(block.Vars)-1)
+		info.Tails[name] = FuncTail{Name: f.Name, Params: params, Offset: offset}
 	}
 	return nil
 }
@@ -342,7 +342,7 @@ func handleConstValue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	sets := buf.peek().GetContractInfo().Settings
 	for key, val := range sets {
 		if val == nil {
-			sets[key] = lex.Value
+			sets[key] = lex.Interface()
 			break
 		}
 	}

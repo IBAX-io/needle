@@ -105,7 +105,7 @@ func init() {
 				err = rt.callObjFunc(obj)
 				return
 			}
-			err = rt.callFunc(code.Object())
+			err = rt.callFunc(obj)
 			return
 		}
 	}

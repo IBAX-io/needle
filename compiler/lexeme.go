@@ -205,6 +205,10 @@ func (l *Lexeme) errorWrap(err error) error {
 	return fmt.Errorf("%w [%s]", err, l.Position())
 }
 
+func (l *Lexeme) errorExpected(msg string) error {
+	return fmt.Errorf("unexpected '%v', %s [%s]", l.Value, msg, l.Position())
+}
+
 // Position returns a string representation of the position of the lexeme.
 func (l *Lexeme) Position() string {
 	var s string
