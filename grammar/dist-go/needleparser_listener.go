@@ -43,6 +43,9 @@ type NeedleParserListener interface {
 	// EnterFuncSignature is called when entering the funcSignature production.
 	EnterFuncSignature(c *FuncSignatureContext)
 
+	// EnterFuncTail is called when entering the funcTail production.
+	EnterFuncTail(c *FuncTailContext)
+
 	// EnterParameterList is called when entering the parameterList production.
 	EnterParameterList(c *ParameterListContext)
 
@@ -228,6 +231,9 @@ type NeedleParserListener interface {
 
 	// ExitFuncSignature is called when exiting the funcSignature production.
 	ExitFuncSignature(c *FuncSignatureContext)
+
+	// ExitFuncTail is called when exiting the funcTail production.
+	ExitFuncTail(c *FuncTailContext)
 
 	// ExitParameterList is called when exiting the parameterList production.
 	ExitParameterList(c *ParameterListContext)

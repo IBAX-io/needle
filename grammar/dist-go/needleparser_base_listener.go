@@ -92,6 +92,12 @@ func (s *BaseNeedleParserListener) EnterFuncSignature(ctx *FuncSignatureContext)
 // ExitFuncSignature is called when production funcSignature is exited.
 func (s *BaseNeedleParserListener) ExitFuncSignature(ctx *FuncSignatureContext) {}
 
+// EnterFuncTail is called when production funcTail is entered.
+func (s *BaseNeedleParserListener) EnterFuncTail(ctx *FuncTailContext) {}
+
+// ExitFuncTail is called when production funcTail is exited.
+func (s *BaseNeedleParserListener) ExitFuncTail(ctx *FuncTailContext) {}
+
 // EnterParameterList is called when production parameterList is entered.
 func (s *BaseNeedleParserListener) EnterParameterList(ctx *ParameterListContext) {}
 

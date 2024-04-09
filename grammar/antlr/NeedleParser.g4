@@ -101,16 +101,15 @@ objectStat: LBRACE pairList? RBRACE;
 
 pairList: pair (COMMA pair)* COMMA? eos;
 
-pair: (stringLiteral | identifierVar) COLON pairValue+;
+pair: (stringLiteral | identifierVar) COLON pairValue;
 
 pairValue:
-	identifierVar
+	identifierVar indexStat?
 	| stringLiteral
 	| numberLiteral
 	| arrayStat
 	| objectStat
-	| sliceStat
-	| indexStat;
+	| sliceStat;
 
 arguments: LPAREN argumentsList? RPAREN;
 
