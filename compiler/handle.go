@@ -129,10 +129,13 @@ func handleParamName(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		info.Params = append(info.Params, UNKNOWN)
 		return nil
 	}
-	for name, f := range info.Tails {
-		params := append(info.Tails[name].Params, UNKNOWN)
-		offset := append(info.Tails[name].Offset, len(block.Vars)-1)
-		info.Tails[name] = FuncTail{Name: f.Name, Params: params, Offset: offset}
+	for key, f := range info.Tails {
+		if key[0] != '_' {
+			continue
+		}
+		params := append(info.Tails[f.Name].Params, UNKNOWN)
+		offset := append(info.Tails[f.Name].Offset, len(block.Vars)-1)
+		info.Tails[f.Name] = FuncTail{Name: f.Name, Params: params, Offset: offset}
 	}
 	return nil
 }
@@ -159,14 +162,16 @@ func handleParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		return nil
 	}
 
-	for key := range fblock.Tails {
-		for pkey, param := range fblock.Tails[key].Params {
+	for key, f := range fblock.Tails {
+		if key[0] != '_' {
+			continue
+		}
+		for pkey, param := range fblock.Tails[f.Name].Params {
 			if param == UNKNOWN {
-				fblock.Tails[key].Params[pkey] = rtp
+				fblock.Tails[f.Name].Params[pkey] = rtp
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -183,15 +188,12 @@ func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if _, ok := info.Tails[lex.GetString()]; ok {
 		return fmt.Errorf("tail func redeclared '%s'", lex.Value)
 	}
-	for k, name := range info.Tails {
-		info.Tails[k] = FuncTail{
-			Name:     name.Name,
-			Params:   name.Params,
-			Offset:   name.Offset,
-			Variadic: name.Variadic,
+	for k := range info.Tails {
+		if k[0] == '_' {
+			delete(info.Tails, k)
 		}
 	}
-	info.Tails[lex.GetString()] = FuncTail{
+	info.Tails[`_`+lex.GetString()] = FuncTail{
 		Name:   lex.GetString(),
 		Params: make([]Token, 0),
 		Offset: make([]int, 0),
@@ -223,7 +225,11 @@ func handleTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		return nil
 	}
 
-	for name, f := range fblock.Tails {
+	for key, f := range fblock.Tails {
+		if key[0] == '_' {
+			continue
+		}
+		name := f.Name
 		for pkey, param := range fblock.Tails[name].Params {
 			if param == UNKNOWN {
 				if used {
