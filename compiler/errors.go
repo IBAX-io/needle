@@ -9,7 +9,7 @@ const (
 	eSysVar               = `system variable $%s cannot be changed`
 	eDataParamVarCollides = `param variable '%s' in the data section of the contract '%s' collides with the 'builtin' variable`
 	eWrongParams          = `function %s must have %d parameters`
-	eUnknownIdent         = `unknown identifier %s`
+	eUnknownIdent         = `unknown identifier '%s'`
 	eDataType             = `expecting type of the data field`
 	eDataName             = `expecting name of the data field`
 	eDataTag              = `unexpected tag`
