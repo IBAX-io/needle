@@ -56,23 +56,11 @@ func (s *BaseNeedleParserListener) EnterSettingsDef(ctx *SettingsDefContext) {}
 // ExitSettingsDef is called when production settingsDef is exited.
 func (s *BaseNeedleParserListener) ExitSettingsDef(ctx *SettingsDefContext) {}
 
-// EnterSettingsValue is called when production settingsValue is entered.
-func (s *BaseNeedleParserListener) EnterSettingsValue(ctx *SettingsValueContext) {}
-
-// ExitSettingsValue is called when production settingsValue is exited.
-func (s *BaseNeedleParserListener) ExitSettingsValue(ctx *SettingsValueContext) {}
-
 // EnterFuncDef is called when production funcDef is entered.
 func (s *BaseNeedleParserListener) EnterFuncDef(ctx *FuncDefContext) {}
 
 // ExitFuncDef is called when production funcDef is exited.
 func (s *BaseNeedleParserListener) ExitFuncDef(ctx *FuncDefContext) {}
-
-// EnterInnerFuncDef is called when production innerFuncDef is entered.
-func (s *BaseNeedleParserListener) EnterInnerFuncDef(ctx *InnerFuncDefContext) {}
-
-// ExitInnerFuncDef is called when production innerFuncDef is exited.
-func (s *BaseNeedleParserListener) ExitInnerFuncDef(ctx *InnerFuncDefContext) {}
 
 // EnterDefaultFuncDef is called when production defaultFuncDef is entered.
 func (s *BaseNeedleParserListener) EnterDefaultFuncDef(ctx *DefaultFuncDefContext) {}
@@ -122,17 +110,17 @@ func (s *BaseNeedleParserListener) EnterBlock(ctx *BlockContext) {}
 // ExitBlock is called when production block is exited.
 func (s *BaseNeedleParserListener) ExitBlock(ctx *BlockContext) {}
 
-// EnterStatList is called when production statList is entered.
-func (s *BaseNeedleParserListener) EnterStatList(ctx *StatListContext) {}
+// EnterStatementList is called when production statementList is entered.
+func (s *BaseNeedleParserListener) EnterStatementList(ctx *StatementListContext) {}
 
-// ExitStatList is called when production statList is exited.
-func (s *BaseNeedleParserListener) ExitStatList(ctx *StatListContext) {}
+// ExitStatementList is called when production statementList is exited.
+func (s *BaseNeedleParserListener) ExitStatementList(ctx *StatementListContext) {}
 
-// EnterStat is called when production stat is entered.
-func (s *BaseNeedleParserListener) EnterStat(ctx *StatContext) {}
+// EnterStatement is called when production statement is entered.
+func (s *BaseNeedleParserListener) EnterStatement(ctx *StatementContext) {}
 
-// ExitStat is called when production stat is exited.
-func (s *BaseNeedleParserListener) ExitStat(ctx *StatContext) {}
+// ExitStatement is called when production statement is exited.
+func (s *BaseNeedleParserListener) ExitStatement(ctx *StatementContext) {}
 
 // EnterVarDef is called when production varDef is entered.
 func (s *BaseNeedleParserListener) EnterVarDef(ctx *VarDefContext) {}
@@ -140,53 +128,59 @@ func (s *BaseNeedleParserListener) EnterVarDef(ctx *VarDefContext) {}
 // ExitVarDef is called when production varDef is exited.
 func (s *BaseNeedleParserListener) ExitVarDef(ctx *VarDefContext) {}
 
-// EnterIfStat is called when production ifStat is entered.
-func (s *BaseNeedleParserListener) EnterIfStat(ctx *IfStatContext) {}
+// EnterIfStmt is called when production ifStmt is entered.
+func (s *BaseNeedleParserListener) EnterIfStmt(ctx *IfStmtContext) {}
 
-// ExitIfStat is called when production ifStat is exited.
-func (s *BaseNeedleParserListener) ExitIfStat(ctx *IfStatContext) {}
+// ExitIfStmt is called when production ifStmt is exited.
+func (s *BaseNeedleParserListener) ExitIfStmt(ctx *IfStmtContext) {}
 
-// EnterReturnStat is called when production returnStat is entered.
-func (s *BaseNeedleParserListener) EnterReturnStat(ctx *ReturnStatContext) {}
+// EnterIfBody is called when production ifBody is entered.
+func (s *BaseNeedleParserListener) EnterIfBody(ctx *IfBodyContext) {}
 
-// ExitReturnStat is called when production returnStat is exited.
-func (s *BaseNeedleParserListener) ExitReturnStat(ctx *ReturnStatContext) {}
+// ExitIfBody is called when production ifBody is exited.
+func (s *BaseNeedleParserListener) ExitIfBody(ctx *IfBodyContext) {}
 
-// EnterContinueStat is called when production continueStat is entered.
-func (s *BaseNeedleParserListener) EnterContinueStat(ctx *ContinueStatContext) {}
+// EnterElseBody is called when production elseBody is entered.
+func (s *BaseNeedleParserListener) EnterElseBody(ctx *ElseBodyContext) {}
 
-// ExitContinueStat is called when production continueStat is exited.
-func (s *BaseNeedleParserListener) ExitContinueStat(ctx *ContinueStatContext) {}
+// ExitElseBody is called when production elseBody is exited.
+func (s *BaseNeedleParserListener) ExitElseBody(ctx *ElseBodyContext) {}
 
-// EnterBreakStat is called when production breakStat is entered.
-func (s *BaseNeedleParserListener) EnterBreakStat(ctx *BreakStatContext) {}
+// EnterReturnStmt is called when production returnStmt is entered.
+func (s *BaseNeedleParserListener) EnterReturnStmt(ctx *ReturnStmtContext) {}
 
-// ExitBreakStat is called when production breakStat is exited.
-func (s *BaseNeedleParserListener) ExitBreakStat(ctx *BreakStatContext) {}
+// ExitReturnStmt is called when production returnStmt is exited.
+func (s *BaseNeedleParserListener) ExitReturnStmt(ctx *ReturnStmtContext) {}
 
-// EnterWhileStat is called when production whileStat is entered.
-func (s *BaseNeedleParserListener) EnterWhileStat(ctx *WhileStatContext) {}
+// EnterContinueStmt is called when production continueStmt is entered.
+func (s *BaseNeedleParserListener) EnterContinueStmt(ctx *ContinueStmtContext) {}
 
-// ExitWhileStat is called when production whileStat is exited.
-func (s *BaseNeedleParserListener) ExitWhileStat(ctx *WhileStatContext) {}
+// ExitContinueStmt is called when production continueStmt is exited.
+func (s *BaseNeedleParserListener) ExitContinueStmt(ctx *ContinueStmtContext) {}
 
-// EnterErrorStat is called when production errorStat is entered.
-func (s *BaseNeedleParserListener) EnterErrorStat(ctx *ErrorStatContext) {}
+// EnterBreakStmt is called when production breakStmt is entered.
+func (s *BaseNeedleParserListener) EnterBreakStmt(ctx *BreakStmtContext) {}
 
-// ExitErrorStat is called when production errorStat is exited.
-func (s *BaseNeedleParserListener) ExitErrorStat(ctx *ErrorStatContext) {}
+// ExitBreakStmt is called when production breakStmt is exited.
+func (s *BaseNeedleParserListener) ExitBreakStmt(ctx *BreakStmtContext) {}
 
-// EnterTypeName is called when production typeName is entered.
-func (s *BaseNeedleParserListener) EnterTypeName(ctx *TypeNameContext) {}
+// EnterWhileStmt is called when production whileStmt is entered.
+func (s *BaseNeedleParserListener) EnterWhileStmt(ctx *WhileStmtContext) {}
 
-// ExitTypeName is called when production typeName is exited.
-func (s *BaseNeedleParserListener) ExitTypeName(ctx *TypeNameContext) {}
+// ExitWhileStmt is called when production whileStmt is exited.
+func (s *BaseNeedleParserListener) ExitWhileStmt(ctx *WhileStmtContext) {}
 
-// EnterSliceStat is called when production sliceStat is entered.
-func (s *BaseNeedleParserListener) EnterSliceStat(ctx *SliceStatContext) {}
+// EnterErrorStmt is called when production errorStmt is entered.
+func (s *BaseNeedleParserListener) EnterErrorStmt(ctx *ErrorStmtContext) {}
 
-// ExitSliceStat is called when production sliceStat is exited.
-func (s *BaseNeedleParserListener) ExitSliceStat(ctx *SliceStatContext) {}
+// ExitErrorStmt is called when production errorStmt is exited.
+func (s *BaseNeedleParserListener) ExitErrorStmt(ctx *ErrorStmtContext) {}
+
+// EnterSliceStmt is called when production sliceStmt is entered.
+func (s *BaseNeedleParserListener) EnterSliceStmt(ctx *SliceStmtContext) {}
+
+// ExitSliceStmt is called when production sliceStmt is exited.
+func (s *BaseNeedleParserListener) ExitSliceStmt(ctx *SliceStmtContext) {}
 
 // EnterIndexNumber is called when production indexNumber is entered.
 func (s *BaseNeedleParserListener) EnterIndexNumber(ctx *IndexNumberContext) {}
@@ -194,11 +188,11 @@ func (s *BaseNeedleParserListener) EnterIndexNumber(ctx *IndexNumberContext) {}
 // ExitIndexNumber is called when production indexNumber is exited.
 func (s *BaseNeedleParserListener) ExitIndexNumber(ctx *IndexNumberContext) {}
 
-// EnterArrayStat is called when production arrayStat is entered.
-func (s *BaseNeedleParserListener) EnterArrayStat(ctx *ArrayStatContext) {}
+// EnterArrayStmt is called when production arrayStmt is entered.
+func (s *BaseNeedleParserListener) EnterArrayStmt(ctx *ArrayStmtContext) {}
 
-// ExitArrayStat is called when production arrayStat is exited.
-func (s *BaseNeedleParserListener) ExitArrayStat(ctx *ArrayStatContext) {}
+// ExitArrayStmt is called when production arrayStmt is exited.
+func (s *BaseNeedleParserListener) ExitArrayStmt(ctx *ArrayStmtContext) {}
 
 // EnterArrayList is called when production arrayList is entered.
 func (s *BaseNeedleParserListener) EnterArrayList(ctx *ArrayListContext) {}
@@ -212,17 +206,17 @@ func (s *BaseNeedleParserListener) EnterArrayValue(ctx *ArrayValueContext) {}
 // ExitArrayValue is called when production arrayValue is exited.
 func (s *BaseNeedleParserListener) ExitArrayValue(ctx *ArrayValueContext) {}
 
-// EnterIndexStat is called when production indexStat is entered.
-func (s *BaseNeedleParserListener) EnterIndexStat(ctx *IndexStatContext) {}
+// EnterIndexStmt is called when production indexStmt is entered.
+func (s *BaseNeedleParserListener) EnterIndexStmt(ctx *IndexStmtContext) {}
 
-// ExitIndexStat is called when production indexStat is exited.
-func (s *BaseNeedleParserListener) ExitIndexStat(ctx *IndexStatContext) {}
+// ExitIndexStmt is called when production indexStmt is exited.
+func (s *BaseNeedleParserListener) ExitIndexStmt(ctx *IndexStmtContext) {}
 
-// EnterObjectStat is called when production objectStat is entered.
-func (s *BaseNeedleParserListener) EnterObjectStat(ctx *ObjectStatContext) {}
+// EnterMapStmt is called when production mapStmt is entered.
+func (s *BaseNeedleParserListener) EnterMapStmt(ctx *MapStmtContext) {}
 
-// ExitObjectStat is called when production objectStat is exited.
-func (s *BaseNeedleParserListener) ExitObjectStat(ctx *ObjectStatContext) {}
+// ExitMapStmt is called when production mapStmt is exited.
+func (s *BaseNeedleParserListener) ExitMapStmt(ctx *MapStmtContext) {}
 
 // EnterPairList is called when production pairList is entered.
 func (s *BaseNeedleParserListener) EnterPairList(ctx *PairListContext) {}
@@ -254,35 +248,29 @@ func (s *BaseNeedleParserListener) EnterArgumentsList(ctx *ArgumentsListContext)
 // ExitArgumentsList is called when production argumentsList is exited.
 func (s *BaseNeedleParserListener) ExitArgumentsList(ctx *ArgumentsListContext) {}
 
-// EnterSimpleStat is called when production simpleStat is entered.
-func (s *BaseNeedleParserListener) EnterSimpleStat(ctx *SimpleStatContext) {}
+// EnterSimpleStmt is called when production simpleStmt is entered.
+func (s *BaseNeedleParserListener) EnterSimpleStmt(ctx *SimpleStmtContext) {}
 
-// ExitSimpleStat is called when production simpleStat is exited.
-func (s *BaseNeedleParserListener) ExitSimpleStat(ctx *SimpleStatContext) {}
+// ExitSimpleStmt is called when production simpleStmt is exited.
+func (s *BaseNeedleParserListener) ExitSimpleStmt(ctx *SimpleStmtContext) {}
 
-// EnterIncDecStat is called when production incDecStat is entered.
-func (s *BaseNeedleParserListener) EnterIncDecStat(ctx *IncDecStatContext) {}
+// EnterIncDecStmt is called when production incDecStmt is entered.
+func (s *BaseNeedleParserListener) EnterIncDecStmt(ctx *IncDecStmtContext) {}
 
-// ExitIncDecStat is called when production incDecStat is exited.
-func (s *BaseNeedleParserListener) ExitIncDecStat(ctx *IncDecStatContext) {}
+// ExitIncDecStmt is called when production incDecStmt is exited.
+func (s *BaseNeedleParserListener) ExitIncDecStmt(ctx *IncDecStmtContext) {}
 
-// EnterExprStat is called when production exprStat is entered.
-func (s *BaseNeedleParserListener) EnterExprStat(ctx *ExprStatContext) {}
+// EnterAssignMapArrStmt is called when production assignMapArrStmt is entered.
+func (s *BaseNeedleParserListener) EnterAssignMapArrStmt(ctx *AssignMapArrStmtContext) {}
 
-// ExitExprStat is called when production exprStat is exited.
-func (s *BaseNeedleParserListener) ExitExprStat(ctx *ExprStatContext) {}
+// ExitAssignMapArrStmt is called when production assignMapArrStmt is exited.
+func (s *BaseNeedleParserListener) ExitAssignMapArrStmt(ctx *AssignMapArrStmtContext) {}
 
-// EnterAssignMapArrStat is called when production assignMapArrStat is entered.
-func (s *BaseNeedleParserListener) EnterAssignMapArrStat(ctx *AssignMapArrStatContext) {}
+// EnterInitMapArrStmt is called when production initMapArrStmt is entered.
+func (s *BaseNeedleParserListener) EnterInitMapArrStmt(ctx *InitMapArrStmtContext) {}
 
-// ExitAssignMapArrStat is called when production assignMapArrStat is exited.
-func (s *BaseNeedleParserListener) ExitAssignMapArrStat(ctx *AssignMapArrStatContext) {}
-
-// EnterInitMapArrStat is called when production initMapArrStat is entered.
-func (s *BaseNeedleParserListener) EnterInitMapArrStat(ctx *InitMapArrStatContext) {}
-
-// ExitInitMapArrStat is called when production initMapArrStat is exited.
-func (s *BaseNeedleParserListener) ExitInitMapArrStat(ctx *InitMapArrStatContext) {}
+// ExitInitMapArrStmt is called when production initMapArrStmt is exited.
+func (s *BaseNeedleParserListener) ExitInitMapArrStmt(ctx *InitMapArrStmtContext) {}
 
 // EnterAssignment is called when production assignment is entered.
 func (s *BaseNeedleParserListener) EnterAssignment(ctx *AssignmentContext) {}
@@ -302,6 +290,12 @@ func (s *BaseNeedleParserListener) EnterOperand(ctx *OperandContext) {}
 // ExitOperand is called when production operand is exited.
 func (s *BaseNeedleParserListener) ExitOperand(ctx *OperandContext) {}
 
+// EnterLiteral is called when production literal is entered.
+func (s *BaseNeedleParserListener) EnterLiteral(ctx *LiteralContext) {}
+
+// ExitLiteral is called when production literal is exited.
+func (s *BaseNeedleParserListener) ExitLiteral(ctx *LiteralContext) {}
+
 // EnterExprList is called when production exprList is entered.
 func (s *BaseNeedleParserListener) EnterExprList(ctx *ExprListContext) {}
 
@@ -313,6 +307,12 @@ func (s *BaseNeedleParserListener) EnterExpr(ctx *ExprContext) {}
 
 // ExitExpr is called when production expr is exited.
 func (s *BaseNeedleParserListener) ExitExpr(ctx *ExprContext) {}
+
+// EnterTypeName is called when production typeName is entered.
+func (s *BaseNeedleParserListener) EnterTypeName(ctx *TypeNameContext) {}
+
+// ExitTypeName is called when production typeName is exited.
+func (s *BaseNeedleParserListener) ExitTypeName(ctx *TypeNameContext) {}
 
 // EnterIncDec_op is called when production incDec_op is entered.
 func (s *BaseNeedleParserListener) EnterIncDec_op(ctx *IncDec_opContext) {}

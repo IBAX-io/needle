@@ -25,14 +25,8 @@ type NeedleParserListener interface {
 	// EnterSettingsDef is called when entering the settingsDef production.
 	EnterSettingsDef(c *SettingsDefContext)
 
-	// EnterSettingsValue is called when entering the settingsValue production.
-	EnterSettingsValue(c *SettingsValueContext)
-
 	// EnterFuncDef is called when entering the funcDef production.
 	EnterFuncDef(c *FuncDefContext)
-
-	// EnterInnerFuncDef is called when entering the innerFuncDef production.
-	EnterInnerFuncDef(c *InnerFuncDefContext)
 
 	// EnterDefaultFuncDef is called when entering the defaultFuncDef production.
 	EnterDefaultFuncDef(c *DefaultFuncDefContext)
@@ -58,44 +52,47 @@ type NeedleParserListener interface {
 	// EnterBlock is called when entering the block production.
 	EnterBlock(c *BlockContext)
 
-	// EnterStatList is called when entering the statList production.
-	EnterStatList(c *StatListContext)
+	// EnterStatementList is called when entering the statementList production.
+	EnterStatementList(c *StatementListContext)
 
-	// EnterStat is called when entering the stat production.
-	EnterStat(c *StatContext)
+	// EnterStatement is called when entering the statement production.
+	EnterStatement(c *StatementContext)
 
 	// EnterVarDef is called when entering the varDef production.
 	EnterVarDef(c *VarDefContext)
 
-	// EnterIfStat is called when entering the ifStat production.
-	EnterIfStat(c *IfStatContext)
+	// EnterIfStmt is called when entering the ifStmt production.
+	EnterIfStmt(c *IfStmtContext)
 
-	// EnterReturnStat is called when entering the returnStat production.
-	EnterReturnStat(c *ReturnStatContext)
+	// EnterIfBody is called when entering the ifBody production.
+	EnterIfBody(c *IfBodyContext)
 
-	// EnterContinueStat is called when entering the continueStat production.
-	EnterContinueStat(c *ContinueStatContext)
+	// EnterElseBody is called when entering the elseBody production.
+	EnterElseBody(c *ElseBodyContext)
 
-	// EnterBreakStat is called when entering the breakStat production.
-	EnterBreakStat(c *BreakStatContext)
+	// EnterReturnStmt is called when entering the returnStmt production.
+	EnterReturnStmt(c *ReturnStmtContext)
 
-	// EnterWhileStat is called when entering the whileStat production.
-	EnterWhileStat(c *WhileStatContext)
+	// EnterContinueStmt is called when entering the continueStmt production.
+	EnterContinueStmt(c *ContinueStmtContext)
 
-	// EnterErrorStat is called when entering the errorStat production.
-	EnterErrorStat(c *ErrorStatContext)
+	// EnterBreakStmt is called when entering the breakStmt production.
+	EnterBreakStmt(c *BreakStmtContext)
 
-	// EnterTypeName is called when entering the typeName production.
-	EnterTypeName(c *TypeNameContext)
+	// EnterWhileStmt is called when entering the whileStmt production.
+	EnterWhileStmt(c *WhileStmtContext)
 
-	// EnterSliceStat is called when entering the sliceStat production.
-	EnterSliceStat(c *SliceStatContext)
+	// EnterErrorStmt is called when entering the errorStmt production.
+	EnterErrorStmt(c *ErrorStmtContext)
+
+	// EnterSliceStmt is called when entering the sliceStmt production.
+	EnterSliceStmt(c *SliceStmtContext)
 
 	// EnterIndexNumber is called when entering the indexNumber production.
 	EnterIndexNumber(c *IndexNumberContext)
 
-	// EnterArrayStat is called when entering the arrayStat production.
-	EnterArrayStat(c *ArrayStatContext)
+	// EnterArrayStmt is called when entering the arrayStmt production.
+	EnterArrayStmt(c *ArrayStmtContext)
 
 	// EnterArrayList is called when entering the arrayList production.
 	EnterArrayList(c *ArrayListContext)
@@ -103,11 +100,11 @@ type NeedleParserListener interface {
 	// EnterArrayValue is called when entering the arrayValue production.
 	EnterArrayValue(c *ArrayValueContext)
 
-	// EnterIndexStat is called when entering the indexStat production.
-	EnterIndexStat(c *IndexStatContext)
+	// EnterIndexStmt is called when entering the indexStmt production.
+	EnterIndexStmt(c *IndexStmtContext)
 
-	// EnterObjectStat is called when entering the objectStat production.
-	EnterObjectStat(c *ObjectStatContext)
+	// EnterMapStmt is called when entering the mapStmt production.
+	EnterMapStmt(c *MapStmtContext)
 
 	// EnterPairList is called when entering the pairList production.
 	EnterPairList(c *PairListContext)
@@ -124,20 +121,17 @@ type NeedleParserListener interface {
 	// EnterArgumentsList is called when entering the argumentsList production.
 	EnterArgumentsList(c *ArgumentsListContext)
 
-	// EnterSimpleStat is called when entering the simpleStat production.
-	EnterSimpleStat(c *SimpleStatContext)
+	// EnterSimpleStmt is called when entering the simpleStmt production.
+	EnterSimpleStmt(c *SimpleStmtContext)
 
-	// EnterIncDecStat is called when entering the incDecStat production.
-	EnterIncDecStat(c *IncDecStatContext)
+	// EnterIncDecStmt is called when entering the incDecStmt production.
+	EnterIncDecStmt(c *IncDecStmtContext)
 
-	// EnterExprStat is called when entering the exprStat production.
-	EnterExprStat(c *ExprStatContext)
+	// EnterAssignMapArrStmt is called when entering the assignMapArrStmt production.
+	EnterAssignMapArrStmt(c *AssignMapArrStmtContext)
 
-	// EnterAssignMapArrStat is called when entering the assignMapArrStat production.
-	EnterAssignMapArrStat(c *AssignMapArrStatContext)
-
-	// EnterInitMapArrStat is called when entering the initMapArrStat production.
-	EnterInitMapArrStat(c *InitMapArrStatContext)
+	// EnterInitMapArrStmt is called when entering the initMapArrStmt production.
+	EnterInitMapArrStmt(c *InitMapArrStmtContext)
 
 	// EnterAssignment is called when entering the assignment production.
 	EnterAssignment(c *AssignmentContext)
@@ -148,11 +142,17 @@ type NeedleParserListener interface {
 	// EnterOperand is called when entering the operand production.
 	EnterOperand(c *OperandContext)
 
+	// EnterLiteral is called when entering the literal production.
+	EnterLiteral(c *LiteralContext)
+
 	// EnterExprList is called when entering the exprList production.
 	EnterExprList(c *ExprListContext)
 
 	// EnterExpr is called when entering the expr production.
 	EnterExpr(c *ExprContext)
+
+	// EnterTypeName is called when entering the typeName production.
+	EnterTypeName(c *TypeNameContext)
 
 	// EnterIncDec_op is called when entering the incDec_op production.
 	EnterIncDec_op(c *IncDec_opContext)
@@ -214,14 +214,8 @@ type NeedleParserListener interface {
 	// ExitSettingsDef is called when exiting the settingsDef production.
 	ExitSettingsDef(c *SettingsDefContext)
 
-	// ExitSettingsValue is called when exiting the settingsValue production.
-	ExitSettingsValue(c *SettingsValueContext)
-
 	// ExitFuncDef is called when exiting the funcDef production.
 	ExitFuncDef(c *FuncDefContext)
-
-	// ExitInnerFuncDef is called when exiting the innerFuncDef production.
-	ExitInnerFuncDef(c *InnerFuncDefContext)
 
 	// ExitDefaultFuncDef is called when exiting the defaultFuncDef production.
 	ExitDefaultFuncDef(c *DefaultFuncDefContext)
@@ -247,44 +241,47 @@ type NeedleParserListener interface {
 	// ExitBlock is called when exiting the block production.
 	ExitBlock(c *BlockContext)
 
-	// ExitStatList is called when exiting the statList production.
-	ExitStatList(c *StatListContext)
+	// ExitStatementList is called when exiting the statementList production.
+	ExitStatementList(c *StatementListContext)
 
-	// ExitStat is called when exiting the stat production.
-	ExitStat(c *StatContext)
+	// ExitStatement is called when exiting the statement production.
+	ExitStatement(c *StatementContext)
 
 	// ExitVarDef is called when exiting the varDef production.
 	ExitVarDef(c *VarDefContext)
 
-	// ExitIfStat is called when exiting the ifStat production.
-	ExitIfStat(c *IfStatContext)
+	// ExitIfStmt is called when exiting the ifStmt production.
+	ExitIfStmt(c *IfStmtContext)
 
-	// ExitReturnStat is called when exiting the returnStat production.
-	ExitReturnStat(c *ReturnStatContext)
+	// ExitIfBody is called when exiting the ifBody production.
+	ExitIfBody(c *IfBodyContext)
 
-	// ExitContinueStat is called when exiting the continueStat production.
-	ExitContinueStat(c *ContinueStatContext)
+	// ExitElseBody is called when exiting the elseBody production.
+	ExitElseBody(c *ElseBodyContext)
 
-	// ExitBreakStat is called when exiting the breakStat production.
-	ExitBreakStat(c *BreakStatContext)
+	// ExitReturnStmt is called when exiting the returnStmt production.
+	ExitReturnStmt(c *ReturnStmtContext)
 
-	// ExitWhileStat is called when exiting the whileStat production.
-	ExitWhileStat(c *WhileStatContext)
+	// ExitContinueStmt is called when exiting the continueStmt production.
+	ExitContinueStmt(c *ContinueStmtContext)
 
-	// ExitErrorStat is called when exiting the errorStat production.
-	ExitErrorStat(c *ErrorStatContext)
+	// ExitBreakStmt is called when exiting the breakStmt production.
+	ExitBreakStmt(c *BreakStmtContext)
 
-	// ExitTypeName is called when exiting the typeName production.
-	ExitTypeName(c *TypeNameContext)
+	// ExitWhileStmt is called when exiting the whileStmt production.
+	ExitWhileStmt(c *WhileStmtContext)
 
-	// ExitSliceStat is called when exiting the sliceStat production.
-	ExitSliceStat(c *SliceStatContext)
+	// ExitErrorStmt is called when exiting the errorStmt production.
+	ExitErrorStmt(c *ErrorStmtContext)
+
+	// ExitSliceStmt is called when exiting the sliceStmt production.
+	ExitSliceStmt(c *SliceStmtContext)
 
 	// ExitIndexNumber is called when exiting the indexNumber production.
 	ExitIndexNumber(c *IndexNumberContext)
 
-	// ExitArrayStat is called when exiting the arrayStat production.
-	ExitArrayStat(c *ArrayStatContext)
+	// ExitArrayStmt is called when exiting the arrayStmt production.
+	ExitArrayStmt(c *ArrayStmtContext)
 
 	// ExitArrayList is called when exiting the arrayList production.
 	ExitArrayList(c *ArrayListContext)
@@ -292,11 +289,11 @@ type NeedleParserListener interface {
 	// ExitArrayValue is called when exiting the arrayValue production.
 	ExitArrayValue(c *ArrayValueContext)
 
-	// ExitIndexStat is called when exiting the indexStat production.
-	ExitIndexStat(c *IndexStatContext)
+	// ExitIndexStmt is called when exiting the indexStmt production.
+	ExitIndexStmt(c *IndexStmtContext)
 
-	// ExitObjectStat is called when exiting the objectStat production.
-	ExitObjectStat(c *ObjectStatContext)
+	// ExitMapStmt is called when exiting the mapStmt production.
+	ExitMapStmt(c *MapStmtContext)
 
 	// ExitPairList is called when exiting the pairList production.
 	ExitPairList(c *PairListContext)
@@ -313,20 +310,17 @@ type NeedleParserListener interface {
 	// ExitArgumentsList is called when exiting the argumentsList production.
 	ExitArgumentsList(c *ArgumentsListContext)
 
-	// ExitSimpleStat is called when exiting the simpleStat production.
-	ExitSimpleStat(c *SimpleStatContext)
+	// ExitSimpleStmt is called when exiting the simpleStmt production.
+	ExitSimpleStmt(c *SimpleStmtContext)
 
-	// ExitIncDecStat is called when exiting the incDecStat production.
-	ExitIncDecStat(c *IncDecStatContext)
+	// ExitIncDecStmt is called when exiting the incDecStmt production.
+	ExitIncDecStmt(c *IncDecStmtContext)
 
-	// ExitExprStat is called when exiting the exprStat production.
-	ExitExprStat(c *ExprStatContext)
+	// ExitAssignMapArrStmt is called when exiting the assignMapArrStmt production.
+	ExitAssignMapArrStmt(c *AssignMapArrStmtContext)
 
-	// ExitAssignMapArrStat is called when exiting the assignMapArrStat production.
-	ExitAssignMapArrStat(c *AssignMapArrStatContext)
-
-	// ExitInitMapArrStat is called when exiting the initMapArrStat production.
-	ExitInitMapArrStat(c *InitMapArrStatContext)
+	// ExitInitMapArrStmt is called when exiting the initMapArrStmt production.
+	ExitInitMapArrStmt(c *InitMapArrStmtContext)
 
 	// ExitAssignment is called when exiting the assignment production.
 	ExitAssignment(c *AssignmentContext)
@@ -337,11 +331,17 @@ type NeedleParserListener interface {
 	// ExitOperand is called when exiting the operand production.
 	ExitOperand(c *OperandContext)
 
+	// ExitLiteral is called when exiting the literal production.
+	ExitLiteral(c *LiteralContext)
+
 	// ExitExprList is called when exiting the exprList production.
 	ExitExprList(c *ExprListContext)
 
 	// ExitExpr is called when exiting the expr production.
 	ExitExpr(c *ExprContext)
+
+	// ExitTypeName is called when exiting the typeName production.
+	ExitTypeName(c *TypeNameContext)
 
 	// ExitIncDec_op is called when exiting the incDec_op production.
 	ExitIncDec_op(c *IncDec_opContext)

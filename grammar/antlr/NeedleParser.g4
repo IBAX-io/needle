@@ -15,17 +15,11 @@ dataDef: DATA LBRACE (dataPartList eos)* RBRACE;
 dataPartList: Identifier typeName (dataTag=stringLiteral)?;
 
 settingsDef:
-	SETTINGS LBRACE (Identifier EQ settingsValue eos)* RBRACE;
+	SETTINGS LBRACE (Identifier EQ literal eos)* RBRACE;
 
-settingsValue: numberLiteral | booleanLiteral | stringLiteral;
+funcDef: (funcDescriptor | defaultFuncDef) funcSignature block;
 
-funcDef: (innerFuncDef | defaultFuncDef) (
-		DOT Identifier funcSignature
-	)? block;
-
-innerFuncDef: funcDescriptor funcSignature;
-
-defaultFuncDef: FUNC? (CONDITIONS | ACTION) funcSignature;
+defaultFuncDef: FUNC? (CONDITIONS | ACTION)  ;
 
 funcDescriptor: FUNC Identifier;
 
@@ -34,44 +28,120 @@ funcSignature: parameterList? funcTail* returnParameters?;
 funcTail: '.' Identifier parameterList? ;
 
 parameterList:
-	LPAREN (parameter (COMMA? parameter)* COMMA?)? RPAREN;
+	LPAREN (parameter COMMA?)? RPAREN;
 
 parameter:
 	identifierList typeName (COMMA? identifierList typeName)*;
 
 returnParameters: typeName (COMMA? typeName)*;
 
-block:  LBRACE statList? RBRACE;
+block:  LBRACE statementList? RBRACE;
 
-statList: ((SEMI? | EOS?) stat eos)+;
+statementList: ((SEMI? | EOS?) statement eos)+;
 
-stat:
+statement:
 	block
-	| simpleStat
+	| simpleStmt
 	| varDef
-	| ifStat
-	| whileStat
-	| continueStat
-	| breakStat
-	| returnStat
-	| errorStat;
+	| ifStmt
+	| whileStmt
+	| continueStmt
+	| breakStmt
+	| returnStmt
+	| errorStmt;
 
 varDef: VAR parameter;
 
-ifStat:
-	IF ((LPAREN expr RPAREN) | expr) block (
-		ELIF ((LPAREN expr RPAREN) | expr) block
-	)*? (ELSE block)?;
+ifStmt:
+	IF ifBody (ELIF ifBody)*? elseBody?;
 
-returnStat: RETURN expr?;
+ifBody: ((LPAREN expr RPAREN) | expr) block;
 
-continueStat: CONTINUE;
+elseBody: ELSE block;
 
-breakStat: BREAK;
+returnStmt: RETURN expr?;
 
-whileStat: WHILE expr block;
+continueStmt: CONTINUE;
 
-errorStat: (ERRWARNING | ERRINFO | ERROR) expr;
+breakStmt: BREAK;
+
+whileStmt: WHILE expr block;
+
+errorStmt: (ERRWARNING | ERRINFO | ERROR) expr;
+
+sliceStmt: LBRACK indexNumber? COLON indexNumber? RBRACK;
+
+indexNumber: numberLiteral | identifierVar;
+
+arrayStmt: LBRACK arrayList? RBRACK;
+
+arrayList: arrayValue (COMMA arrayValue)* eos;
+
+arrayValue: expr | mapStmt | arrayStmt;
+
+indexStmt: LBRACK expr RBRACK;
+
+mapStmt: LBRACE pairList? RBRACE;
+
+pairList: pair (COMMA pair)* COMMA? eos;
+
+pair: (stringLiteral | identifierVar) COLON pairValue;
+
+pairValue:
+	identifierVar (indexStmt|sliceStmt)?
+	| literal
+	| arrayStmt
+	| mapStmt;
+
+arguments: LPAREN argumentsList? RPAREN;
+
+argumentsList: (initMapArrStmt | expr) (
+		COMMA (initMapArrStmt | expr)
+	)*;
+
+simpleStmt:
+	expr
+	| assignment
+	| incDecStmt
+	| assignMapArrStmt;
+
+incDecStmt: expr incDec_op;
+
+assignMapArrStmt: identifierVar EQ initMapArrStmt;
+
+initMapArrStmt: mapStmt | arrayStmt;
+
+assignment: exprList assign_op exprList;
+
+primaryExpr:
+	operand
+	| primaryExpr (
+		(DOT Identifier)? arguments
+		| sliceStmt
+		| indexStmt
+	)
+	;
+
+operand:
+	identifierFull
+	| literal
+	| LPAREN expr RPAREN
+	| NIL;
+
+literal:  numberLiteral
+         	| stringLiteral
+         	| booleanLiteral;
+
+exprList: expr (COMMA expr)*;
+
+expr:
+	 primaryExpr eos
+	| unary_op expr
+	| expr mul_op expr
+	| expr rel_op expr
+	| expr logical_op expr
+	| expr add_op expr
+	;
 
 typeName:
 	BOOL
@@ -84,80 +154,6 @@ typeName:
 	| FLOAT
 	| STRING
 	| FILE;
-
-sliceStat: LBRACK indexNumber? COLON indexNumber? RBRACK;
-
-indexNumber: numberLiteral | identifierVar;
-
-arrayStat: LBRACK arrayList? RBRACK;
-
-arrayList: arrayValue (COMMA arrayValue)* eos;
-
-arrayValue: arrayStat | expr | objectStat;
-
-indexStat: LBRACK expr RBRACK;
-
-objectStat: LBRACE pairList? RBRACE;
-
-pairList: pair (COMMA pair)* COMMA? eos;
-
-pair: (stringLiteral | identifierVar) COLON pairValue;
-
-pairValue:
-	identifierVar indexStat?
-	| stringLiteral
-	| numberLiteral
-	| arrayStat
-	| objectStat
-	| sliceStat;
-
-arguments: LPAREN argumentsList? RPAREN;
-
-argumentsList: (initMapArrStat | expr) (
-		COMMA (initMapArrStat | expr)
-	)*;
-
-simpleStat:
-	assignment
-	| exprStat
-	| incDecStat
-	| assignMapArrStat;
-
-incDecStat: expr incDec_op;
-
-exprStat: expr;
-
-assignMapArrStat: exprList EQ initMapArrStat;
-
-initMapArrStat: objectStat | arrayStat;
-
-assignment: exprList assign_op exprList;
-
-primaryExpr:
-	operand
-	| primaryExpr (
-		(DOT Identifier)? arguments
-		| sliceStat
-		| indexStat
-	);
-
-operand:
-	identifierFull
-	| numberLiteral
-	| stringLiteral
-	| booleanLiteral
-	| LPAREN expr RPAREN
-	| NIL;
-
-exprList: expr (COMMA expr)*;
-
-expr:
-	 primaryExpr eos
-	| unary_op expr
-	| expr mul_op expr
-	| expr rel_op expr
-	| expr logical_op expr
-	| expr add_op expr ;
 
 incDec_op: INC | DEC;
 

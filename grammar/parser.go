@@ -18,6 +18,7 @@ type ParserBase struct {
 	lexer      *needle.NeedleLexer
 	tokenSteam *antlr.CommonTokenStream
 	listener   *SyntaxErrorListener
+	listeners  map[string]antlr.ParseTreeListener
 }
 
 // NewParserBase returns a new parser for the given data and path.
@@ -40,6 +41,7 @@ func NewParserBase(data []byte, path string) (*ParserBase, error) {
 		lexer:        lexer,
 		tokenSteam:   stream,
 		listener:     listener,
+		listeners:    make(map[string]antlr.ParseTreeListener),
 	}, nil
 }
 
@@ -55,7 +57,17 @@ func NewParserFile(file string) (*ParserBase, error) {
 // Parse parses the SourceMain and walks the parse tree.
 func (p *ParserBase) Parse() {
 	tree := p.SourceMain()
-	antlr.ParseTreeWalkerDefault.Walk(p.listener, tree)
+	for _, listener := range p.listeners {
+		antlr.ParseTreeWalkerDefault.Walk(listener, tree)
+	}
+}
+
+func (p *ParserBase) RegisterListener(name string, listener antlr.ParseTreeListener) {
+	if _, ok := p.listeners[name]; ok {
+		fmt.Println("listener", name, "already registered")
+		return
+	}
+	p.listeners[name] = listener
 }
 
 // PrintlnError prints all syntax errors to stdout.
