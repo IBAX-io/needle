@@ -32,9 +32,9 @@ type VM struct {
 	// if the function is in the list, the first of result must be a int64 that the cost of executing.
 	FuncCallsDB map[string]struct{}
 	// extern mode of compilation. an inter flag indicating whether a contract is an external contract.
-	//  It is set to true when a VM is created. Contracts called are not displayed
-	//  when the code is compiled. In other words, it allows to call the contract code
-	//  determined in the future;
+	// It is set to true when a VM is created. Contracts called are not displayed
+	// when the code is compiled. In other words, it allows to call the contract code
+	// determined in the future;
 	Extern compiler.IgnoreLevel
 	// id of the first contract in the VM.
 	ShiftContract int64
@@ -219,7 +219,7 @@ func RunContractByName(vm *VM, name string, methods []string, extend map[string]
 		return fmt.Errorf(`unknown object '%s'`, name)
 	}
 
-	if obj.IsCodeBlockContract() {
+	if !obj.IsCodeBlockContract() {
 		return fmt.Errorf(eUnknownContract, name)
 	}
 	contract := obj.GetCodeBlock()

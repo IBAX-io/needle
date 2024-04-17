@@ -82,7 +82,7 @@ func ExecContract(rt *Runtime, name, fields string, params ...any) (any, error) 
 	}
 
 	obj, ok := rt.vm.Objects[name]
-	if !ok || obj.IsCodeBlockContract() {
+	if !ok || !obj.IsCodeBlockContract() {
 		return nil, fmt.Errorf(eUnknownContract, name)
 	}
 
