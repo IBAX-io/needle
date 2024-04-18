@@ -5,13 +5,15 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 type WhileStmt struct {
 	*Builder
 
-	Expr  *Expr
-	Block *Block
+	TreeType TreeType
+	Expr     *Expr
+	Block    *Block
 }
 
 func NewWhileStmt(b *Builder) *WhileStmt {
 	return &WhileStmt{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_WhileStmt,
 	}
 }
 

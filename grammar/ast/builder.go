@@ -8,6 +8,7 @@ import (
 type Builder struct {
 	*needle.BaseNeedleParserListener
 
+	sourceMain     *SourceMain
 	parser         *needle.NeedleParser
 	commentsParsed bool
 	Comments       []*Comment

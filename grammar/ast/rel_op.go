@@ -5,6 +5,7 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 type RelOp struct {
 	*Builder
 
+	TreeType  TreeType
 	Op        string
 	LeftExpr  *Expr
 	RightExpr *Expr
@@ -12,7 +13,8 @@ type RelOp struct {
 
 func NewRelOp(b *Builder) *RelOp {
 	return &RelOp{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_Expr_RelOp,
 	}
 }
 

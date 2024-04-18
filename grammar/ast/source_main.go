@@ -1,6 +1,8 @@
 package ast
 
-import needle "github.com/IBAX-io/needle/grammar/dist-go"
+import (
+	needle "github.com/IBAX-io/needle/grammar/dist-go"
+)
 
 type SourceMain struct {
 	Src      SrcPos
@@ -11,19 +13,25 @@ type SourceMain struct {
 }
 
 func NewSourceMain() *SourceMain {
-	return &SourceMain{StmtType: "SourceMain"}
+	return &SourceMain{
+		StmtType:     "SourceMain",
+		ContractDefs: make([]*ContractDef, 0),
+		FuncDefs:     make([]*FuncDef, 0),
+	}
 }
 
 func (b *Builder) EnterSourceMain(ctx *needle.SourceMainContext) {
-	main := NewSourceMain()
+	b.sourceMain = NewSourceMain()
 	for _, child := range ctx.GetChildren() {
 		if contractCtx, ok := child.(*needle.ContractDefContext); ok {
 			def := NewContractDef(b)
-			def.Parse(contractCtx, main)
+			def.Parse(contractCtx, b.sourceMain)
+			b.sourceMain.ContractDefs = append(b.sourceMain.ContractDefs, def)
 		}
 		if funcDef, ok := child.(*needle.FuncDefContext); ok {
 			def := NewFuncDef(b)
 			def.Parse(funcDef)
+			b.sourceMain.FuncDefs = append(b.sourceMain.FuncDefs, def)
 		}
 	}
 }

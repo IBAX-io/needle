@@ -6,12 +6,14 @@ import (
 
 type ContinueStmt struct {
 	*Builder
-	Src SrcPos
+	Src      SrcPos
+	TreeType TreeType
 }
 
 func NewContinueStmt(b *Builder) *ContinueStmt {
 	return &ContinueStmt{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_ContinueStmt,
 	}
 }
 

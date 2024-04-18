@@ -6,13 +6,16 @@ type ErrorStmt struct {
 	*Builder
 	Src SrcPos
 
-	Type string
-	Expr *Expr
+	Kind     TreeType
+	TreeType TreeType
+	Type     string
+	Expr     *Expr
 }
 
 func NewErrorStmt(b *Builder) *ErrorStmt {
 	return &ErrorStmt{
 		Builder: b,
+		Kind:    TreeType_Kind_ErrorStmt,
 	}
 }
 
@@ -20,14 +23,17 @@ func (e *ErrorStmt) Parse(ctx needle.IErrorStmtContext) {
 	e.Src = NewSrcPos(ctx)
 
 	if ctx.ERRWARNING() != nil {
+		e.TreeType = TreeType_ErrWarningStmt
 		e.Type = ctx.ERRWARNING().GetText()
 	}
 
 	if ctx.ERRINFO() != nil {
+		e.TreeType = TreeType_ErrInfoStmt
 		e.Type = ctx.ERRINFO().GetText()
 	}
 
 	if ctx.ERROR() != nil {
+		e.TreeType = TreeType_ErrorStmt
 		e.Type = ctx.ERROR().GetText()
 	}
 

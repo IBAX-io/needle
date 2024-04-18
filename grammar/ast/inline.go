@@ -54,7 +54,7 @@ type Pair struct {
 	*Builder
 
 	KeyName   string
-	KeyType   string
+	TreeType  TreeType
 	PairValue *PairValue
 }
 
@@ -68,12 +68,14 @@ func (p *Pair) Parse(ctx needle.IPairContext) {
 	if ctx.IdentifierVar() != nil {
 		identifierVar := NewIdentifierVar(p.Builder)
 		identifierVar.Parse(ctx.IdentifierVar())
-		p.KeyName = identifierVar.Identifier
-		p.KeyType = identifierVar.IdentifierType
+		p.KeyName = identifierVar.Name
+		p.TreeType = identifierVar.TreeType
 	}
 	if ctx.StringLiteral() != nil {
-		p.KeyName = ctx.StringLiteral().GetText()
-		p.KeyType = "StringLiteral"
+		stringLiteral := NewStringLiteral(p.Builder)
+		stringLiteral.Parse(ctx.StringLiteral())
+		p.KeyName = stringLiteral.Value
+		p.TreeType = stringLiteral.TreeType
 	}
 
 	pairValue := NewPairValue(p.Builder)

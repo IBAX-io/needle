@@ -20,7 +20,7 @@ func NewContractDef(builder *Builder) *ContractDef {
 	}
 }
 
-func (d *ContractDef) Parse(ctx *needle.ContractDefContext, main *SourceMain) {
+func (d *ContractDef) Parse(ctx needle.IContractDefContext, main *SourceMain) {
 	main.Src = NewSrcPos(ctx)
 	d.Name = ctx.Identifier().GetText()
 	d.Src = NewSrcPos(ctx)

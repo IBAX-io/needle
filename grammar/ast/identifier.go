@@ -6,21 +6,21 @@ import (
 
 type IdentifierList struct {
 	*Builder
-	Src      SrcPos
-	StmtType string
+	Src SrcPos
 
-	Name []string
+	TreeType TreeType
+	Name     []string
 }
 
 func NewIdentifierList(b *Builder) *IdentifierList {
 	return &IdentifierList{
 		Builder:  b,
-		StmtType: "Identifier",
+		TreeType: TreeType_Identifier,
 		Name:     make([]string, 0),
 	}
 }
 
-func (i *IdentifierList) Parse(ctx *needle.IdentifierListContext) {
+func (i *IdentifierList) Parse(ctx needle.IIdentifierListContext) {
 	i.Src = NewSrcPos(ctx)
 
 	for _, terminal := range ctx.AllIdentifier() {
@@ -31,8 +31,8 @@ func (i *IdentifierList) Parse(ctx *needle.IdentifierListContext) {
 type IdentifierFull struct {
 	*Builder
 
-	Identifier     string
-	IdentifierType string
+	TreeType TreeType
+	Name     string
 }
 
 func NewIdentifierFull(b *Builder) *IdentifierFull {
@@ -43,23 +43,24 @@ func NewIdentifierFull(b *Builder) *IdentifierFull {
 
 func (i *IdentifierFull) Parse(ctx needle.IIdentifierFullContext) {
 	if ident := ctx.Identifier(); ident != nil {
-		i.Identifier = ident.GetText()
-		i.IdentifierType = "Identifier"
+		i.Name = ident.GetText()
+		i.TreeType = TreeType_Identifier
 	}
 	if dollar := ctx.DollarIdentifier(); dollar != nil {
-		i.Identifier = dollar.GetText()
-		i.IdentifierType = "DollarIdentifier"
+		i.Name = dollar.GetText()
+		i.TreeType = TreeType_DollarIdentifier
 	}
 	if at := ctx.AtIdentifier(); at != nil {
-		i.Identifier = at.GetText()
-		i.IdentifierType = "AtIdentifier"
+		i.Name = at.GetText()
+		i.TreeType = TreeType_AtIdentifier
 	}
 }
 
 type IdentifierVar struct {
 	*Builder
-	Identifier     string
-	IdentifierType string
+
+	TreeType TreeType
+	Name     string
 }
 
 func NewIdentifierVar(b *Builder) *IdentifierVar {
@@ -70,11 +71,11 @@ func NewIdentifierVar(b *Builder) *IdentifierVar {
 
 func (i *IdentifierVar) Parse(ctx needle.IIdentifierVarContext) {
 	if ident := ctx.Identifier(); ident != nil {
-		i.Identifier = ident.GetText()
-		i.IdentifierType = "Identifier"
+		i.Name = ident.GetText()
+		i.TreeType = TreeType_Identifier
 	}
 	if dollar := ctx.DollarIdentifier(); dollar != nil {
-		i.Identifier = dollar.GetText()
-		i.IdentifierType = "DollarIdentifier"
+		i.Name = dollar.GetText()
+		i.TreeType = TreeType_DollarIdentifier
 	}
 }

@@ -5,6 +5,7 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 type LogicalOp struct {
 	*Builder
 
+	TreeType  TreeType
 	Op        string
 	LeftExpr  *Expr
 	RightExpr *Expr
@@ -12,7 +13,8 @@ type LogicalOp struct {
 
 func NewLogicalOp(b *Builder) *LogicalOp {
 	return &LogicalOp{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_Expr_LogicalOp,
 	}
 }
 

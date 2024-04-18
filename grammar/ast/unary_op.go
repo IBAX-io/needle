@@ -4,13 +4,16 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type UnaryOp struct {
 	*Builder
+
+	TreeType  TreeType
 	Op        string
 	RightExpr *Expr
 }
 
 func NewUnaryOp(b *Builder) *UnaryOp {
 	return &UnaryOp{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_Expr_UnaryOp,
 	}
 }
 

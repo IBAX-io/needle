@@ -7,6 +7,7 @@ import (
 type MulOp struct {
 	*Builder
 
+	TreeType  TreeType
 	Op        string
 	LeftExpr  *Expr
 	RightExpr *Expr
@@ -14,7 +15,8 @@ type MulOp struct {
 
 func NewMulOp(b *Builder) *MulOp {
 	return &MulOp{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_Expr_MulOp,
 	}
 }
 

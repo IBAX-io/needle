@@ -5,6 +5,7 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 type IfStmt struct {
 	*Builder
 
+	Kind      TreeType
 	IfBody    []*IfBody
 	ElseBlock *Block
 }
@@ -12,6 +13,7 @@ type IfStmt struct {
 func NewIfStmt(b *Builder) *IfStmt {
 	return &IfStmt{
 		Builder: b,
+		Kind:    TreeType_Kind_ControlStmt,
 	}
 }
 
@@ -32,13 +34,15 @@ func (i *IfStmt) Parse(ctx needle.IIfStmtContext) {
 type IfBody struct {
 	*Builder
 
+	TreeType  TreeType
 	Condition *Expr
 	Block     *Block
 }
 
 func NewIfBody(b *Builder) *IfBody {
 	return &IfBody{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_IfStmt,
 	}
 }
 
@@ -55,12 +59,14 @@ func (i *IfBody) Parse(ctx needle.IIfBodyContext) {
 type ElseBody struct {
 	*Builder
 
-	Block *Block
+	TreeType TreeType
+	Block    *Block
 }
 
 func NewElseBody(b *Builder) *ElseBody {
 	return &ElseBody{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_ElseStmt,
 	}
 }
 

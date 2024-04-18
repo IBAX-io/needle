@@ -88,7 +88,7 @@ arrayList: arrayValue (COMMA arrayValue)* eos;
 
 arrayValue: expr | initMapArrStmt;
 
-indexStmt: LBRACK expr RBRACK;
+indexStmt:  LBRACK expr RBRACK;
 
 mapStmt: LBRACE pairList? RBRACE;
 

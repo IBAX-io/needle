@@ -26,7 +26,7 @@ func (p *Parameter) Parse(ctx needle.IParameterContext) {
 	p.Src = NewSrcPos(ctx)
 	for i, context := range ctx.AllIdentifierList() {
 		identifierList := NewIdentifierList(p.Builder)
-		identifierList.Parse(context.(*needle.IdentifierListContext))
+		identifierList.Parse(context)
 		p.NameList = append(p.NameList, *identifierList)
 		p.TypeName = append(p.TypeName, ctx.AllTypeName()[i].GetText())
 	}

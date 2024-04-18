@@ -5,12 +5,14 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 type ReturnStmt struct {
 	*Builder
 
-	Expr *Expr
+	TreeType TreeType
+	Expr     *Expr
 }
 
 func NewReturnStmt(b *Builder) *ReturnStmt {
 	return &ReturnStmt{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_ReturnStmt,
 	}
 }
 

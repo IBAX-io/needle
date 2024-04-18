@@ -9,17 +9,16 @@ import (
 
 type Literal struct {
 	*Builder
-	Src      SrcPos
-	StmtType string
-
-	Kind            string
+	Src             SrcPos
+	Kind            TreeType
+	TreeType        TreeType
 	Value, HexValue string
 }
 
 func NewLiteral(b *Builder) *Literal {
 	return &Literal{
-		Builder:  b,
-		StmtType: "Literal",
+		Builder: b,
+		Kind:    TreeType_Kind_Literal,
 	}
 }
 
@@ -27,7 +26,7 @@ func (d *Literal) Parse(ctx needle.ILiteralContext) {
 	d.Src = NewSrcPos(ctx)
 
 	if ctx.BooleanLiteral() != nil {
-		d.Kind = "boolean"
+		d.TreeType = TreeType_BooleanLiteral
 		d.Value = strings.TrimSpace(
 			strings.ReplaceAll(ctx.BooleanLiteral().GetText(), "\"", ""),
 		)
@@ -35,27 +34,57 @@ func (d *Literal) Parse(ctx needle.ILiteralContext) {
 	}
 
 	if ctx.StringLiteral() != nil {
-		d.Kind = "string"
-		d.Value = strings.TrimSpace(
-			strings.ReplaceAll(ctx.StringLiteral().GetText(), "\"", ""),
-		)
-		d.HexValue = hex.EncodeToString([]byte(d.Value))
-
+		lit := NewStringLiteral(d.Builder)
+		lit.Parse(ctx.StringLiteral())
+		d.TreeType = lit.TreeType
+		d.Value = lit.Value
+		d.HexValue = lit.HexValue
 	}
 
 	if numLit := ctx.NumberLiteral(); numLit != nil {
 		lit := NewNumberLiteral(d.Builder)
 		lit.Parse(numLit)
-		d.Kind = lit.Kind
+		d.TreeType = lit.TreeType
 		d.Value = lit.Value
 		d.HexValue = lit.HexValue
 	}
 }
 
+type StringLiteral struct {
+	*Builder
+
+	TreeType        TreeType
+	Value, HexValue string
+}
+
+func NewStringLiteral(b *Builder) *StringLiteral {
+	return &StringLiteral{
+		Builder: b,
+	}
+}
+
+func (d *StringLiteral) Parse(ctx needle.IStringLiteralContext) {
+	if ctx.InterpretedStringLiteral() != nil {
+		d.TreeType = TreeType_InterpretedStringLiteral
+		d.Value = strings.TrimSpace(
+			strings.ReplaceAll(ctx.InterpretedStringLiteral().GetText(), "\"", ""),
+		)
+		d.HexValue = hex.EncodeToString([]byte(d.Value))
+	}
+	if ctx.RawStringLiteral() != nil {
+		d.TreeType = TreeType_RawStringLiteral
+		d.Value = strings.TrimSpace(
+			strings.ReplaceAll(ctx.RawStringLiteral().GetText(), "\"", ""),
+		)
+		d.HexValue = hex.EncodeToString([]byte(d.Value))
+	}
+
+}
+
 type NumberLiteral struct {
 	*Builder
 
-	Kind            string
+	TreeType        TreeType
 	Value, HexValue string
 }
 
@@ -67,23 +96,23 @@ func NewNumberLiteral(b *Builder) *NumberLiteral {
 
 func (d *NumberLiteral) Parse(ctx needle.INumberLiteralContext) {
 	if ctx.FloatLiteral() != nil {
-		d.Kind = "float"
+		d.TreeType = TreeType_FloatLiteral
 		d.Value = ctx.FloatLiteral().GetText()
 	}
 	if ctx.DecimalLiteral() != nil {
-		d.Kind = "decimal"
+		d.TreeType = TreeType_DecimalLiteral
 		d.Value = ctx.DecimalLiteral().GetText()
 	}
 	if ctx.BinaryLiteral() != nil {
-		d.Kind = "binary"
+		d.TreeType = TreeType_BinaryLiteral
 		d.Value = ctx.BinaryLiteral().GetText()
 	}
 	if ctx.OctalLiteral() != nil {
-		d.Kind = "octal"
+		d.TreeType = TreeType_OctalLiteral
 		d.Value = ctx.OctalLiteral().GetText()
 	}
 	if ctx.HexLiteral() != nil {
-		d.Kind = "hex"
+		d.TreeType = TreeType_HexLiteral
 		d.Value = ctx.HexLiteral().GetText()
 	}
 	d.HexValue = hex.EncodeToString([]byte(d.Value))

@@ -5,12 +5,14 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 type Block struct {
 	*Builder
 
+	TreeType   TreeType
 	Statements []*Statement
 }
 
 func NewBlock(b *Builder) *Block {
 	return &Block{
-		Builder: b,
+		Builder:  b,
+		TreeType: TreeType_Block,
 	}
 }
 
