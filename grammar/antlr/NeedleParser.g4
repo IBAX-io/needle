@@ -4,38 +4,38 @@ options {
 	tokenVocab = NeedleLexer;
 }
 
-sourceMain: ((contractDef | funcDef) eos )* EOF;
+sourceMain: ((contractDef | funcDef) eos)* EOF;
 
-contractDef: CONTRACT Identifier LBRACE (contractPart eos)* RBRACE;
+contractDef:
+	CONTRACT Identifier LBRACE (contractPart eos)* RBRACE;
 
 contractPart: dataDef | settingsDef | funcDef;
 
 dataDef: DATA LBRACE (dataPartList eos)* RBRACE;
 
-dataPartList: Identifier typeName (dataTag=stringLiteral)?;
+dataPartList: Identifier typeName (dataTag = stringLiteral)?;
 
 settingsDef:
 	SETTINGS LBRACE (Identifier EQ literal eos)* RBRACE;
 
 funcDef: (funcDescriptor | defaultFuncDef) funcSignature block;
 
-defaultFuncDef: FUNC? (CONDITIONS | ACTION)  ;
+defaultFuncDef: FUNC? (CONDITIONS | ACTION);
 
 funcDescriptor: FUNC Identifier;
 
 funcSignature: parameterList? funcTail* returnParameters?;
 
-funcTail: '.' Identifier parameterList? ;
+funcTail: '.' Identifier parameterList?;
 
-parameterList:
-	LPAREN (parameter COMMA?)? RPAREN;
+parameterList: LPAREN (parameter COMMA?)? RPAREN;
 
 parameter:
 	identifierList typeName (COMMA? identifierList typeName)*;
 
 returnParameters: typeName (COMMA? typeName)*;
 
-block:  LBRACE statementList? RBRACE;
+block: LBRACE statementList? RBRACE;
 
 statementList: ((SEMI? | EOS?) statement eos)+;
 
@@ -50,11 +50,7 @@ statement:
 	| returnStmt
 	| errorStmt;
 
-simpleStmt:
-	expr
-	| assignment
-	| incDecStmt
-	| assignMapArrStmt;
+simpleStmt: expr | assignment | incDecStmt | assignMapArrStmt;
 
 incDecStmt: expr incDec_op;
 
@@ -66,8 +62,7 @@ assignment: exprList assign_op exprList;
 
 varDef: VAR parameter;
 
-ifStmt:
-	IF ifBody (ELIF ifBody)*? elseBody?;
+ifStmt: IF ifBody (ELIF ifBody)*? elseBody?;
 
 ifBody: ((LPAREN expr RPAREN) | expr) block;
 
@@ -102,7 +97,7 @@ pairList: pair (COMMA pair)* COMMA? eos;
 pair: (stringLiteral | identifierVar) COLON pairValue;
 
 pairValue:
-	identifierVar (indexStmt|sliceStmt)?
+	identifierVar (indexStmt | sliceStmt)?
 	| literal
 	| initMapArrStmt;
 
@@ -115,13 +110,12 @@ argumentsList: (initMapArrStmt | expr) (
 exprList: expr (COMMA expr)*;
 
 expr:
-	 primaryExpr eos
+	primaryExpr eos
 	| unary_op expr
 	| expr mul_op expr
 	| expr rel_op expr
 	| expr logical_op expr
-	| expr add_op expr
-	;
+	| expr add_op expr;
 
 primaryExpr:
 	operand
@@ -129,18 +123,11 @@ primaryExpr:
 		(DOT Identifier)? arguments
 		| sliceStmt
 		| indexStmt
-	)
-	;
+	);
 
-operand:
-	identifierFull
-	| literal
-	| LPAREN expr RPAREN
-	| NIL;
+operand: identifierFull | literal | LPAREN expr RPAREN | NIL;
 
-literal:  numberLiteral
-         	| stringLiteral
-         	| booleanLiteral;
+literal: numberLiteral | stringLiteral | booleanLiteral;
 
 typeName:
 	BOOL
@@ -193,8 +180,7 @@ numberLiteral:
 	| OctalLiteral
 	| HexLiteral
 	| FloatLiteral
-//	| RuneLiteral
-	;
+	; //	| RuneLiteral
 
 booleanLiteral: TRUE | FALSE;
 
