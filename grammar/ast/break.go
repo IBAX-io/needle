@@ -14,11 +14,5 @@ func NewBreakStmt(b *Builder) *BreakStmt {
 }
 
 func (b *BreakStmt) Parse(ctx needle.IBreakStmtContext) {
-	b.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	b.Src = NewSrcPos(ctx)
 }

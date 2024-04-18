@@ -22,13 +22,7 @@ func NewFuncDef(b *Builder) *FuncDef {
 }
 
 func (d *FuncDef) Parse(ctx needle.IFuncDefContext) {
-	d.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	d.Src = NewSrcPos(ctx)
 
 	if descriptor := ctx.FuncDescriptor(); descriptor != nil {
 		d.Name = descriptor.Identifier().GetText()

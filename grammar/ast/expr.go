@@ -6,6 +6,13 @@ import (
 
 type Expr struct {
 	*Builder
+
+	PrimaryExpr *PrimaryExpr
+	MulOp       *MulOp
+	AddOp       *AddOp
+	RelOp       *RelOp
+	LogicalOp   *LogicalOp
+	UnaryOp     *UnaryOp
 }
 
 func NewExpr(b *Builder) *Expr {
@@ -20,21 +27,27 @@ func (e *Expr) Parse(ctx needle.IExprContext) {
 		case needle.IPrimaryExprContext:
 			primaryExpr := NewPrimaryExpr(e.Builder)
 			primaryExpr.Parse(child)
+			e.PrimaryExpr = primaryExpr
 		case needle.IMul_opContext:
 			mulOp := NewMulOp(e.Builder)
 			mulOp.Parse(ctx, child)
+			e.MulOp = mulOp
 		case needle.IAdd_opContext:
 			addOp := NewAddOp(e.Builder)
 			addOp.Parse(ctx, child)
+			e.AddOp = addOp
 		case needle.IRel_opContext:
 			relOp := NewRelOp(e.Builder)
 			relOp.Parse(ctx, child)
+			e.RelOp = relOp
 		case needle.ILogical_opContext:
 			logicalOp := NewLogicalOp(e.Builder)
 			logicalOp.Parse(ctx, child)
+			e.LogicalOp = logicalOp
 		case needle.IUnary_opContext:
 			unaryOp := NewUnaryOp(e.Builder)
 			unaryOp.Parse(ctx, child)
+			e.UnaryOp = unaryOp
 		}
 	}
 }

@@ -17,13 +17,7 @@ func NewErrorStmt(b *Builder) *ErrorStmt {
 }
 
 func (e *ErrorStmt) Parse(ctx needle.IErrorStmtContext) {
-	e.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	e.Src = NewSrcPos(ctx)
 
 	if ctx.ERRWARNING() != nil {
 		e.Type = ctx.ERRWARNING().GetText()

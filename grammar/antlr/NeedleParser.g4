@@ -50,6 +50,20 @@ statement:
 	| returnStmt
 	| errorStmt;
 
+simpleStmt:
+	expr
+	| assignment
+	| incDecStmt
+	| assignMapArrStmt;
+
+incDecStmt: expr incDec_op;
+
+assignMapArrStmt: identifierVar EQ initMapArrStmt;
+
+initMapArrStmt: mapStmt | arrayStmt;
+
+assignment: exprList assign_op exprList;
+
 varDef: VAR parameter;
 
 ifStmt:
@@ -77,7 +91,7 @@ arrayStmt: LBRACK arrayList? RBRACK;
 
 arrayList: arrayValue (COMMA arrayValue)* eos;
 
-arrayValue: expr | mapStmt | arrayStmt;
+arrayValue: expr | initMapArrStmt;
 
 indexStmt: LBRACK expr RBRACK;
 
@@ -90,8 +104,7 @@ pair: (stringLiteral | identifierVar) COLON pairValue;
 pairValue:
 	identifierVar (indexStmt|sliceStmt)?
 	| literal
-	| arrayStmt
-	| mapStmt;
+	| initMapArrStmt;
 
 arguments: LPAREN argumentsList? RPAREN;
 
@@ -99,19 +112,16 @@ argumentsList: (initMapArrStmt | expr) (
 		COMMA (initMapArrStmt | expr)
 	)*;
 
-simpleStmt:
-	expr
-	| assignment
-	| incDecStmt
-	| assignMapArrStmt;
+exprList: expr (COMMA expr)*;
 
-incDecStmt: expr incDec_op;
-
-assignMapArrStmt: identifierVar EQ initMapArrStmt;
-
-initMapArrStmt: mapStmt | arrayStmt;
-
-assignment: exprList assign_op exprList;
+expr:
+	 primaryExpr eos
+	| unary_op expr
+	| expr mul_op expr
+	| expr rel_op expr
+	| expr logical_op expr
+	| expr add_op expr
+	;
 
 primaryExpr:
 	operand
@@ -131,17 +141,6 @@ operand:
 literal:  numberLiteral
          	| stringLiteral
          	| booleanLiteral;
-
-exprList: expr (COMMA expr)*;
-
-expr:
-	 primaryExpr eos
-	| unary_op expr
-	| expr mul_op expr
-	| expr rel_op expr
-	| expr logical_op expr
-	| expr add_op expr
-	;
 
 typeName:
 	BOOL

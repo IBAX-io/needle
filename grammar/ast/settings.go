@@ -23,13 +23,7 @@ func NewSettingsDef(b *Builder) *SettingsDef {
 }
 
 func (d *SettingsDef) Parse(ctx *needle.SettingsDefContext) {
-	d.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	d.Src = NewSrcPos(ctx)
 
 	for i, part := range ctx.AllIdentifier() {
 		valueCtx := ctx.AllLiteral()[i]

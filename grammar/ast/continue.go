@@ -1,6 +1,8 @@
 package ast
 
-import needle "github.com/IBAX-io/needle/grammar/dist-go"
+import (
+	needle "github.com/IBAX-io/needle/grammar/dist-go"
+)
 
 type ContinueStmt struct {
 	*Builder
@@ -14,11 +16,5 @@ func NewContinueStmt(b *Builder) *ContinueStmt {
 }
 
 func (c *ContinueStmt) Parse(ctx needle.IContinueStmtContext) {
-	c.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	c.Src = NewSrcPos(ctx)
 }

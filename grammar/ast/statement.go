@@ -43,7 +43,7 @@ func (s *Statement) Parse(ctx needle.IStatementContext) {
 	if ctx.SimpleStmt() != nil {
 		simpleStmt := NewSimpleStmt(s.Builder)
 		simpleStmt.Parse(ctx.SimpleStmt())
-		s.Statement = simpleStmt
+		s.Statement = simpleStmt.Statement
 	}
 
 	if ctx.VarDef() != nil {
@@ -85,6 +85,8 @@ func (s *Statement) Parse(ctx needle.IStatementContext) {
 
 type SimpleStmt struct {
 	*Builder
+
+	Statement NodeType
 }
 
 func NewSimpleStmt(b *Builder) *SimpleStmt {
@@ -97,17 +99,21 @@ func (s *SimpleStmt) Parse(ctx needle.ISimpleStmtContext) {
 	if ctx.Expr() != nil {
 		expr := NewExpr(s.Builder)
 		expr.Parse(ctx.Expr())
+		s.Statement = expr
 	}
 	if ctx.IncDecStmt() != nil {
 		incDecStmt := NewIncDecStmt(s.Builder)
 		incDecStmt.Parse(ctx.IncDecStmt())
+		s.Statement = incDecStmt
 	}
 	if ctx.Assignment() != nil {
 		assignment := NewAssignment(s.Builder)
 		assignment.Parse(ctx.Assignment())
+		s.Statement = assignment
 	}
 	if ctx.AssignMapArrStmt() != nil {
 		assignMapArrStmt := NewAssignMapArrStmt(s.Builder)
 		assignMapArrStmt.Parse(ctx.AssignMapArrStmt())
+		s.Statement = assignMapArrStmt
 	}
 }

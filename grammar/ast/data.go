@@ -18,13 +18,7 @@ func NewDataDef(b *Builder) *DataDef {
 }
 
 func (d *DataDef) Parse(ctx *needle.DataDefContext) {
-	d.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	d.Src = NewSrcPos(ctx)
 	for _, part := range ctx.AllDataPartList() {
 		list := NewDataPartList()
 		list.Parse(part)
@@ -44,13 +38,7 @@ func NewDataPartList() *DataPartList {
 }
 
 func (l *DataPartList) Parse(ctx needle.IDataPartListContext) {
-	l.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	l.Src = NewSrcPos(ctx)
 	l.Name = ctx.Identifier().GetText()
 	l.Typename = ctx.TypeName().GetText()
 	if ctx.GetDataTag() != nil {

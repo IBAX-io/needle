@@ -16,13 +16,7 @@ func NewVarDef(b *Builder) *VarDef {
 }
 
 func (v *VarDef) Parse(ctx needle.IVarDefContext) {
-	v.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	v.Src = NewSrcPos(ctx)
 	v.Parameter = NewParameter(v.Builder)
 	v.Parameter.Parse(ctx.Parameter())
 }

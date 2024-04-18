@@ -35,7 +35,8 @@ func (a *Assignment) Parse(ctx needle.IAssignmentContext) {
 type AssignMapArrStmt struct {
 	*Builder
 
-	IdentifierVar string
+	IdentifierVar  string
+	InitMapArrStmt *InitMapArrStmt
 }
 
 func NewAssignMapArrStmt(b *Builder) *AssignMapArrStmt {
@@ -48,4 +49,5 @@ func (a *AssignMapArrStmt) Parse(ctx needle.IAssignMapArrStmtContext) {
 	a.IdentifierVar = ctx.IdentifierVar().GetText()
 	initMapArrStmt := NewInitMapArrStmt(a.Builder)
 	initMapArrStmt.Parse(ctx.InitMapArrStmt())
+	a.InitMapArrStmt = initMapArrStmt
 }

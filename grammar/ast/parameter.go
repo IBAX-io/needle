@@ -23,13 +23,7 @@ func NewParameter(b *Builder) *Parameter {
 }
 
 func (p *Parameter) Parse(ctx needle.IParameterContext) {
-	p.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	p.Src = NewSrcPos(ctx)
 	for i, context := range ctx.AllIdentifierList() {
 		identifierList := NewIdentifierList(p.Builder)
 		identifierList.Parse(context.(*needle.IdentifierListContext))
@@ -54,13 +48,7 @@ func NewParameterList(b *Builder) *ParameterList {
 }
 
 func (p *ParameterList) Parse(ctx needle.IParameterListContext) {
-	p.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	p.Src = NewSrcPos(ctx)
 	if ctx.Parameter() == nil {
 		return
 	}

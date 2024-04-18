@@ -21,13 +21,7 @@ func NewIdentifierList(b *Builder) *IdentifierList {
 }
 
 func (i *IdentifierList) Parse(ctx *needle.IdentifierListContext) {
-	i.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	i.Src = NewSrcPos(ctx)
 
 	for _, terminal := range ctx.AllIdentifier() {
 		i.Name = append(i.Name, terminal.GetText())

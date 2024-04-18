@@ -20,11 +20,14 @@ settings{
 	s4 = 56.7834
 }
 
+// this is a line comment
 func testFunc(i i1 int, j j2 bool).tail1() int,string {
 	abc*def
 a={"a":123}
 }
+/* this is a block comment */
 	action{
+slice = a[1:b]
 		a++
 	}
 }
@@ -34,13 +37,12 @@ mf = 123
 mf2 = mf
 }
 `
-	base, err := parser.NewParserBase([]byte(string(input)), "")
+	base, err := parser.NewParserBase([]byte(input), "")
 	if err != nil {
 		t.Error(err)
 	}
-	listener := NewBuilder()
+	listener := NewBuilder(base.NeedleParser)
 	base.RegisterListener("SourceMain", listener)
-	// base.RegisterListener("NewExpr", NewExpr(listener))
 	base.Parse()
 	base.PrintlnError()
 }

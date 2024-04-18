@@ -18,7 +18,7 @@ func NewMulOp(b *Builder) *MulOp {
 	}
 }
 
-func (m *MulOp) Parse(exprCtx needle.IExprContext, ctx *needle.Mul_opContext) {
+func (m *MulOp) Parse(exprCtx needle.IExprContext, ctx needle.IMul_opContext) {
 	m.Op = ctx.GetText()
 	leftExpr := NewExpr(m.Builder)
 	leftExpr.Parse(exprCtx.Expr(0))

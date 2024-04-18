@@ -24,13 +24,7 @@ func NewLiteral(b *Builder) *Literal {
 }
 
 func (d *Literal) Parse(ctx needle.ILiteralContext) {
-	d.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	d.Src = NewSrcPos(ctx)
 
 	if ctx.BooleanLiteral() != nil {
 		d.Kind = "boolean"

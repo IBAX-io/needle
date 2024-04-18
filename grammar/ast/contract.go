@@ -21,29 +21,11 @@ func NewContractDef(builder *Builder) *ContractDef {
 }
 
 func (d *ContractDef) Parse(ctx *needle.ContractDefContext, main *SourceMain) {
-	main.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	main.Src = NewSrcPos(ctx)
 	d.Name = ctx.Identifier().GetText()
-	d.Src = SrcPos{
-		Line:   ctx.GetStart().GetLine(),
-		Column: ctx.GetStart().GetColumn(),
-		Start:  ctx.GetStart().GetStart(),
-		End:    ctx.GetStop().GetStop(),
-		Length: ctx.GetStop().GetStop() - ctx.GetStart().GetStart() + 1,
-	}
+	d.Src = NewSrcPos(ctx)
 	d.Name = ctx.Identifier().GetText()
-	d.NamePos = SrcPos{
-		Line:   ctx.Identifier().GetSymbol().GetLine(),
-		Column: ctx.Identifier().GetSymbol().GetColumn(),
-		Start:  ctx.Identifier().GetSymbol().GetStart(),
-		End:    ctx.Identifier().GetSymbol().GetStop(),
-		Length: ctx.Identifier().GetSymbol().GetStop() - ctx.Identifier().GetSymbol().GetStart() + 1,
-	}
+	d.NamePos = NewSrcPosFromSymbol(ctx.Identifier())
 	for _, part := range ctx.AllContractPart() {
 		contractPart := NewContractPart(d.Builder)
 		contractPart.Parse(part)

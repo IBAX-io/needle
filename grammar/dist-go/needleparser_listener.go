@@ -58,6 +58,21 @@ type NeedleParserListener interface {
 	// EnterStatement is called when entering the statement production.
 	EnterStatement(c *StatementContext)
 
+	// EnterSimpleStmt is called when entering the simpleStmt production.
+	EnterSimpleStmt(c *SimpleStmtContext)
+
+	// EnterIncDecStmt is called when entering the incDecStmt production.
+	EnterIncDecStmt(c *IncDecStmtContext)
+
+	// EnterAssignMapArrStmt is called when entering the assignMapArrStmt production.
+	EnterAssignMapArrStmt(c *AssignMapArrStmtContext)
+
+	// EnterInitMapArrStmt is called when entering the initMapArrStmt production.
+	EnterInitMapArrStmt(c *InitMapArrStmtContext)
+
+	// EnterAssignment is called when entering the assignment production.
+	EnterAssignment(c *AssignmentContext)
+
 	// EnterVarDef is called when entering the varDef production.
 	EnterVarDef(c *VarDefContext)
 
@@ -121,20 +136,11 @@ type NeedleParserListener interface {
 	// EnterArgumentsList is called when entering the argumentsList production.
 	EnterArgumentsList(c *ArgumentsListContext)
 
-	// EnterSimpleStmt is called when entering the simpleStmt production.
-	EnterSimpleStmt(c *SimpleStmtContext)
+	// EnterExprList is called when entering the exprList production.
+	EnterExprList(c *ExprListContext)
 
-	// EnterIncDecStmt is called when entering the incDecStmt production.
-	EnterIncDecStmt(c *IncDecStmtContext)
-
-	// EnterAssignMapArrStmt is called when entering the assignMapArrStmt production.
-	EnterAssignMapArrStmt(c *AssignMapArrStmtContext)
-
-	// EnterInitMapArrStmt is called when entering the initMapArrStmt production.
-	EnterInitMapArrStmt(c *InitMapArrStmtContext)
-
-	// EnterAssignment is called when entering the assignment production.
-	EnterAssignment(c *AssignmentContext)
+	// EnterExpr is called when entering the expr production.
+	EnterExpr(c *ExprContext)
 
 	// EnterPrimaryExpr is called when entering the primaryExpr production.
 	EnterPrimaryExpr(c *PrimaryExprContext)
@@ -144,12 +150,6 @@ type NeedleParserListener interface {
 
 	// EnterLiteral is called when entering the literal production.
 	EnterLiteral(c *LiteralContext)
-
-	// EnterExprList is called when entering the exprList production.
-	EnterExprList(c *ExprListContext)
-
-	// EnterExpr is called when entering the expr production.
-	EnterExpr(c *ExprContext)
 
 	// EnterTypeName is called when entering the typeName production.
 	EnterTypeName(c *TypeNameContext)
@@ -247,6 +247,21 @@ type NeedleParserListener interface {
 	// ExitStatement is called when exiting the statement production.
 	ExitStatement(c *StatementContext)
 
+	// ExitSimpleStmt is called when exiting the simpleStmt production.
+	ExitSimpleStmt(c *SimpleStmtContext)
+
+	// ExitIncDecStmt is called when exiting the incDecStmt production.
+	ExitIncDecStmt(c *IncDecStmtContext)
+
+	// ExitAssignMapArrStmt is called when exiting the assignMapArrStmt production.
+	ExitAssignMapArrStmt(c *AssignMapArrStmtContext)
+
+	// ExitInitMapArrStmt is called when exiting the initMapArrStmt production.
+	ExitInitMapArrStmt(c *InitMapArrStmtContext)
+
+	// ExitAssignment is called when exiting the assignment production.
+	ExitAssignment(c *AssignmentContext)
+
 	// ExitVarDef is called when exiting the varDef production.
 	ExitVarDef(c *VarDefContext)
 
@@ -310,20 +325,11 @@ type NeedleParserListener interface {
 	// ExitArgumentsList is called when exiting the argumentsList production.
 	ExitArgumentsList(c *ArgumentsListContext)
 
-	// ExitSimpleStmt is called when exiting the simpleStmt production.
-	ExitSimpleStmt(c *SimpleStmtContext)
+	// ExitExprList is called when exiting the exprList production.
+	ExitExprList(c *ExprListContext)
 
-	// ExitIncDecStmt is called when exiting the incDecStmt production.
-	ExitIncDecStmt(c *IncDecStmtContext)
-
-	// ExitAssignMapArrStmt is called when exiting the assignMapArrStmt production.
-	ExitAssignMapArrStmt(c *AssignMapArrStmtContext)
-
-	// ExitInitMapArrStmt is called when exiting the initMapArrStmt production.
-	ExitInitMapArrStmt(c *InitMapArrStmtContext)
-
-	// ExitAssignment is called when exiting the assignment production.
-	ExitAssignment(c *AssignmentContext)
+	// ExitExpr is called when exiting the expr production.
+	ExitExpr(c *ExprContext)
 
 	// ExitPrimaryExpr is called when exiting the primaryExpr production.
 	ExitPrimaryExpr(c *PrimaryExprContext)
@@ -333,12 +339,6 @@ type NeedleParserListener interface {
 
 	// ExitLiteral is called when exiting the literal production.
 	ExitLiteral(c *LiteralContext)
-
-	// ExitExprList is called when exiting the exprList production.
-	ExitExprList(c *ExprListContext)
-
-	// ExitExpr is called when exiting the expr production.
-	ExitExpr(c *ExprContext)
 
 	// ExitTypeName is called when exiting the typeName production.
 	ExitTypeName(c *TypeNameContext)

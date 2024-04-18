@@ -4,6 +4,8 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type MapStmt struct {
 	*Builder
+
+	PairList *PairList
 }
 
 func NewMapStmt(b *Builder) *MapStmt {
@@ -16,5 +18,6 @@ func (o *MapStmt) Parse(ctx needle.IMapStmtContext) {
 	if ctx.PairList() != nil {
 		pairList := NewPairList(o.Builder)
 		pairList.Parse(ctx.PairList())
+		o.PairList = pairList
 	}
 }
