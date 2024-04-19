@@ -1,6 +1,10 @@
 package ast
 
-import needle "github.com/IBAX-io/needle/grammar/dist-go"
+import (
+	"strings"
+
+	needle "github.com/IBAX-io/needle/grammar/dist-go"
+)
 
 type DataDef struct {
 	*Builder
@@ -20,21 +24,25 @@ func NewDataDef(b *Builder) *DataDef {
 func (d *DataDef) Parse(ctx *needle.DataDefContext) {
 	d.Src = NewSrcPos(ctx)
 	for _, part := range ctx.AllDataPartList() {
-		list := NewDataPartList()
+		list := NewDataPartList(d.Builder)
 		list.Parse(part)
 		d.Parts = append(d.Parts, list)
 	}
 }
 
 type DataPartList struct {
+	*Builder
+
 	Src      SrcPos
 	Name     string
 	Typename string
 	Tag      string
 }
 
-func NewDataPartList() *DataPartList {
-	return &DataPartList{}
+func NewDataPartList(b *Builder) *DataPartList {
+	return &DataPartList{
+		Builder: b,
+	}
 }
 
 func (l *DataPartList) Parse(ctx needle.IDataPartListContext) {
@@ -42,6 +50,8 @@ func (l *DataPartList) Parse(ctx needle.IDataPartListContext) {
 	l.Name = ctx.Identifier().GetText()
 	l.Typename = ctx.TypeName().GetText()
 	if ctx.GetDataTag() != nil {
-		l.Tag = ctx.GetDataTag().GetText()
+		l.Tag = strings.TrimSpace(
+			strings.ReplaceAll(ctx.GetDataTag().GetText(), "\"", ""),
+		)
 	}
 }
