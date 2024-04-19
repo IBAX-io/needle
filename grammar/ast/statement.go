@@ -111,9 +111,4 @@ func (s *SimpleStmt) Parse(ctx needle.ISimpleStmtContext) {
 		assignment.Parse(ctx.Assignment())
 		s.Statement = assignment
 	}
-	if ctx.AssignMapArrStmt() != nil {
-		assignMapArrStmt := NewAssignMapArrStmt(s.Builder)
-		assignMapArrStmt.Parse(ctx.AssignMapArrStmt())
-		s.Statement = assignMapArrStmt
-	}
 }

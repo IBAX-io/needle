@@ -13,6 +13,8 @@ type Expr struct {
 	PrimaryExpr *PrimaryExpr
 	IndexExpr   *IndexExpr
 	SliceExpr   *SliceExpr
+	MapExpr     *MapExpr
+	ArrayExpr   *ArrayExpr
 	MulOp       *MulOp
 	AddOp       *AddOp
 	RelOp       *RelOp
@@ -45,6 +47,16 @@ func (e *Expr) Parse(ctx needle.IExprContext) {
 			sliceExpr.Parse(child)
 			e.SliceExpr = sliceExpr
 			e.TreeType = sliceExpr.TreeType
+		case needle.IMapExprContext:
+			mapExpr := NewMapExpr(e.Builder)
+			mapExpr.Parse(child)
+			e.MapExpr = mapExpr
+			e.TreeType = mapExpr.TreeType
+		case needle.IArrayExprContext:
+			arrayExpr := NewArrayExpr(e.Builder)
+			arrayExpr.Parse(child)
+			e.ArrayExpr = arrayExpr
+			e.TreeType = arrayExpr.TreeType
 		case needle.IMul_opContext:
 			mulOp := NewMulOp(e.Builder)
 			mulOp.Parse(ctx, child)
@@ -71,6 +83,26 @@ func (e *Expr) Parse(ctx needle.IExprContext) {
 			e.UnaryOp = unaryOp
 			e.TreeType = unaryOp.TreeType
 		}
+	}
+}
+
+type ExprList struct {
+	*Builder
+
+	ExprList []*Expr
+}
+
+func NewExprList(b *Builder) *ExprList {
+	return &ExprList{
+		Builder: b,
+	}
+}
+
+func (e *ExprList) Parse(ctx needle.IExprListContext) {
+	for _, exprCtx := range ctx.AllExpr() {
+		expr := NewExpr(e.Builder)
+		expr.Parse(exprCtx)
+		e.ExprList = append(e.ExprList, expr)
 	}
 }
 

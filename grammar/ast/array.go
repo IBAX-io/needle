@@ -2,19 +2,21 @@ package ast
 
 import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
-type ArrayStmt struct {
+type ArrayExpr struct {
 	*Builder
 
+	TreeType  TreeType
 	ArrayList *ArrayList
 }
 
-func NewArrayStmt(b *Builder) *ArrayStmt {
-	return &ArrayStmt{
-		Builder: b,
+func NewArrayExpr(b *Builder) *ArrayExpr {
+	return &ArrayExpr{
+		Builder:  b,
+		TreeType: TreeType_ArrayExpr,
 	}
 }
 
-func (a *ArrayStmt) Parse(ctx needle.IArrayStmtContext) {
+func (a *ArrayExpr) Parse(ctx needle.IArrayExprContext) {
 	if ctx.ArrayList() != nil {
 		arrayList := NewArrayList(a.Builder)
 		arrayList.Parse(ctx.ArrayList())
@@ -25,7 +27,7 @@ func (a *ArrayStmt) Parse(ctx needle.IArrayStmtContext) {
 type ArrayList struct {
 	*Builder
 
-	ArrayValue []*ArrayValue
+	ExprList *ExprList
 }
 
 func NewArrayList(b *Builder) *ArrayList {
@@ -35,35 +37,9 @@ func NewArrayList(b *Builder) *ArrayList {
 }
 
 func (a *ArrayList) Parse(ctx needle.IArrayListContext) {
-	for _, value := range ctx.AllArrayValue() {
-		arrayValue := NewArrayValue(a.Builder)
-		arrayValue.Parse(value)
-		a.ArrayValue = append(a.ArrayValue, arrayValue)
-	}
-}
-
-type ArrayValue struct {
-	*Builder
-
-	Expr           *Expr
-	InitMapArrStmt *InitMapArrStmt
-}
-
-func NewArrayValue(b *Builder) *ArrayValue {
-	return &ArrayValue{
-		Builder: b,
-	}
-}
-
-func (a *ArrayValue) Parse(ctx needle.IArrayValueContext) {
-	if ctx.Expr() != nil {
-		expression := NewExpr(a.Builder)
-		expression.Parse(ctx.Expr())
-		a.Expr = expression
-	}
-	if ctx.InitMapArrStmt() != nil {
-		initMapArrStmt := NewInitMapArrStmt(a.Builder)
-		initMapArrStmt.Parse(ctx.InitMapArrStmt())
-		a.InitMapArrStmt = initMapArrStmt
+	if ctx.ExprList() != nil {
+		exprList := NewExprList(a.Builder)
+		exprList.Parse(ctx.ExprList())
+		a.ExprList = exprList
 	}
 }

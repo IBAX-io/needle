@@ -50,13 +50,9 @@ statement:
 	| returnStmt
 	| errorStmt;
 
-simpleStmt: expr | assignment | incDecStmt | assignMapArrStmt;
+simpleStmt: expr | assignment | incDecStmt;
 
 incDecStmt: expr incDec_op;
-
-assignMapArrStmt: identifierVar EQ initMapArrStmt;
-
-initMapArrStmt: mapStmt | arrayStmt;
 
 assignment: exprList assign_op exprList;
 
@@ -78,13 +74,11 @@ whileStmt: WHILE expr block;
 
 errorStmt: (ERRWARNING | ERRINFO | ERROR) expr;
 
-arrayStmt: LBRACK arrayList? RBRACK;
+arrayExpr: LBRACK arrayList? COMMA? RBRACK;
 
-arrayList: arrayValue (COMMA arrayValue)* eos;
+arrayList: exprList eos;
 
-arrayValue: expr | initMapArrStmt;
-
-mapStmt: LBRACE pairList? RBRACE;
+mapExpr: LBRACE pairList? RBRACE;
 
 pairList: pair (COMMA pair)* COMMA? eos;
 
@@ -93,13 +87,10 @@ pair: (stringLiteral | identifierVar) COLON pairValue;
 pairValue:
 	identifierVar (indexExpr | sliceExpr)?
 	| literal
-	| initMapArrStmt;
+	| mapExpr
+	| arrayExpr;
 
-arguments: LPAREN argumentsList? RPAREN;
-
-argumentsList: (initMapArrStmt | expr) (
-		COMMA (initMapArrStmt | expr)
-	)*;
+arguments: LPAREN exprList? RPAREN;
 
 exprList: expr (COMMA expr)*;
 
@@ -107,17 +98,17 @@ expr:
 	primaryExpr eos
 	| expr indexExpr
 	| expr sliceExpr
+	| mapExpr
+	| arrayExpr
 	| unary_op expr
 	| expr mul_op expr
 	| expr rel_op expr
 	| expr logical_op expr
 	| expr add_op expr;
 
-primaryExpr:
-	operand
-	| primaryExpr (DOT Identifier)? arguments;
+primaryExpr: operand | primaryExpr (DOT Identifier)? arguments;
 
-indexExpr:  LBRACK expr RBRACK;
+indexExpr: LBRACK expr RBRACK;
 
 sliceExpr: LBRACK expr? COLON expr? RBRACK;
 
@@ -170,13 +161,13 @@ identifierList: Identifier (COMMA? Identifier)*;
 
 stringLiteral: InterpretedStringLiteral | RawStringLiteral;
 
+// @todo add RuneLiteral.
 numberLiteral:
 	DecimalLiteral
 	| BinaryLiteral
 	| OctalLiteral
 	| HexLiteral
-	| FloatLiteral
-	; //	| RuneLiteral
+	| FloatLiteral;
 
 booleanLiteral: TRUE | FALSE;
 

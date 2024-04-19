@@ -42,6 +42,8 @@ const (
 	TreeType_PrimaryExpr
 	TreeType_IndexExpr
 	TreeType_SliceExpr
+	TreeType_MapExpr
+	TreeType_ArrayExpr
 	TreeType_UnaryOpExpr
 	TreeType_MulOpExpr
 	TreeType_RelOpExpr

@@ -41,7 +41,7 @@ mf2 = mf
 	if err != nil {
 		t.Error(err)
 	}
-	listener := NewBuilder(base.NeedleParser)
+	listener := NewBuilder(base.NeedleParser, []byte(input))
 	base.RegisterListener("SourceMain", listener)
 	base.Parse()
 	base.PrintlnError()

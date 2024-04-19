@@ -64,12 +64,6 @@ type NeedleParserListener interface {
 	// EnterIncDecStmt is called when entering the incDecStmt production.
 	EnterIncDecStmt(c *IncDecStmtContext)
 
-	// EnterAssignMapArrStmt is called when entering the assignMapArrStmt production.
-	EnterAssignMapArrStmt(c *AssignMapArrStmtContext)
-
-	// EnterInitMapArrStmt is called when entering the initMapArrStmt production.
-	EnterInitMapArrStmt(c *InitMapArrStmtContext)
-
 	// EnterAssignment is called when entering the assignment production.
 	EnterAssignment(c *AssignmentContext)
 
@@ -100,17 +94,14 @@ type NeedleParserListener interface {
 	// EnterErrorStmt is called when entering the errorStmt production.
 	EnterErrorStmt(c *ErrorStmtContext)
 
-	// EnterArrayStmt is called when entering the arrayStmt production.
-	EnterArrayStmt(c *ArrayStmtContext)
+	// EnterArrayExpr is called when entering the arrayExpr production.
+	EnterArrayExpr(c *ArrayExprContext)
 
 	// EnterArrayList is called when entering the arrayList production.
 	EnterArrayList(c *ArrayListContext)
 
-	// EnterArrayValue is called when entering the arrayValue production.
-	EnterArrayValue(c *ArrayValueContext)
-
-	// EnterMapStmt is called when entering the mapStmt production.
-	EnterMapStmt(c *MapStmtContext)
+	// EnterMapExpr is called when entering the mapExpr production.
+	EnterMapExpr(c *MapExprContext)
 
 	// EnterPairList is called when entering the pairList production.
 	EnterPairList(c *PairListContext)
@@ -123,9 +114,6 @@ type NeedleParserListener interface {
 
 	// EnterArguments is called when entering the arguments production.
 	EnterArguments(c *ArgumentsContext)
-
-	// EnterArgumentsList is called when entering the argumentsList production.
-	EnterArgumentsList(c *ArgumentsListContext)
 
 	// EnterExprList is called when entering the exprList production.
 	EnterExprList(c *ExprListContext)
@@ -250,12 +238,6 @@ type NeedleParserListener interface {
 	// ExitIncDecStmt is called when exiting the incDecStmt production.
 	ExitIncDecStmt(c *IncDecStmtContext)
 
-	// ExitAssignMapArrStmt is called when exiting the assignMapArrStmt production.
-	ExitAssignMapArrStmt(c *AssignMapArrStmtContext)
-
-	// ExitInitMapArrStmt is called when exiting the initMapArrStmt production.
-	ExitInitMapArrStmt(c *InitMapArrStmtContext)
-
 	// ExitAssignment is called when exiting the assignment production.
 	ExitAssignment(c *AssignmentContext)
 
@@ -286,17 +268,14 @@ type NeedleParserListener interface {
 	// ExitErrorStmt is called when exiting the errorStmt production.
 	ExitErrorStmt(c *ErrorStmtContext)
 
-	// ExitArrayStmt is called when exiting the arrayStmt production.
-	ExitArrayStmt(c *ArrayStmtContext)
+	// ExitArrayExpr is called when exiting the arrayExpr production.
+	ExitArrayExpr(c *ArrayExprContext)
 
 	// ExitArrayList is called when exiting the arrayList production.
 	ExitArrayList(c *ArrayListContext)
 
-	// ExitArrayValue is called when exiting the arrayValue production.
-	ExitArrayValue(c *ArrayValueContext)
-
-	// ExitMapStmt is called when exiting the mapStmt production.
-	ExitMapStmt(c *MapStmtContext)
+	// ExitMapExpr is called when exiting the mapExpr production.
+	ExitMapExpr(c *MapExprContext)
 
 	// ExitPairList is called when exiting the pairList production.
 	ExitPairList(c *PairListContext)
@@ -309,9 +288,6 @@ type NeedleParserListener interface {
 
 	// ExitArguments is called when exiting the arguments production.
 	ExitArguments(c *ArgumentsContext)
-
-	// ExitArgumentsList is called when exiting the argumentsList production.
-	ExitArgumentsList(c *ArgumentsListContext)
 
 	// ExitExprList is called when exiting the exprList production.
 	ExitExprList(c *ExprListContext)

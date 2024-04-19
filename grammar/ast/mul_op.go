@@ -6,7 +6,7 @@ import (
 
 type MulOp struct {
 	*Builder
-
+	Src       SrcPos
 	TreeType  TreeType
 	Op        string
 	LeftExpr  *Expr
@@ -21,6 +21,7 @@ func NewMulOp(b *Builder) *MulOp {
 }
 
 func (m *MulOp) Parse(exprCtx needle.IExprContext, ctx needle.IMul_opContext) {
+	m.Src = NewSrcPos(exprCtx)
 	m.Op = ctx.GetText()
 	leftExpr := NewExpr(m.Builder)
 	leftExpr.Parse(exprCtx.Expr(0))

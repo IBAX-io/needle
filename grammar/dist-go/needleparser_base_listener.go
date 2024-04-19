@@ -134,18 +134,6 @@ func (s *BaseNeedleParserListener) EnterIncDecStmt(ctx *IncDecStmtContext) {}
 // ExitIncDecStmt is called when production incDecStmt is exited.
 func (s *BaseNeedleParserListener) ExitIncDecStmt(ctx *IncDecStmtContext) {}
 
-// EnterAssignMapArrStmt is called when production assignMapArrStmt is entered.
-func (s *BaseNeedleParserListener) EnterAssignMapArrStmt(ctx *AssignMapArrStmtContext) {}
-
-// ExitAssignMapArrStmt is called when production assignMapArrStmt is exited.
-func (s *BaseNeedleParserListener) ExitAssignMapArrStmt(ctx *AssignMapArrStmtContext) {}
-
-// EnterInitMapArrStmt is called when production initMapArrStmt is entered.
-func (s *BaseNeedleParserListener) EnterInitMapArrStmt(ctx *InitMapArrStmtContext) {}
-
-// ExitInitMapArrStmt is called when production initMapArrStmt is exited.
-func (s *BaseNeedleParserListener) ExitInitMapArrStmt(ctx *InitMapArrStmtContext) {}
-
 // EnterAssignment is called when production assignment is entered.
 func (s *BaseNeedleParserListener) EnterAssignment(ctx *AssignmentContext) {}
 
@@ -206,11 +194,11 @@ func (s *BaseNeedleParserListener) EnterErrorStmt(ctx *ErrorStmtContext) {}
 // ExitErrorStmt is called when production errorStmt is exited.
 func (s *BaseNeedleParserListener) ExitErrorStmt(ctx *ErrorStmtContext) {}
 
-// EnterArrayStmt is called when production arrayStmt is entered.
-func (s *BaseNeedleParserListener) EnterArrayStmt(ctx *ArrayStmtContext) {}
+// EnterArrayExpr is called when production arrayExpr is entered.
+func (s *BaseNeedleParserListener) EnterArrayExpr(ctx *ArrayExprContext) {}
 
-// ExitArrayStmt is called when production arrayStmt is exited.
-func (s *BaseNeedleParserListener) ExitArrayStmt(ctx *ArrayStmtContext) {}
+// ExitArrayExpr is called when production arrayExpr is exited.
+func (s *BaseNeedleParserListener) ExitArrayExpr(ctx *ArrayExprContext) {}
 
 // EnterArrayList is called when production arrayList is entered.
 func (s *BaseNeedleParserListener) EnterArrayList(ctx *ArrayListContext) {}
@@ -218,17 +206,11 @@ func (s *BaseNeedleParserListener) EnterArrayList(ctx *ArrayListContext) {}
 // ExitArrayList is called when production arrayList is exited.
 func (s *BaseNeedleParserListener) ExitArrayList(ctx *ArrayListContext) {}
 
-// EnterArrayValue is called when production arrayValue is entered.
-func (s *BaseNeedleParserListener) EnterArrayValue(ctx *ArrayValueContext) {}
+// EnterMapExpr is called when production mapExpr is entered.
+func (s *BaseNeedleParserListener) EnterMapExpr(ctx *MapExprContext) {}
 
-// ExitArrayValue is called when production arrayValue is exited.
-func (s *BaseNeedleParserListener) ExitArrayValue(ctx *ArrayValueContext) {}
-
-// EnterMapStmt is called when production mapStmt is entered.
-func (s *BaseNeedleParserListener) EnterMapStmt(ctx *MapStmtContext) {}
-
-// ExitMapStmt is called when production mapStmt is exited.
-func (s *BaseNeedleParserListener) ExitMapStmt(ctx *MapStmtContext) {}
+// ExitMapExpr is called when production mapExpr is exited.
+func (s *BaseNeedleParserListener) ExitMapExpr(ctx *MapExprContext) {}
 
 // EnterPairList is called when production pairList is entered.
 func (s *BaseNeedleParserListener) EnterPairList(ctx *PairListContext) {}
@@ -253,12 +235,6 @@ func (s *BaseNeedleParserListener) EnterArguments(ctx *ArgumentsContext) {}
 
 // ExitArguments is called when production arguments is exited.
 func (s *BaseNeedleParserListener) ExitArguments(ctx *ArgumentsContext) {}
-
-// EnterArgumentsList is called when production argumentsList is entered.
-func (s *BaseNeedleParserListener) EnterArgumentsList(ctx *ArgumentsListContext) {}
-
-// ExitArgumentsList is called when production argumentsList is exited.
-func (s *BaseNeedleParserListener) ExitArgumentsList(ctx *ArgumentsListContext) {}
 
 // EnterExprList is called when production exprList is entered.
 func (s *BaseNeedleParserListener) EnterExprList(ctx *ExprListContext) {}

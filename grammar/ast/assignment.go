@@ -31,23 +31,3 @@ func (a *Assignment) Parse(ctx needle.IAssignmentContext) {
 		a.RightExpr = append(a.RightExpr, expr)
 	}
 }
-
-type AssignMapArrStmt struct {
-	*Builder
-
-	IdentifierVar  string
-	InitMapArrStmt *InitMapArrStmt
-}
-
-func NewAssignMapArrStmt(b *Builder) *AssignMapArrStmt {
-	return &AssignMapArrStmt{
-		Builder: b,
-	}
-}
-
-func (a *AssignMapArrStmt) Parse(ctx needle.IAssignMapArrStmtContext) {
-	a.IdentifierVar = ctx.IdentifierVar().GetText()
-	initMapArrStmt := NewInitMapArrStmt(a.Builder)
-	initMapArrStmt.Parse(ctx.InitMapArrStmt())
-	a.InitMapArrStmt = initMapArrStmt
-}

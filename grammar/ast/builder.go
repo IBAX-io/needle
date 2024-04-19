@@ -12,10 +12,11 @@ type Builder struct {
 	parser         *needle.NeedleParser
 	commentsParsed bool
 	Comments       []*Comment
+	input          []byte
 }
 
-func NewBuilder(parser *needle.NeedleParser) *Builder {
-	return &Builder{parser: parser}
+func NewBuilder(parser *needle.NeedleParser, input []byte) *Builder {
+	return &Builder{parser: parser, input: input}
 }
 
 type SrcPos struct {
@@ -44,4 +45,17 @@ func NewSrcPosFromSymbol(t antlr.TerminalNode) SrcPos {
 		End:    t.GetSymbol().GetStop(),
 		Length: t.GetSymbol().GetStop() - t.GetSymbol().GetStart() + 1,
 	}
+}
+
+func (p SrcPos) GetText(input []byte) string {
+	size := len(input)
+	start := p.Start
+	stop := p.End
+	if stop >= size {
+		stop = size - 1
+	}
+	if start >= size {
+		return ""
+	}
+	return string(input[start : stop+1])
 }
