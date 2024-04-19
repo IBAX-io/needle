@@ -7,16 +7,16 @@ type ContractDef struct {
 	Src      SrcPos
 	StmtType string
 
-	Name    string
-	NamePos SrcPos
-	Nodes   []NodeType
+	Name          string
+	NamePos       SrcPos
+	ContractParts []*ContractPart
 }
 
 func NewContractDef(builder *Builder) *ContractDef {
 	return &ContractDef{
-		Builder:  builder,
-		StmtType: "ContractDef",
-		Nodes:    make([]NodeType, 0),
+		Builder:       builder,
+		StmtType:      "ContractDef",
+		ContractParts: make([]*ContractPart, 0),
 	}
 }
 
@@ -29,7 +29,7 @@ func (d *ContractDef) Parse(ctx needle.IContractDefContext, main *SourceMain) {
 	for _, part := range ctx.AllContractPart() {
 		contractPart := NewContractPart(d.Builder)
 		contractPart.Parse(part)
-		d.Nodes = append(d.Nodes, contractPart.NodeType)
+		d.ContractParts = append(d.ContractParts, contractPart)
 	}
 
 	main.ContractDefs = append(main.ContractDefs, d)
@@ -40,7 +40,9 @@ type ContractPart struct {
 	Src      SrcPos
 	StmtType string
 
-	NodeType NodeType
+	DataDef     *DataDef
+	SettingsDef *SettingsDef
+	FuncDef     *FuncDef
 }
 
 func NewContractPart(b *Builder) *ContractPart {
@@ -56,15 +58,15 @@ func (d *ContractPart) Parse(ctx needle.IContractPartContext) {
 		case *needle.DataDefContext:
 			def := NewDataDef(d.Builder)
 			def.Parse(childCtx)
-			d.NodeType = def
+			d.DataDef = def
 		case *needle.SettingsDefContext:
 			def := NewSettingsDef(d.Builder)
 			def.Parse(childCtx)
-			d.NodeType = def
+			d.SettingsDef = def
 		case *needle.FuncDefContext:
 			def := NewFuncDef(d.Builder)
 			def.Parse(childCtx)
-			d.NodeType = def
+			d.FuncDef = def
 		default:
 			panic("ContractPart unexpected type")
 		}

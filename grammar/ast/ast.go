@@ -1,9 +1,5 @@
 package ast
 
-type NodeType interface {
-	any
-}
-
 type TreeType int32
 
 const (
