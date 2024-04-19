@@ -11,6 +11,8 @@ type Expr struct {
 	TreeType TreeType
 
 	PrimaryExpr *PrimaryExpr
+	IndexExpr   *IndexExpr
+	SliceExpr   *SliceExpr
 	MulOp       *MulOp
 	AddOp       *AddOp
 	RelOp       *RelOp
@@ -33,6 +35,16 @@ func (e *Expr) Parse(ctx needle.IExprContext) {
 			primaryExpr.Parse(child)
 			e.PrimaryExpr = primaryExpr
 			e.TreeType = primaryExpr.TreeType
+		case needle.IIndexExprContext:
+			indexExpr := NewIndexExpr(e.Builder)
+			indexExpr.Parse(child)
+			e.IndexExpr = indexExpr
+			e.TreeType = indexExpr.TreeType
+		case needle.ISliceExprContext:
+			sliceExpr := NewSliceExpr(e.Builder)
+			sliceExpr.Parse(child)
+			e.SliceExpr = sliceExpr
+			e.TreeType = sliceExpr.TreeType
 		case needle.IMul_opContext:
 			mulOp := NewMulOp(e.Builder)
 			mulOp.Parse(ctx, child)
@@ -70,8 +82,6 @@ type PrimaryExpr struct {
 	PrimaryExpr *PrimaryExpr
 
 	Arguments *Arguments
-	IndexStmt *IndexStmt
-	SliceStmt *SliceStmt
 }
 
 func NewPrimaryExpr(b *Builder) *PrimaryExpr {
@@ -98,17 +108,5 @@ func (p *PrimaryExpr) Parse(ctx needle.IPrimaryExprContext) {
 		arguments := NewArguments(p.Builder)
 		arguments.Parse(ctx.Arguments())
 		p.Arguments = arguments
-	}
-
-	if ctx.IndexStmt() != nil {
-		indexStmt := NewIndexStmt(p.Builder)
-		indexStmt.Parse(ctx.IndexStmt())
-		p.IndexStmt = indexStmt
-	}
-
-	if ctx.SliceStmt() != nil {
-		sliceStmt := NewSliceStmt(p.Builder)
-		sliceStmt.Parse(ctx.SliceStmt())
-		p.SliceStmt = sliceStmt
 	}
 }

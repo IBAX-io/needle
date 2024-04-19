@@ -14,7 +14,7 @@ type AddOp struct {
 func NewAddOp(b *Builder) *AddOp {
 	return &AddOp{
 		Builder:  b,
-		TreeType: TreeType_Expr_AddOp,
+		TreeType: TreeType_AddOpExpr,
 	}
 }
 

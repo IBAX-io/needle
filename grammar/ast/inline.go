@@ -90,8 +90,8 @@ type PairValue struct {
 	Literal        *Literal
 	InitMapArrStmt *InitMapArrStmt
 
-	IndexStmt *IndexStmt
-	SliceStmt *SliceStmt
+	IndexExpr *IndexExpr
+	SliceExpr *SliceExpr
 }
 
 func NewPairValue(b *Builder) *PairValue {
@@ -105,15 +105,15 @@ func (p *PairValue) Parse(ctx needle.IPairValueContext) {
 		identifierVar := NewIdentifierVar(p.Builder)
 		identifierVar.Parse(ctx.IdentifierVar())
 		p.IdentifierVar = identifierVar
-		if ctx.IndexStmt() != nil {
-			indexStmt := NewIndexStmt(p.Builder)
-			indexStmt.Parse(ctx.IndexStmt())
-			p.IndexStmt = indexStmt
+		if ctx.IndexExpr() != nil {
+			indexExpr := NewIndexExpr(p.Builder)
+			indexExpr.Parse(ctx.IndexExpr())
+			p.IndexExpr = indexExpr
 		}
-		if ctx.SliceStmt() != nil {
-			sliceStmt := NewSliceStmt(p.Builder)
-			sliceStmt.Parse(ctx.SliceStmt())
-			p.SliceStmt = sliceStmt
+		if ctx.SliceExpr() != nil {
+			sliceExpr := NewSliceExpr(p.Builder)
+			sliceExpr.Parse(ctx.SliceExpr())
+			p.SliceExpr = sliceExpr
 		}
 	}
 	if ctx.Literal() != nil {

@@ -78,17 +78,11 @@ whileStmt: WHILE expr block;
 
 errorStmt: (ERRWARNING | ERRINFO | ERROR) expr;
 
-sliceStmt: LBRACK indexNumber? COLON indexNumber? RBRACK;
-
-indexNumber: numberLiteral | identifierVar;
-
 arrayStmt: LBRACK arrayList? RBRACK;
 
 arrayList: arrayValue (COMMA arrayValue)* eos;
 
 arrayValue: expr | initMapArrStmt;
-
-indexStmt:  LBRACK expr RBRACK;
 
 mapStmt: LBRACE pairList? RBRACE;
 
@@ -97,7 +91,7 @@ pairList: pair (COMMA pair)* COMMA? eos;
 pair: (stringLiteral | identifierVar) COLON pairValue;
 
 pairValue:
-	identifierVar (indexStmt | sliceStmt)?
+	identifierVar (indexExpr | sliceExpr)?
 	| literal
 	| initMapArrStmt;
 
@@ -111,6 +105,8 @@ exprList: expr (COMMA expr)*;
 
 expr:
 	primaryExpr eos
+	| expr indexExpr
+	| expr sliceExpr
 	| unary_op expr
 	| expr mul_op expr
 	| expr rel_op expr
@@ -119,15 +115,15 @@ expr:
 
 primaryExpr:
 	operand
-	| primaryExpr (
-		(DOT Identifier)? arguments
-		| sliceStmt
-		| indexStmt
-	);
+	| primaryExpr (DOT Identifier)? arguments;
 
-operand: identifierFull | literal | LPAREN expr RPAREN | NIL;
+indexExpr:  LBRACK expr RBRACK;
 
-literal: numberLiteral | stringLiteral | booleanLiteral;
+sliceExpr: LBRACK expr? COLON expr? RBRACK;
+
+operand: identifierFull | literal | LPAREN expr RPAREN;
+
+literal: numberLiteral | stringLiteral | booleanLiteral | NIL;
 
 typeName:
 	BOOL

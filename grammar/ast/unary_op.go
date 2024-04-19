@@ -13,7 +13,7 @@ type UnaryOp struct {
 func NewUnaryOp(b *Builder) *UnaryOp {
 	return &UnaryOp{
 		Builder:  b,
-		TreeType: TreeType_Expr_UnaryOp,
+		TreeType: TreeType_UnaryOpExpr,
 	}
 }
 

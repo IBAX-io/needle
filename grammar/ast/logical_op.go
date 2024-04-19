@@ -14,7 +14,7 @@ type LogicalOp struct {
 func NewLogicalOp(b *Builder) *LogicalOp {
 	return &LogicalOp{
 		Builder:  b,
-		TreeType: TreeType_Expr_LogicalOp,
+		TreeType: TreeType_LogicalOpExpr,
 	}
 }
 

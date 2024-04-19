@@ -33,17 +33,20 @@ const (
 	TreeType_InterpretedStringLiteral
 	TreeType_RawStringLiteral
 	TreeType_BooleanLiteral
+	TreeType_NIL
 	TreeType_Identifier
 	TreeType_DollarIdentifier
 	TreeType_AtIdentifier
 
 	TreeType_Kind_Expr
 	TreeType_PrimaryExpr
-	TreeType_Expr_UnaryOp
-	TreeType_Expr_MulOp
-	TreeType_Expr_RelOp
-	TreeType_Expr_LogicalOp
-	TreeType_Expr_AddOp
+	TreeType_IndexExpr
+	TreeType_SliceExpr
+	TreeType_UnaryOpExpr
+	TreeType_MulOpExpr
+	TreeType_RelOpExpr
+	TreeType_LogicalOpExpr
+	TreeType_AddOpExpr
 )
 
 type OperatorType int32

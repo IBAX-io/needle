@@ -2,29 +2,31 @@ package ast
 
 import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
-type SliceStmt struct {
+type SliceExpr struct {
 	*Builder
 
-	LowExpr  *IndexNumber
-	HighExpr *IndexNumber
+	TreeType TreeType
+	LowExpr  *Expr
+	HighExpr *Expr
 }
 
-func NewSliceStmt(b *Builder) *SliceStmt {
-	return &SliceStmt{
-		Builder: b,
+func NewSliceExpr(b *Builder) *SliceExpr {
+	return &SliceExpr{
+		Builder:  b,
+		TreeType: TreeType_SliceExpr,
 	}
 }
 
-func (s *SliceStmt) Parse(ctx needle.ISliceStmtContext) {
-	if ctx.IndexNumber(0) != nil {
-		lowExpr := NewIndexNumber(s.Builder)
-		lowExpr.Parse(ctx.IndexNumber(0))
+func (s *SliceExpr) Parse(ctx needle.ISliceExprContext) {
+	if ctx.Expr(0) != nil {
+		lowExpr := NewExpr(s.Builder)
+		lowExpr.Parse(ctx.Expr(0))
 		s.LowExpr = lowExpr
 	}
 
-	if ctx.IndexNumber(1) != nil {
-		highExpr := NewIndexNumber(s.Builder)
-		highExpr.Parse(ctx.IndexNumber(1))
+	if ctx.Expr(1) != nil {
+		highExpr := NewExpr(s.Builder)
+		highExpr.Parse(ctx.Expr(1))
 		s.HighExpr = highExpr
 	}
 }

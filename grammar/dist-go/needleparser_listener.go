@@ -100,12 +100,6 @@ type NeedleParserListener interface {
 	// EnterErrorStmt is called when entering the errorStmt production.
 	EnterErrorStmt(c *ErrorStmtContext)
 
-	// EnterSliceStmt is called when entering the sliceStmt production.
-	EnterSliceStmt(c *SliceStmtContext)
-
-	// EnterIndexNumber is called when entering the indexNumber production.
-	EnterIndexNumber(c *IndexNumberContext)
-
 	// EnterArrayStmt is called when entering the arrayStmt production.
 	EnterArrayStmt(c *ArrayStmtContext)
 
@@ -114,9 +108,6 @@ type NeedleParserListener interface {
 
 	// EnterArrayValue is called when entering the arrayValue production.
 	EnterArrayValue(c *ArrayValueContext)
-
-	// EnterIndexStmt is called when entering the indexStmt production.
-	EnterIndexStmt(c *IndexStmtContext)
 
 	// EnterMapStmt is called when entering the mapStmt production.
 	EnterMapStmt(c *MapStmtContext)
@@ -144,6 +135,12 @@ type NeedleParserListener interface {
 
 	// EnterPrimaryExpr is called when entering the primaryExpr production.
 	EnterPrimaryExpr(c *PrimaryExprContext)
+
+	// EnterIndexExpr is called when entering the indexExpr production.
+	EnterIndexExpr(c *IndexExprContext)
+
+	// EnterSliceExpr is called when entering the sliceExpr production.
+	EnterSliceExpr(c *SliceExprContext)
 
 	// EnterOperand is called when entering the operand production.
 	EnterOperand(c *OperandContext)
@@ -289,12 +286,6 @@ type NeedleParserListener interface {
 	// ExitErrorStmt is called when exiting the errorStmt production.
 	ExitErrorStmt(c *ErrorStmtContext)
 
-	// ExitSliceStmt is called when exiting the sliceStmt production.
-	ExitSliceStmt(c *SliceStmtContext)
-
-	// ExitIndexNumber is called when exiting the indexNumber production.
-	ExitIndexNumber(c *IndexNumberContext)
-
 	// ExitArrayStmt is called when exiting the arrayStmt production.
 	ExitArrayStmt(c *ArrayStmtContext)
 
@@ -303,9 +294,6 @@ type NeedleParserListener interface {
 
 	// ExitArrayValue is called when exiting the arrayValue production.
 	ExitArrayValue(c *ArrayValueContext)
-
-	// ExitIndexStmt is called when exiting the indexStmt production.
-	ExitIndexStmt(c *IndexStmtContext)
 
 	// ExitMapStmt is called when exiting the mapStmt production.
 	ExitMapStmt(c *MapStmtContext)
@@ -333,6 +321,12 @@ type NeedleParserListener interface {
 
 	// ExitPrimaryExpr is called when exiting the primaryExpr production.
 	ExitPrimaryExpr(c *PrimaryExprContext)
+
+	// ExitIndexExpr is called when exiting the indexExpr production.
+	ExitIndexExpr(c *IndexExprContext)
+
+	// ExitSliceExpr is called when exiting the sliceExpr production.
+	ExitSliceExpr(c *SliceExprContext)
 
 	// ExitOperand is called when exiting the operand production.
 	ExitOperand(c *OperandContext)

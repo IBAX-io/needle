@@ -33,6 +33,12 @@ func (d *Literal) Parse(ctx needle.ILiteralContext) {
 		d.HexValue = hex.EncodeToString([]byte(d.Value))
 	}
 
+	if ctx.NIL() != nil {
+		d.TreeType = TreeType_NIL
+		d.Value = ctx.NIL().GetText()
+		d.HexValue = hex.EncodeToString([]byte(d.Value))
+	}
+
 	if ctx.StringLiteral() != nil {
 		lit := NewStringLiteral(d.Builder)
 		lit.Parse(ctx.StringLiteral())
@@ -78,7 +84,6 @@ func (d *StringLiteral) Parse(ctx needle.IStringLiteralContext) {
 		)
 		d.HexValue = hex.EncodeToString([]byte(d.Value))
 	}
-
 }
 
 type NumberLiteral struct {

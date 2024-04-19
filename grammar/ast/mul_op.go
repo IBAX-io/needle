@@ -16,7 +16,7 @@ type MulOp struct {
 func NewMulOp(b *Builder) *MulOp {
 	return &MulOp{
 		Builder:  b,
-		TreeType: TreeType_Expr_MulOp,
+		TreeType: TreeType_MulOpExpr,
 	}
 }
 

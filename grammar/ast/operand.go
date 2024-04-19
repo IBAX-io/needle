@@ -8,7 +8,6 @@ type Operand struct {
 	IdentifierFull *IdentifierFull
 	Literal        *Literal
 	Expr           *Expr
-	Nil            string
 }
 
 func NewOperand(b *Builder) *Operand {
@@ -29,9 +28,7 @@ func (o *Operand) Parse(ctx needle.IOperandContext) {
 		literal.Parse(ctx.Literal())
 		o.Literal = literal
 	}
-	if ctx.NIL() != nil {
-		o.Nil = ctx.NIL().GetText()
-	}
+
 	if ctx.Expr() != nil {
 		expr := NewExpr(o.Builder)
 		expr.Parse(ctx.Expr())

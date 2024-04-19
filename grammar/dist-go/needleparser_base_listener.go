@@ -206,18 +206,6 @@ func (s *BaseNeedleParserListener) EnterErrorStmt(ctx *ErrorStmtContext) {}
 // ExitErrorStmt is called when production errorStmt is exited.
 func (s *BaseNeedleParserListener) ExitErrorStmt(ctx *ErrorStmtContext) {}
 
-// EnterSliceStmt is called when production sliceStmt is entered.
-func (s *BaseNeedleParserListener) EnterSliceStmt(ctx *SliceStmtContext) {}
-
-// ExitSliceStmt is called when production sliceStmt is exited.
-func (s *BaseNeedleParserListener) ExitSliceStmt(ctx *SliceStmtContext) {}
-
-// EnterIndexNumber is called when production indexNumber is entered.
-func (s *BaseNeedleParserListener) EnterIndexNumber(ctx *IndexNumberContext) {}
-
-// ExitIndexNumber is called when production indexNumber is exited.
-func (s *BaseNeedleParserListener) ExitIndexNumber(ctx *IndexNumberContext) {}
-
 // EnterArrayStmt is called when production arrayStmt is entered.
 func (s *BaseNeedleParserListener) EnterArrayStmt(ctx *ArrayStmtContext) {}
 
@@ -235,12 +223,6 @@ func (s *BaseNeedleParserListener) EnterArrayValue(ctx *ArrayValueContext) {}
 
 // ExitArrayValue is called when production arrayValue is exited.
 func (s *BaseNeedleParserListener) ExitArrayValue(ctx *ArrayValueContext) {}
-
-// EnterIndexStmt is called when production indexStmt is entered.
-func (s *BaseNeedleParserListener) EnterIndexStmt(ctx *IndexStmtContext) {}
-
-// ExitIndexStmt is called when production indexStmt is exited.
-func (s *BaseNeedleParserListener) ExitIndexStmt(ctx *IndexStmtContext) {}
 
 // EnterMapStmt is called when production mapStmt is entered.
 func (s *BaseNeedleParserListener) EnterMapStmt(ctx *MapStmtContext) {}
@@ -295,6 +277,18 @@ func (s *BaseNeedleParserListener) EnterPrimaryExpr(ctx *PrimaryExprContext) {}
 
 // ExitPrimaryExpr is called when production primaryExpr is exited.
 func (s *BaseNeedleParserListener) ExitPrimaryExpr(ctx *PrimaryExprContext) {}
+
+// EnterIndexExpr is called when production indexExpr is entered.
+func (s *BaseNeedleParserListener) EnterIndexExpr(ctx *IndexExprContext) {}
+
+// ExitIndexExpr is called when production indexExpr is exited.
+func (s *BaseNeedleParserListener) ExitIndexExpr(ctx *IndexExprContext) {}
+
+// EnterSliceExpr is called when production sliceExpr is entered.
+func (s *BaseNeedleParserListener) EnterSliceExpr(ctx *SliceExprContext) {}
+
+// ExitSliceExpr is called when production sliceExpr is exited.
+func (s *BaseNeedleParserListener) ExitSliceExpr(ctx *SliceExprContext) {}
 
 // EnterOperand is called when production operand is entered.
 func (s *BaseNeedleParserListener) EnterOperand(ctx *OperandContext) {}
