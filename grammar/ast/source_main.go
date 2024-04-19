@@ -5,6 +5,7 @@ import (
 )
 
 type SourceMain struct {
+	Id       int32
 	Src      SrcPos
 	StmtType string
 
@@ -22,6 +23,8 @@ func NewSourceMain() *SourceMain {
 
 func (b *Builder) EnterSourceMain(ctx *needle.SourceMainContext) {
 	b.sourceMain = NewSourceMain()
+	b.sourceMain.Id = b.GetReferId()
+	b.sourceMain.Src = NewSrcPos(ctx)
 	for _, child := range ctx.GetChildren() {
 		if contractCtx, ok := child.(*needle.ContractDefContext); ok {
 			def := NewContractDef(b)

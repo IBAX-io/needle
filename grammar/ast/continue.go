@@ -6,6 +6,7 @@ import (
 
 type ContinueStmt struct {
 	*Builder
+	Id       int32
 	Src      SrcPos
 	TreeType TreeType
 }
@@ -13,6 +14,7 @@ type ContinueStmt struct {
 func NewContinueStmt(b *Builder) *ContinueStmt {
 	return &ContinueStmt{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_ContinueStmt,
 	}
 }

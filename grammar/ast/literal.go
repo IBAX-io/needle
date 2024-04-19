@@ -9,6 +9,7 @@ import (
 
 type Literal struct {
 	*Builder
+	Id              int32
 	Src             SrcPos
 	Kind            TreeType
 	TreeType        TreeType
@@ -18,6 +19,7 @@ type Literal struct {
 func NewLiteral(b *Builder) *Literal {
 	return &Literal{
 		Builder: b,
+		Id:      b.GetReferId(),
 		Kind:    TreeType_Kind_Literal,
 	}
 }
@@ -58,7 +60,8 @@ func (d *Literal) Parse(ctx needle.ILiteralContext) {
 
 type StringLiteral struct {
 	*Builder
-
+	Id              int32
+	Src             SrcPos
 	TreeType        TreeType
 	Value, HexValue string
 }
@@ -66,6 +69,7 @@ type StringLiteral struct {
 func NewStringLiteral(b *Builder) *StringLiteral {
 	return &StringLiteral{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
@@ -88,7 +92,8 @@ func (d *StringLiteral) Parse(ctx needle.IStringLiteralContext) {
 
 type NumberLiteral struct {
 	*Builder
-
+	Id              int32
+	Src             SrcPos
 	TreeType        TreeType
 	Value, HexValue string
 }
@@ -96,10 +101,12 @@ type NumberLiteral struct {
 func NewNumberLiteral(b *Builder) *NumberLiteral {
 	return &NumberLiteral{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (d *NumberLiteral) Parse(ctx needle.INumberLiteralContext) {
+	d.Src = NewSrcPos(ctx)
 	if ctx.FloatLiteral() != nil {
 		d.TreeType = TreeType_FloatLiteral
 		d.Value = ctx.FloatLiteral().GetText()

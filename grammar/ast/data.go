@@ -8,6 +8,7 @@ import (
 
 type DataDef struct {
 	*Builder
+	Id       int32
 	Src      SrcPos
 	StmtType string
 
@@ -17,6 +18,7 @@ type DataDef struct {
 func NewDataDef(b *Builder) *DataDef {
 	return &DataDef{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		StmtType: "DataDef",
 	}
 }
@@ -32,7 +34,7 @@ func (d *DataDef) Parse(ctx *needle.DataDefContext) {
 
 type DataPartList struct {
 	*Builder
-
+	Id       int32
 	Src      SrcPos
 	Name     string
 	Typename string
@@ -42,6 +44,7 @@ type DataPartList struct {
 func NewDataPartList(b *Builder) *DataPartList {
 	return &DataPartList{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 

@@ -4,6 +4,7 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type BreakStmt struct {
 	*Builder
+	Id       int32
 	Src      SrcPos
 	TreeType TreeType
 }
@@ -11,6 +12,7 @@ type BreakStmt struct {
 func NewBreakStmt(b *Builder) *BreakStmt {
 	return &BreakStmt{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_BreakStmt,
 	}
 }

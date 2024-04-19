@@ -4,17 +4,20 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type Arguments struct {
 	*Builder
-
+	Id       int32
+	Src      SrcPos
 	ExprList *ExprList
 }
 
 func NewArguments(b *Builder) *Arguments {
 	return &Arguments{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (a *Arguments) Parse(ctx needle.IArgumentsContext) {
+	a.Src = NewSrcPos(ctx)
 	if ctx.ExprList() != nil {
 		exprList := NewExprList(a.Builder)
 		exprList.Parse(ctx.ExprList())

@@ -4,7 +4,8 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type IfStmt struct {
 	*Builder
-
+	Id        int32
+	Src       SrcPos
 	Kind      TreeType
 	IfBody    []*IfBody
 	ElseBlock *Block
@@ -13,11 +14,13 @@ type IfStmt struct {
 func NewIfStmt(b *Builder) *IfStmt {
 	return &IfStmt{
 		Builder: b,
+		Id:      b.GetReferId(),
 		Kind:    TreeType_Kind_ControlStmt,
 	}
 }
 
 func (i *IfStmt) Parse(ctx needle.IIfStmtContext) {
+	i.Src = NewSrcPos(ctx)
 	for _, body := range ctx.AllIfBody() {
 		ifBody := NewIfBody(i.Builder)
 		ifBody.Parse(body)
@@ -33,7 +36,8 @@ func (i *IfStmt) Parse(ctx needle.IIfStmtContext) {
 
 type IfBody struct {
 	*Builder
-
+	Id        int32
+	Src       SrcPos
 	TreeType  TreeType
 	Condition *Expr
 	Block     *Block
@@ -42,11 +46,13 @@ type IfBody struct {
 func NewIfBody(b *Builder) *IfBody {
 	return &IfBody{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_IfStmt,
 	}
 }
 
 func (i *IfBody) Parse(ctx needle.IIfBodyContext) {
+	i.Src = NewSrcPos(ctx)
 	expr := NewExpr(i.Builder)
 	expr.Parse(ctx.Expr())
 	i.Condition = expr
@@ -58,7 +64,8 @@ func (i *IfBody) Parse(ctx needle.IIfBodyContext) {
 
 type ElseBody struct {
 	*Builder
-
+	Id       int32
+	Src      SrcPos
 	TreeType TreeType
 	Block    *Block
 }
@@ -66,11 +73,13 @@ type ElseBody struct {
 func NewElseBody(b *Builder) *ElseBody {
 	return &ElseBody{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_ElseStmt,
 	}
 }
 
 func (e *ElseBody) Parse(ctx needle.IElseBodyContext) {
+	e.Src = NewSrcPos(ctx)
 	block := NewBlock(e.Builder)
 	block.Parse(ctx.Block())
 	e.Block = block

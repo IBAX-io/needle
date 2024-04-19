@@ -4,7 +4,8 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type Operand struct {
 	*Builder
-
+	Id             int32
+	Src            SrcPos
 	IdentifierFull *IdentifierFull
 	Literal        *Literal
 	Expr           *Expr
@@ -13,10 +14,12 @@ type Operand struct {
 func NewOperand(b *Builder) *Operand {
 	return &Operand{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (o *Operand) Parse(ctx needle.IOperandContext) {
+	o.Src = NewSrcPos(ctx)
 	if ctx.IdentifierFull() != nil {
 		ident := NewIdentifierFull(o.Builder)
 		ident.Parse(ctx.IdentifierFull())

@@ -6,6 +6,7 @@ import (
 
 type SettingsDef struct {
 	*Builder
+	Id       int32
 	Src      SrcPos
 	StmtType string
 
@@ -16,6 +17,7 @@ type SettingsDef struct {
 func NewSettingsDef(b *Builder) *SettingsDef {
 	return &SettingsDef{
 		Builder:      b,
+		Id:           b.GetReferId(),
 		StmtType:     "SettingsDef",
 		SettingValue: make([]*Literal, 0),
 		SettingsName: make([]string, 0),

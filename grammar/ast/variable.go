@@ -4,14 +4,15 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type VarDef struct {
 	*Builder
-	Src SrcPos
-
+	Id        int32
+	Src       SrcPos
 	Parameter *Parameter
 }
 
 func NewVarDef(b *Builder) *VarDef {
 	return &VarDef{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 

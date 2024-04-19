@@ -4,8 +4,8 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type ErrorStmt struct {
 	*Builder
-	Src SrcPos
-
+	Id       int32
+	Src      SrcPos
 	Kind     TreeType
 	TreeType TreeType
 	Type     string
@@ -15,6 +15,7 @@ type ErrorStmt struct {
 func NewErrorStmt(b *Builder) *ErrorStmt {
 	return &ErrorStmt{
 		Builder: b,
+		Id:      b.GetReferId(),
 		Kind:    TreeType_Kind_ErrorStmt,
 	}
 }

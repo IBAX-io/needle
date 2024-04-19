@@ -6,8 +6,8 @@ import (
 
 type IdentifierList struct {
 	*Builder
-	Src SrcPos
-
+	Id       int32
+	Src      SrcPos
 	TreeType TreeType
 	Name     []string
 }
@@ -15,6 +15,7 @@ type IdentifierList struct {
 func NewIdentifierList(b *Builder) *IdentifierList {
 	return &IdentifierList{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_Identifier,
 		Name:     make([]string, 0),
 	}
@@ -30,7 +31,8 @@ func (i *IdentifierList) Parse(ctx needle.IIdentifierListContext) {
 
 type IdentifierFull struct {
 	*Builder
-
+	Id       int32
+	Src      SrcPos
 	TreeType TreeType
 	Name     string
 }
@@ -38,10 +40,12 @@ type IdentifierFull struct {
 func NewIdentifierFull(b *Builder) *IdentifierFull {
 	return &IdentifierFull{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (i *IdentifierFull) Parse(ctx needle.IIdentifierFullContext) {
+	i.Src = NewSrcPos(ctx)
 	if ident := ctx.Identifier(); ident != nil {
 		i.Name = ident.GetText()
 		i.TreeType = TreeType_Identifier
@@ -58,7 +62,8 @@ func (i *IdentifierFull) Parse(ctx needle.IIdentifierFullContext) {
 
 type IdentifierVar struct {
 	*Builder
-
+	Id       int32
+	Src      SrcPos
 	TreeType TreeType
 	Name     string
 }
@@ -66,10 +71,12 @@ type IdentifierVar struct {
 func NewIdentifierVar(b *Builder) *IdentifierVar {
 	return &IdentifierVar{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (i *IdentifierVar) Parse(ctx needle.IIdentifierVarContext) {
+	i.Src = NewSrcPos(ctx)
 	if ident := ctx.Identifier(); ident != nil {
 		i.Name = ident.GetText()
 		i.TreeType = TreeType_Identifier

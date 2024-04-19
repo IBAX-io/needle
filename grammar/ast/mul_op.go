@@ -6,6 +6,7 @@ import (
 
 type MulOp struct {
 	*Builder
+	Id        int32
 	Src       SrcPos
 	TreeType  TreeType
 	Op        string
@@ -16,6 +17,7 @@ type MulOp struct {
 func NewMulOp(b *Builder) *MulOp {
 	return &MulOp{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_MulOpExpr,
 	}
 }

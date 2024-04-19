@@ -6,6 +6,7 @@ import (
 
 type FuncDef struct {
 	*Builder
+	Id       int32
 	Src      SrcPos
 	StmtType string
 
@@ -17,6 +18,7 @@ type FuncDef struct {
 func NewFuncDef(b *Builder) *FuncDef {
 	return &FuncDef{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		StmtType: "FuncDef",
 	}
 }
@@ -48,7 +50,8 @@ func (d *FuncDef) Parse(ctx needle.IFuncDefContext) {
 
 type FuncSignature struct {
 	*Builder
-
+	Id               int32
+	Src              SrcPos
 	ParameterList    *ParameterList
 	FuncTail         []*FuncTail
 	ReturnParameters *ReturnParameters
@@ -57,11 +60,13 @@ type FuncSignature struct {
 func NewFuncSignature(b *Builder) *FuncSignature {
 	return &FuncSignature{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		FuncTail: make([]*FuncTail, 0),
 	}
 }
 
 func (d *FuncSignature) Parse(ctx needle.IFuncSignatureContext) {
+	d.Src = NewSrcPos(ctx)
 	if ctx.ParameterList() != nil {
 		d.ParameterList = NewParameterList(d.Builder)
 		d.ParameterList.Parse(ctx.ParameterList())
@@ -84,7 +89,8 @@ func (d *FuncSignature) HasTail() bool {
 
 type FuncTail struct {
 	*Builder
-
+	Id            int32
+	Src           SrcPos
 	Name          string
 	ParameterList *ParameterList
 }
@@ -92,10 +98,12 @@ type FuncTail struct {
 func NewFuncTail(b *Builder) *FuncTail {
 	return &FuncTail{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (d *FuncTail) Parse(ctx needle.IFuncTailContext) {
+	d.Src = NewSrcPos(ctx)
 	if ctx.ParameterList() != nil {
 		d.ParameterList = NewParameterList(d.Builder)
 		d.ParameterList.Parse(ctx.ParameterList())

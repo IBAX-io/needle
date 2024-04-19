@@ -4,7 +4,8 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type MapExpr struct {
 	*Builder
-
+	Id       int32
+	Src      SrcPos
 	TreeType TreeType
 	PairList *PairList
 }
@@ -12,11 +13,13 @@ type MapExpr struct {
 func NewMapExpr(b *Builder) *MapExpr {
 	return &MapExpr{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_MapExpr,
 	}
 }
 
 func (o *MapExpr) Parse(ctx needle.IMapExprContext) {
+	o.Src = NewSrcPos(ctx)
 	if ctx.PairList() != nil {
 		pairList := NewPairList(o.Builder)
 		pairList.Parse(ctx.PairList())
@@ -26,17 +29,20 @@ func (o *MapExpr) Parse(ctx needle.IMapExprContext) {
 
 type PairList struct {
 	*Builder
-
+	Id    int32
+	Src   SrcPos
 	Pairs []*Pair
 }
 
 func NewPairList(b *Builder) *PairList {
 	return &PairList{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (l *PairList) Parse(ctx needle.IPairListContext) {
+	l.Src = NewSrcPos(ctx)
 	for _, pair := range ctx.AllPair() {
 		p := NewPair(l.Builder)
 		p.Parse(pair)
@@ -46,7 +52,8 @@ func (l *PairList) Parse(ctx needle.IPairListContext) {
 
 type Pair struct {
 	*Builder
-
+	Id        int32
+	Src       SrcPos
 	KeyName   string
 	TreeType  TreeType
 	PairValue *PairValue
@@ -55,10 +62,12 @@ type Pair struct {
 func NewPair(b *Builder) *Pair {
 	return &Pair{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (p *Pair) Parse(ctx needle.IPairContext) {
+	p.Src = NewSrcPos(ctx)
 	if ctx.IdentifierVar() != nil {
 		identifierVar := NewIdentifierVar(p.Builder)
 		identifierVar.Parse(ctx.IdentifierVar())
@@ -79,7 +88,8 @@ func (p *Pair) Parse(ctx needle.IPairContext) {
 
 type PairValue struct {
 	*Builder
-
+	Id            int32
+	Src           SrcPos
 	IdentifierVar *IdentifierVar
 	Literal       *Literal
 
@@ -93,10 +103,12 @@ type PairValue struct {
 func NewPairValue(b *Builder) *PairValue {
 	return &PairValue{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (p *PairValue) Parse(ctx needle.IPairValueContext) {
+	p.Src = NewSrcPos(ctx)
 	if ctx.IdentifierVar() != nil {
 		identifierVar := NewIdentifierVar(p.Builder)
 		identifierVar.Parse(ctx.IdentifierVar())

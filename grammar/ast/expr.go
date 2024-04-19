@@ -6,10 +6,10 @@ import (
 
 type Expr struct {
 	*Builder
-
-	Kind     TreeType
-	TreeType TreeType
-
+	Id          int32
+	Src         SrcPos
+	Kind        TreeType
+	TreeType    TreeType
 	PrimaryExpr *PrimaryExpr
 	IndexExpr   *IndexExpr
 	SliceExpr   *SliceExpr
@@ -25,11 +25,13 @@ type Expr struct {
 func NewExpr(b *Builder) *Expr {
 	return &Expr{
 		Builder: b,
+		Id:      b.GetReferId(),
 		Kind:    TreeType_Kind_Expr,
 	}
 }
 
 func (e *Expr) Parse(ctx needle.IExprContext) {
+	e.Src = NewSrcPos(ctx)
 	for _, tree := range ctx.GetChildren() {
 		switch child := tree.(type) {
 		case needle.IPrimaryExprContext:
@@ -88,17 +90,20 @@ func (e *Expr) Parse(ctx needle.IExprContext) {
 
 type ExprList struct {
 	*Builder
-
+	Id       int32
+	Src      SrcPos
 	ExprList []*Expr
 }
 
 func NewExprList(b *Builder) *ExprList {
 	return &ExprList{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (e *ExprList) Parse(ctx needle.IExprListContext) {
+	e.Src = NewSrcPos(ctx)
 	for _, exprCtx := range ctx.AllExpr() {
 		expr := NewExpr(e.Builder)
 		expr.Parse(exprCtx)
@@ -108,22 +113,24 @@ func (e *ExprList) Parse(ctx needle.IExprListContext) {
 
 type PrimaryExpr struct {
 	*Builder
-
+	Id          int32
+	Src         SrcPos
+	PrimaryExpr *PrimaryExpr
 	TreeType    TreeType
 	Operand     *Operand
-	PrimaryExpr *PrimaryExpr
-
-	Arguments *Arguments
+	Arguments   *Arguments
 }
 
 func NewPrimaryExpr(b *Builder) *PrimaryExpr {
 	return &PrimaryExpr{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_PrimaryExpr,
 	}
 }
 
 func (p *PrimaryExpr) Parse(ctx needle.IPrimaryExprContext) {
+	p.Src = NewSrcPos(ctx)
 	if ctx.Operand() != nil {
 		operand := NewOperand(p.Builder)
 		operand.Parse(ctx.Operand())

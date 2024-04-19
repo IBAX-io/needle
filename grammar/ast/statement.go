@@ -6,16 +6,20 @@ import (
 
 type StatementList struct {
 	*Builder
+	Id         int32
+	Src        SrcPos
 	Statements []*Statement
 }
 
 func NewStatementList(b *Builder) *StatementList {
 	return &StatementList{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (s *StatementList) Parse(ctx needle.IStatementListContext) {
+	s.Src = NewSrcPos(ctx)
 	for _, context := range ctx.AllStatement() {
 		stmt := NewStatement(s.Builder)
 		stmt.Parse(context)
@@ -25,6 +29,8 @@ func (s *StatementList) Parse(ctx needle.IStatementListContext) {
 
 type Statement struct {
 	*Builder
+	Id           int32
+	Src          SrcPos
 	Block        *Block
 	SimpleStmt   *SimpleStmt
 	VarDef       *VarDef
@@ -39,10 +45,12 @@ type Statement struct {
 func NewStatement(b *Builder) *Statement {
 	return &Statement{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (s *Statement) Parse(ctx needle.IStatementContext) {
+	s.Src = NewSrcPos(ctx)
 	if ctx.Block() != nil {
 		block := NewBlock(s.Builder)
 		block.Parse(ctx.Block())
@@ -93,7 +101,8 @@ func (s *Statement) Parse(ctx needle.IStatementContext) {
 
 type SimpleStmt struct {
 	*Builder
-
+	Id         int32
+	Src        SrcPos
 	Expr       *Expr
 	IncDecStmt *IncDecStmt
 	Assignment *Assignment
@@ -102,10 +111,12 @@ type SimpleStmt struct {
 func NewSimpleStmt(b *Builder) *SimpleStmt {
 	return &SimpleStmt{
 		Builder: b,
+		Id:      b.GetReferId(),
 	}
 }
 
 func (s *SimpleStmt) Parse(ctx needle.ISimpleStmtContext) {
+	s.Src = NewSrcPos(ctx)
 	if ctx.Expr() != nil {
 		expr := NewExpr(s.Builder)
 		expr.Parse(ctx.Expr())

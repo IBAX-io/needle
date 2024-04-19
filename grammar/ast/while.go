@@ -4,7 +4,8 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type WhileStmt struct {
 	*Builder
-
+	Id       int32
+	Src      SrcPos
 	TreeType TreeType
 	Expr     *Expr
 	Block    *Block
@@ -13,11 +14,13 @@ type WhileStmt struct {
 func NewWhileStmt(b *Builder) *WhileStmt {
 	return &WhileStmt{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_WhileStmt,
 	}
 }
 
 func (w *WhileStmt) Parse(ctx needle.IWhileStmtContext) {
+	w.Src = NewSrcPos(ctx)
 	if ctx.Expr() != nil {
 		expr := NewExpr(w.Builder)
 		expr.Parse(ctx.Expr())

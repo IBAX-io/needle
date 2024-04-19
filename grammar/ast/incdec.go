@@ -6,6 +6,7 @@ import (
 
 type IncDecStmt struct {
 	*Builder
+	Id       int32
 	Src      SrcPos
 	StmtType string
 
@@ -17,6 +18,7 @@ type IncDecStmt struct {
 func NewIncDecStmt(b *Builder) *IncDecStmt {
 	return &IncDecStmt{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		StmtType: "IncDecStmt",
 	}
 }

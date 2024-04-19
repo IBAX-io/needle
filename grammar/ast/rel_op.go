@@ -4,7 +4,8 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type RelOp struct {
 	*Builder
-
+	Id        int32
+	Src       SrcPos
 	TreeType  TreeType
 	Op        string
 	LeftExpr  *Expr
@@ -14,11 +15,13 @@ type RelOp struct {
 func NewRelOp(b *Builder) *RelOp {
 	return &RelOp{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		TreeType: TreeType_RelOpExpr,
 	}
 }
 
 func (r *RelOp) Parse(exprCtx needle.IExprContext, ctx needle.IRel_opContext) {
+	r.Src = NewSrcPos(ctx)
 	r.Op = ctx.GetText()
 	leftExpr := NewExpr(r.Builder)
 	leftExpr.Parse(exprCtx.Expr(0))

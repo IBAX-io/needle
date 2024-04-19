@@ -4,17 +4,18 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type ContractDef struct {
 	*Builder
-	Src      SrcPos
-	StmtType string
-
+	Id            int32
+	Src           SrcPos
+	StmtType      string
 	Name          string
 	NamePos       SrcPos
 	ContractParts []*ContractPart
 }
 
-func NewContractDef(builder *Builder) *ContractDef {
+func NewContractDef(b *Builder) *ContractDef {
 	return &ContractDef{
-		Builder:       builder,
+		Builder:       b,
+		Id:            b.GetReferId(),
 		StmtType:      "ContractDef",
 		ContractParts: make([]*ContractPart, 0),
 	}
@@ -37,9 +38,9 @@ func (d *ContractDef) Parse(ctx needle.IContractDefContext, main *SourceMain) {
 
 type ContractPart struct {
 	*Builder
-	Src      SrcPos
-	StmtType string
-
+	Id          int32
+	Src         SrcPos
+	StmtType    string
 	DataDef     *DataDef
 	SettingsDef *SettingsDef
 	FuncDef     *FuncDef
@@ -48,11 +49,13 @@ type ContractPart struct {
 func NewContractPart(b *Builder) *ContractPart {
 	return &ContractPart{
 		Builder:  b,
+		Id:       b.GetReferId(),
 		StmtType: "ContractPart",
 	}
 }
 
 func (d *ContractPart) Parse(ctx needle.IContractPartContext) {
+	d.Src = NewSrcPos(ctx)
 	for _, tree := range ctx.GetChildren() {
 		switch childCtx := tree.(type) {
 		case *needle.DataDefContext:
