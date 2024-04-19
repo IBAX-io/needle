@@ -28,7 +28,7 @@ contract test {
     /* this is a block comment */
     action{
         slice = a[1:b]
-        a + +
+        a++
     }
 }
 func main{
