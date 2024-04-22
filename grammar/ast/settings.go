@@ -8,7 +8,7 @@ type SettingsDef struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
-	StmtType string
+	TreeType TreeType
 
 	SettingValue []*Literal
 	SettingsName []string
@@ -18,7 +18,7 @@ func NewSettingsDef(b *Builder) *SettingsDef {
 	return &SettingsDef{
 		Builder:      b,
 		Id:           b.GetReferId(),
-		StmtType:     "SettingsDef",
+		TreeType:     TreeType_SettingsDef,
 		SettingValue: make([]*Literal, 0),
 		SettingsName: make([]string, 0),
 	}

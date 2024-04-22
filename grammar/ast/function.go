@@ -8,7 +8,7 @@ type FuncDef struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
-	StmtType string
+	TreeType TreeType
 
 	Name          string
 	FuncSignature *FuncSignature
@@ -19,7 +19,7 @@ func NewFuncDef(b *Builder) *FuncDef {
 	return &FuncDef{
 		Builder:  b,
 		Id:       b.GetReferId(),
-		StmtType: "FuncDef",
+		TreeType: TreeType_FuncDef,
 	}
 }
 

@@ -4,12 +4,19 @@ type TreeType int32
 
 const (
 	TreeType_None_Default TreeType = iota
-
+	TreeType_SourceMain
+	TreeType_ContractDef
+	TreeType_ContractPart
+	TreeType_FuncDef
+	TreeType_DataDef
+	TreeType_SettingsDef
+	TreeType_Parameter
+	TreeType_ParameterList
 	TreeType_Block
 	TreeType_Kind_ControlStmt
 	TreeType_IfStmt
 	TreeType_ElseStmt
-
+	TreeType_IncDecStmt
 	TreeType_WhileStmt
 	TreeType_ContinueStmt
 	TreeType_BreakStmt

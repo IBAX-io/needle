@@ -6,7 +6,7 @@ type ContractDef struct {
 	*Builder
 	Id            int32
 	Src           SrcPos
-	StmtType      string
+	TreeType      TreeType
 	Name          string
 	NamePos       SrcPos
 	ContractParts []*ContractPart
@@ -16,7 +16,7 @@ func NewContractDef(b *Builder) *ContractDef {
 	return &ContractDef{
 		Builder:       b,
 		Id:            b.GetReferId(),
-		StmtType:      "ContractDef",
+		TreeType:      TreeType_ContractDef,
 		ContractParts: make([]*ContractPart, 0),
 	}
 }
@@ -40,7 +40,7 @@ type ContractPart struct {
 	*Builder
 	Id          int32
 	Src         SrcPos
-	StmtType    string
+	TreeType    TreeType
 	DataDef     *DataDef
 	SettingsDef *SettingsDef
 	FuncDef     *FuncDef
@@ -50,7 +50,7 @@ func NewContractPart(b *Builder) *ContractPart {
 	return &ContractPart{
 		Builder:  b,
 		Id:       b.GetReferId(),
-		StmtType: "ContractPart",
+		TreeType: TreeType_ContractPart,
 	}
 }
 

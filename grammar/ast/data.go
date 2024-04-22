@@ -10,7 +10,7 @@ type DataDef struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
-	StmtType string
+	TreeType TreeType
 
 	Parts []*DataPartList
 }
@@ -19,7 +19,7 @@ func NewDataDef(b *Builder) *DataDef {
 	return &DataDef{
 		Builder:  b,
 		Id:       b.GetReferId(),
-		StmtType: "DataDef",
+		TreeType: TreeType_DataDef,
 	}
 }
 

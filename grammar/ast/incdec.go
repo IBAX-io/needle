@@ -8,7 +8,7 @@ type IncDecStmt struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
-	StmtType string
+	TreeType TreeType
 
 	OpPos      SrcPos
 	Operator   string
@@ -19,7 +19,7 @@ func NewIncDecStmt(b *Builder) *IncDecStmt {
 	return &IncDecStmt{
 		Builder:  b,
 		Id:       b.GetReferId(),
-		StmtType: "IncDecStmt",
+		TreeType: TreeType_IncDecStmt,
 	}
 }
 

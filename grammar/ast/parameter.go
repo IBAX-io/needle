@@ -8,7 +8,7 @@ type Parameter struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
-	StmtType string
+	TreeType TreeType
 
 	NameList []IdentifierList
 	TypeName []string
@@ -18,7 +18,7 @@ func NewParameter(b *Builder) *Parameter {
 	return &Parameter{
 		Builder:  b,
 		Id:       b.GetReferId(),
-		StmtType: "Parameter",
+		TreeType: TreeType_Parameter,
 		NameList: make([]IdentifierList, 0),
 		TypeName: make([]string, 0),
 	}
@@ -38,7 +38,7 @@ type ParameterList struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
-	StmtType string
+	TreeType TreeType
 
 	Parameter *Parameter
 }
@@ -47,7 +47,7 @@ func NewParameterList(b *Builder) *ParameterList {
 	return &ParameterList{
 		Builder:  b,
 		Id:       b.GetReferId(),
-		StmtType: "ParameterList",
+		TreeType: TreeType_ParameterList,
 	}
 }
 

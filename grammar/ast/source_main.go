@@ -7,7 +7,7 @@ import (
 type SourceMain struct {
 	Id       int32
 	Src      SrcPos
-	StmtType string
+	TreeType TreeType
 
 	ContractDefs []*ContractDef
 	FuncDefs     []*FuncDef
@@ -15,7 +15,7 @@ type SourceMain struct {
 
 func NewSourceMain() *SourceMain {
 	return &SourceMain{
-		StmtType:     "SourceMain",
+		TreeType:     TreeType_SourceMain,
 		ContractDefs: make([]*ContractDef, 0),
 		FuncDefs:     make([]*FuncDef, 0),
 	}
