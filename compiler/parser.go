@@ -440,9 +440,6 @@ main:
 				}
 			}
 		case NUMBER, LITERAL:
-			if prevLex.Type == RPAREN {
-				return p.syntaxErrorWrap(fmt.Errorf("unexpected %v at end of expression", p.lex.Value))
-			}
 			noMap = true
 			cmd = newByteCode(CmdPush, p.lex, p.lex.Interface())
 		case EXTEND:
