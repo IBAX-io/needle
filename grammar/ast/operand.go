@@ -4,26 +4,28 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type Operand struct {
 	*Builder
-	Id             int32
-	Src            SrcPos
-	IdentifierFull *IdentifierFull
-	Literal        *Literal
-	Expr           *Expr
+	Id            int32
+	Src           SrcPos
+	TreeType      TreeType
+	IdentifierVar *IdentifierVar
+	Literal       *Literal
+	Expr          *Expr
 }
 
 func NewOperand(b *Builder) *Operand {
 	return &Operand{
-		Builder: b,
-		Id:      b.GetReferId(),
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_Operand,
 	}
 }
 
 func (o *Operand) Parse(ctx needle.IOperandContext) {
 	o.Src = NewSrcPos(ctx)
-	if ctx.IdentifierFull() != nil {
-		ident := NewIdentifierFull(o.Builder)
-		ident.Parse(ctx.IdentifierFull())
-		o.IdentifierFull = ident
+	if ctx.IdentifierVar() != nil {
+		ident := NewIdentifierVar(o.Builder)
+		ident.Parse(ctx.IdentifierVar())
+		o.IdentifierVar = ident
 	}
 
 	if ctx.Literal() != nil {

@@ -21,7 +21,7 @@ func NewAddOp(b *Builder) *AddOp {
 }
 
 func (a *AddOp) Parse(exprCtx needle.IExprContext, ctx needle.IAdd_opContext) {
-	a.Src = NewSrcPos(ctx)
+	a.Src = NewSrcPos(exprCtx)
 	a.Op = ctx.GetText()
 	leftExpr := NewExpr(a.Builder)
 	leftExpr.Parse(exprCtx.Expr(0))

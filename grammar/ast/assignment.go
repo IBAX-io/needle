@@ -6,6 +6,7 @@ type Assignment struct {
 	*Builder
 	Id        int32
 	Src       SrcPos
+	TreeType  TreeType
 	Op        string
 	LeftExpr  []*Expr
 	RightExpr []*Expr
@@ -13,8 +14,9 @@ type Assignment struct {
 
 func NewAssignment(b *Builder) *Assignment {
 	return &Assignment{
-		Builder: b,
-		Id:      b.GetReferId(),
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_Assignment,
 	}
 }
 

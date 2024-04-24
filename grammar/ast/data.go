@@ -12,7 +12,7 @@ type DataDef struct {
 	Src      SrcPos
 	TreeType TreeType
 
-	Parts []*DataPartList
+	DataParts []*DataPart
 }
 
 func NewDataDef(b *Builder) *DataDef {
@@ -25,30 +25,32 @@ func NewDataDef(b *Builder) *DataDef {
 
 func (d *DataDef) Parse(ctx *needle.DataDefContext) {
 	d.Src = NewSrcPos(ctx)
-	for _, part := range ctx.AllDataPartList() {
-		list := NewDataPartList(d.Builder)
+	for _, part := range ctx.AllDataPart() {
+		list := NewDataPart(d.Builder)
 		list.Parse(part)
-		d.Parts = append(d.Parts, list)
+		d.DataParts = append(d.DataParts, list)
 	}
 }
 
-type DataPartList struct {
+type DataPart struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
+	TreeType TreeType
 	Name     string
 	Typename string
 	Tag      string
 }
 
-func NewDataPartList(b *Builder) *DataPartList {
-	return &DataPartList{
-		Builder: b,
-		Id:      b.GetReferId(),
+func NewDataPart(b *Builder) *DataPart {
+	return &DataPart{
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_DataPart,
 	}
 }
 
-func (l *DataPartList) Parse(ctx needle.IDataPartListContext) {
+func (l *DataPart) Parse(ctx needle.IDataPartContext) {
 	l.Src = NewSrcPos(ctx)
 	l.Name = ctx.Identifier().GetText()
 	l.Typename = ctx.TypeName().GetText()

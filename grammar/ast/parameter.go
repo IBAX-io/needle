@@ -10,7 +10,7 @@ type Parameter struct {
 	Src      SrcPos
 	TreeType TreeType
 
-	NameList []IdentifierList
+	NameList []*IdentifierList
 	TypeName []string
 }
 
@@ -19,7 +19,7 @@ func NewParameter(b *Builder) *Parameter {
 		Builder:  b,
 		Id:       b.GetReferId(),
 		TreeType: TreeType_Parameter,
-		NameList: make([]IdentifierList, 0),
+		NameList: make([]*IdentifierList, 0),
 		TypeName: make([]string, 0),
 	}
 }
@@ -29,7 +29,7 @@ func (p *Parameter) Parse(ctx needle.IParameterContext) {
 	for i, context := range ctx.AllIdentifierList() {
 		identifierList := NewIdentifierList(p.Builder)
 		identifierList.Parse(context)
-		p.NameList = append(p.NameList, *identifierList)
+		p.NameList = append(p.NameList, identifierList)
 		p.TypeName = append(p.TypeName, ctx.AllTypeName()[i].GetText())
 	}
 }
@@ -65,6 +65,7 @@ type ReturnParameters struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
+	TreeType TreeType
 	TypeName []string
 }
 
@@ -72,6 +73,7 @@ func NewReturnParameters(b *Builder) *ReturnParameters {
 	return &ReturnParameters{
 		Builder:  b,
 		Id:       b.GetReferId(),
+		TreeType: TreeType_ReturnParameters,
 		TypeName: make([]string, 0),
 	}
 }

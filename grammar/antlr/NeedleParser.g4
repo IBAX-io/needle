@@ -11,9 +11,9 @@ contractDef:
 
 contractPart: dataDef | settingsDef | funcDef;
 
-dataDef: DATA LBRACE (dataPartList eos)* RBRACE;
+dataDef: DATA LBRACE (dataPart eos)* RBRACE;
 
-dataPartList: Identifier typeName (dataTag = stringLiteral)?;
+dataPart: Identifier typeName (dataTag = stringLiteral)?;
 
 settingsDef:
 	SETTINGS LBRACE (Identifier EQ literal eos)* RBRACE;
@@ -82,13 +82,7 @@ mapExpr: LBRACE pairList? RBRACE;
 
 pairList: pair (COMMA pair)* COMMA? eos;
 
-pair: (stringLiteral | identifierVar) COLON pairValue;
-
-pairValue:
-	identifierVar (indexExpr | sliceExpr)?
-	| literal
-	| mapExpr
-	| arrayExpr;
+pair: (stringLiteral | identifierVar) COLON expr;
 
 arguments: LPAREN exprList? RPAREN;
 
@@ -100,6 +94,7 @@ expr:
 	| expr sliceExpr
 	| mapExpr
 	| arrayExpr
+	| contractCall
 	| unary_op expr
 	| expr mul_op expr
 	| expr rel_op expr
@@ -108,11 +103,13 @@ expr:
 
 primaryExpr: operand | primaryExpr (DOT Identifier)? arguments;
 
-indexExpr: LBRACK expr RBRACK;
+indexExpr: LBRACK index=expr RBRACK;
 
-sliceExpr: LBRACK expr? COLON expr? RBRACK;
+sliceExpr: LBRACK low=expr? COLON high=expr? RBRACK;
 
-operand: identifierFull | literal | LPAREN expr RPAREN;
+contractCall: AtIdentifier arguments;
+
+operand: identifierVar | literal | LPAREN expr RPAREN;
 
 literal: numberLiteral | stringLiteral | booleanLiteral | NIL;
 
@@ -152,8 +149,6 @@ assign_op:
 	| BIT_AND_EQ
 	| BIT_OR_EQ
 	| BIT_XOR_EQ;
-
-identifierFull: Identifier | DollarIdentifier | AtIdentifier;
 
 identifierVar: Identifier | DollarIdentifier;
 

@@ -6,13 +6,15 @@ type Arguments struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
+	TreeType TreeType
 	ExprList *ExprList
 }
 
 func NewArguments(b *Builder) *Arguments {
 	return &Arguments{
-		Builder: b,
-		Id:      b.GetReferId(),
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_Arguments,
 	}
 }
 

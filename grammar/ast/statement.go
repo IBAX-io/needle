@@ -8,13 +8,15 @@ type StatementList struct {
 	*Builder
 	Id         int32
 	Src        SrcPos
+	TreeType   TreeType
 	Statements []*Statement
 }
 
 func NewStatementList(b *Builder) *StatementList {
 	return &StatementList{
-		Builder: b,
-		Id:      b.GetReferId(),
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_StatementList,
 	}
 }
 

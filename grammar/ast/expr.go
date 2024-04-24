@@ -6,20 +6,21 @@ import (
 
 type Expr struct {
 	*Builder
-	Id          int32
-	Src         SrcPos
-	Kind        TreeType
-	TreeType    TreeType
-	PrimaryExpr *PrimaryExpr
-	IndexExpr   *IndexExpr
-	SliceExpr   *SliceExpr
-	MapExpr     *MapExpr
-	ArrayExpr   *ArrayExpr
-	MulOp       *MulOp
-	AddOp       *AddOp
-	RelOp       *RelOp
-	LogicalOp   *LogicalOp
-	UnaryOp     *UnaryOp
+	Id           int32
+	Src          SrcPos
+	Kind         TreeType
+	TreeType     TreeType
+	PrimaryExpr  *PrimaryExpr
+	IndexExpr    *IndexExpr
+	SliceExpr    *SliceExpr
+	MapExpr      *MapExpr
+	ArrayExpr    *ArrayExpr
+	ContractCall *ContractCall
+	MulOp        *MulOp
+	AddOp        *AddOp
+	RelOp        *RelOp
+	LogicalOp    *LogicalOp
+	UnaryOp      *UnaryOp
 }
 
 func NewExpr(b *Builder) *Expr {
@@ -41,12 +42,12 @@ func (e *Expr) Parse(ctx needle.IExprContext) {
 			e.TreeType = primaryExpr.TreeType
 		case needle.IIndexExprContext:
 			indexExpr := NewIndexExpr(e.Builder)
-			indexExpr.Parse(child)
+			indexExpr.Parse(ctx, child)
 			e.IndexExpr = indexExpr
 			e.TreeType = indexExpr.TreeType
 		case needle.ISliceExprContext:
 			sliceExpr := NewSliceExpr(e.Builder)
-			sliceExpr.Parse(child)
+			sliceExpr.Parse(ctx, child)
 			e.SliceExpr = sliceExpr
 			e.TreeType = sliceExpr.TreeType
 		case needle.IMapExprContext:
@@ -59,6 +60,11 @@ func (e *Expr) Parse(ctx needle.IExprContext) {
 			arrayExpr.Parse(child)
 			e.ArrayExpr = arrayExpr
 			e.TreeType = arrayExpr.TreeType
+		case needle.IContractCallContext:
+			contractCall := NewContractCall(e.Builder)
+			contractCall.Parse(child)
+			e.TreeType = contractCall.TreeType
+			e.ContractCall = contractCall
 		case needle.IMul_opContext:
 			mulOp := NewMulOp(e.Builder)
 			mulOp.Parse(ctx, child)

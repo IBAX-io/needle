@@ -19,8 +19,8 @@ type NeedleParserListener interface {
 	// EnterDataDef is called when entering the dataDef production.
 	EnterDataDef(c *DataDefContext)
 
-	// EnterDataPartList is called when entering the dataPartList production.
-	EnterDataPartList(c *DataPartListContext)
+	// EnterDataPart is called when entering the dataPart production.
+	EnterDataPart(c *DataPartContext)
 
 	// EnterSettingsDef is called when entering the settingsDef production.
 	EnterSettingsDef(c *SettingsDefContext)
@@ -109,9 +109,6 @@ type NeedleParserListener interface {
 	// EnterPair is called when entering the pair production.
 	EnterPair(c *PairContext)
 
-	// EnterPairValue is called when entering the pairValue production.
-	EnterPairValue(c *PairValueContext)
-
 	// EnterArguments is called when entering the arguments production.
 	EnterArguments(c *ArgumentsContext)
 
@@ -129,6 +126,9 @@ type NeedleParserListener interface {
 
 	// EnterSliceExpr is called when entering the sliceExpr production.
 	EnterSliceExpr(c *SliceExprContext)
+
+	// EnterContractCall is called when entering the contractCall production.
+	EnterContractCall(c *ContractCallContext)
 
 	// EnterOperand is called when entering the operand production.
 	EnterOperand(c *OperandContext)
@@ -160,9 +160,6 @@ type NeedleParserListener interface {
 	// EnterAssign_op is called when entering the assign_op production.
 	EnterAssign_op(c *Assign_opContext)
 
-	// EnterIdentifierFull is called when entering the identifierFull production.
-	EnterIdentifierFull(c *IdentifierFullContext)
-
 	// EnterIdentifierVar is called when entering the identifierVar production.
 	EnterIdentifierVar(c *IdentifierVarContext)
 
@@ -193,8 +190,8 @@ type NeedleParserListener interface {
 	// ExitDataDef is called when exiting the dataDef production.
 	ExitDataDef(c *DataDefContext)
 
-	// ExitDataPartList is called when exiting the dataPartList production.
-	ExitDataPartList(c *DataPartListContext)
+	// ExitDataPart is called when exiting the dataPart production.
+	ExitDataPart(c *DataPartContext)
 
 	// ExitSettingsDef is called when exiting the settingsDef production.
 	ExitSettingsDef(c *SettingsDefContext)
@@ -283,9 +280,6 @@ type NeedleParserListener interface {
 	// ExitPair is called when exiting the pair production.
 	ExitPair(c *PairContext)
 
-	// ExitPairValue is called when exiting the pairValue production.
-	ExitPairValue(c *PairValueContext)
-
 	// ExitArguments is called when exiting the arguments production.
 	ExitArguments(c *ArgumentsContext)
 
@@ -303,6 +297,9 @@ type NeedleParserListener interface {
 
 	// ExitSliceExpr is called when exiting the sliceExpr production.
 	ExitSliceExpr(c *SliceExprContext)
+
+	// ExitContractCall is called when exiting the contractCall production.
+	ExitContractCall(c *ContractCallContext)
 
 	// ExitOperand is called when exiting the operand production.
 	ExitOperand(c *OperandContext)
@@ -333,9 +330,6 @@ type NeedleParserListener interface {
 
 	// ExitAssign_op is called when exiting the assign_op production.
 	ExitAssign_op(c *Assign_opContext)
-
-	// ExitIdentifierFull is called when exiting the identifierFull production.
-	ExitIdentifierFull(c *IdentifierFullContext)
 
 	// ExitIdentifierVar is called when exiting the identifierVar production.
 	ExitIdentifierVar(c *IdentifierVarContext)

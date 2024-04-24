@@ -4,10 +4,10 @@ import needle "github.com/IBAX-io/needle/grammar/dist-go"
 
 type Block struct {
 	*Builder
-	Id         int32
-	Src        SrcPos
-	TreeType   TreeType
-	Statements []*Statement
+	Id            int32
+	Src           SrcPos
+	TreeType      TreeType
+	StatementList *StatementList
 }
 
 func NewBlock(b *Builder) *Block {
@@ -23,6 +23,6 @@ func (b *Block) Parse(ctx needle.IBlockContext) {
 	if ctx.StatementList() != nil {
 		stmtList := NewStatementList(b.Builder)
 		stmtList.Parse(ctx.StatementList())
-		b.Statements = stmtList.Statements
+		b.StatementList = stmtList
 	}
 }

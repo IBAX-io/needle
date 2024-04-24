@@ -31,13 +31,15 @@ type ArrayList struct {
 	*Builder
 	Id       int32
 	Src      SrcPos
+	TreeType TreeType
 	ExprList *ExprList
 }
 
 func NewArrayList(b *Builder) *ArrayList {
 	return &ArrayList{
-		Builder: b,
-		Id:      b.GetReferId(),
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_ArrayList,
 	}
 }
 

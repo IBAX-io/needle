@@ -32,7 +32,6 @@ func (d *ContractDef) Parse(ctx needle.IContractDefContext, main *SourceMain) {
 		contractPart.Parse(part)
 		d.ContractParts = append(d.ContractParts, contractPart)
 	}
-
 	main.ContractDefs = append(main.ContractDefs, d)
 }
 
@@ -73,5 +72,32 @@ func (d *ContractPart) Parse(ctx needle.IContractPartContext) {
 		default:
 			panic("ContractPart unexpected type")
 		}
+	}
+}
+
+type ContractCall struct {
+	*Builder
+	Id        int32
+	Src       SrcPos
+	TreeType  TreeType
+	Name      string
+	Arguments *Arguments
+}
+
+func NewContractCall(b *Builder) *ContractCall {
+	return &ContractCall{
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_ContractCall,
+	}
+}
+
+func (c *ContractCall) Parse(ctx needle.IContractCallContext) {
+	c.Src = NewSrcPos(ctx)
+	c.Name = ctx.AtIdentifier().GetText()
+	if ctx.Arguments() != nil {
+		args := NewArguments(c.Builder)
+		args.Parse(ctx.Arguments())
+		c.Arguments = args
 	}
 }

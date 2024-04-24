@@ -1,6 +1,8 @@
 package ast
 
-import needle "github.com/IBAX-io/needle/grammar/dist-go"
+import (
+	needle "github.com/IBAX-io/needle/grammar/dist-go"
+)
 
 type ErrorStmt struct {
 	*Builder

@@ -1,18 +1,22 @@
 package ast
 
-import needle "github.com/IBAX-io/needle/grammar/dist-go"
+import (
+	needle "github.com/IBAX-io/needle/grammar/dist-go"
+)
 
 type VarDef struct {
 	*Builder
 	Id        int32
 	Src       SrcPos
+	TreeType  TreeType
 	Parameter *Parameter
 }
 
 func NewVarDef(b *Builder) *VarDef {
 	return &VarDef{
-		Builder: b,
-		Id:      b.GetReferId(),
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_VarDef,
 	}
 }
 

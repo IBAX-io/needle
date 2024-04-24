@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"fmt"
+
 	needle "github.com/IBAX-io/needle/grammar/dist-go"
 )
 
@@ -18,6 +20,12 @@ func NewSourceMain() *SourceMain {
 		TreeType:     TreeType_SourceMain,
 		ContractDefs: make([]*ContractDef, 0),
 		FuncDefs:     make([]*FuncDef, 0),
+	}
+}
+
+func (b *Builder) ExitSourceMain(ctx *needle.SourceMainContext) {
+	for _, err := range b.Errors {
+		fmt.Println(err)
 	}
 }
 

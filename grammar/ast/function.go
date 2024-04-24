@@ -52,6 +52,7 @@ type FuncSignature struct {
 	*Builder
 	Id               int32
 	Src              SrcPos
+	TreeType         TreeType
 	ParameterList    *ParameterList
 	FuncTail         []*FuncTail
 	ReturnParameters *ReturnParameters
@@ -61,6 +62,7 @@ func NewFuncSignature(b *Builder) *FuncSignature {
 	return &FuncSignature{
 		Builder:  b,
 		Id:       b.GetReferId(),
+		TreeType: TreeType_FuncSignature,
 		FuncTail: make([]*FuncTail, 0),
 	}
 }
@@ -92,13 +94,15 @@ type FuncTail struct {
 	Id            int32
 	Src           SrcPos
 	Name          string
+	TreeType      TreeType
 	ParameterList *ParameterList
 }
 
 func NewFuncTail(b *Builder) *FuncTail {
 	return &FuncTail{
-		Builder: b,
-		Id:      b.GetReferId(),
+		Builder:  b,
+		Id:       b.GetReferId(),
+		TreeType: TreeType_FuncTail,
 	}
 }
 

@@ -7,7 +7,8 @@ type IndexExpr struct {
 	Id       int32
 	Src      SrcPos
 	TreeType TreeType
-	Expr     *Expr
+	BaseExpr *Expr
+	Index    *Expr
 }
 
 func NewIndexExpr(b *Builder) *IndexExpr {
@@ -18,11 +19,12 @@ func NewIndexExpr(b *Builder) *IndexExpr {
 	}
 }
 
-func (i *IndexExpr) Parse(ctx needle.IIndexExprContext) {
-	i.Src = NewSrcPos(ctx)
-	if ctx.Expr() != nil {
-		expr := NewExpr(i.Builder)
-		expr.Parse(ctx.Expr())
-		i.Expr = expr
-	}
+func (i *IndexExpr) Parse(exprCtx needle.IExprContext, ctx needle.IIndexExprContext) {
+	i.Src = NewSrcPos(exprCtx)
+	baseExpr := NewExpr(i.Builder)
+	baseExpr.Parse(exprCtx.Expr(0))
+	i.BaseExpr = baseExpr
+	expr := NewExpr(i.Builder)
+	expr.Parse(ctx.GetIndex())
+	i.Index = expr
 }

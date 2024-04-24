@@ -44,11 +44,11 @@ func (s *BaseNeedleParserListener) EnterDataDef(ctx *DataDefContext) {}
 // ExitDataDef is called when production dataDef is exited.
 func (s *BaseNeedleParserListener) ExitDataDef(ctx *DataDefContext) {}
 
-// EnterDataPartList is called when production dataPartList is entered.
-func (s *BaseNeedleParserListener) EnterDataPartList(ctx *DataPartListContext) {}
+// EnterDataPart is called when production dataPart is entered.
+func (s *BaseNeedleParserListener) EnterDataPart(ctx *DataPartContext) {}
 
-// ExitDataPartList is called when production dataPartList is exited.
-func (s *BaseNeedleParserListener) ExitDataPartList(ctx *DataPartListContext) {}
+// ExitDataPart is called when production dataPart is exited.
+func (s *BaseNeedleParserListener) ExitDataPart(ctx *DataPartContext) {}
 
 // EnterSettingsDef is called when production settingsDef is entered.
 func (s *BaseNeedleParserListener) EnterSettingsDef(ctx *SettingsDefContext) {}
@@ -224,12 +224,6 @@ func (s *BaseNeedleParserListener) EnterPair(ctx *PairContext) {}
 // ExitPair is called when production pair is exited.
 func (s *BaseNeedleParserListener) ExitPair(ctx *PairContext) {}
 
-// EnterPairValue is called when production pairValue is entered.
-func (s *BaseNeedleParserListener) EnterPairValue(ctx *PairValueContext) {}
-
-// ExitPairValue is called when production pairValue is exited.
-func (s *BaseNeedleParserListener) ExitPairValue(ctx *PairValueContext) {}
-
 // EnterArguments is called when production arguments is entered.
 func (s *BaseNeedleParserListener) EnterArguments(ctx *ArgumentsContext) {}
 
@@ -265,6 +259,12 @@ func (s *BaseNeedleParserListener) EnterSliceExpr(ctx *SliceExprContext) {}
 
 // ExitSliceExpr is called when production sliceExpr is exited.
 func (s *BaseNeedleParserListener) ExitSliceExpr(ctx *SliceExprContext) {}
+
+// EnterContractCall is called when production contractCall is entered.
+func (s *BaseNeedleParserListener) EnterContractCall(ctx *ContractCallContext) {}
+
+// ExitContractCall is called when production contractCall is exited.
+func (s *BaseNeedleParserListener) ExitContractCall(ctx *ContractCallContext) {}
 
 // EnterOperand is called when production operand is entered.
 func (s *BaseNeedleParserListener) EnterOperand(ctx *OperandContext) {}
@@ -325,12 +325,6 @@ func (s *BaseNeedleParserListener) EnterAssign_op(ctx *Assign_opContext) {}
 
 // ExitAssign_op is called when production assign_op is exited.
 func (s *BaseNeedleParserListener) ExitAssign_op(ctx *Assign_opContext) {}
-
-// EnterIdentifierFull is called when production identifierFull is entered.
-func (s *BaseNeedleParserListener) EnterIdentifierFull(ctx *IdentifierFullContext) {}
-
-// ExitIdentifierFull is called when production identifierFull is exited.
-func (s *BaseNeedleParserListener) ExitIdentifierFull(ctx *IdentifierFullContext) {}
 
 // EnterIdentifierVar is called when production identifierVar is entered.
 func (s *BaseNeedleParserListener) EnterIdentifierVar(ctx *IdentifierVarContext) {}

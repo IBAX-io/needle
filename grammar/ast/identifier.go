@@ -29,37 +29,6 @@ func (i *IdentifierList) Parse(ctx needle.IIdentifierListContext) {
 	}
 }
 
-type IdentifierFull struct {
-	*Builder
-	Id       int32
-	Src      SrcPos
-	TreeType TreeType
-	Name     string
-}
-
-func NewIdentifierFull(b *Builder) *IdentifierFull {
-	return &IdentifierFull{
-		Builder: b,
-		Id:      b.GetReferId(),
-	}
-}
-
-func (i *IdentifierFull) Parse(ctx needle.IIdentifierFullContext) {
-	i.Src = NewSrcPos(ctx)
-	if ident := ctx.Identifier(); ident != nil {
-		i.Name = ident.GetText()
-		i.TreeType = TreeType_Identifier
-	}
-	if dollar := ctx.DollarIdentifier(); dollar != nil {
-		i.Name = dollar.GetText()
-		i.TreeType = TreeType_DollarIdentifier
-	}
-	if at := ctx.AtIdentifier(); at != nil {
-		i.Name = at.GetText()
-		i.TreeType = TreeType_AtIdentifier
-	}
-}
-
 type IdentifierVar struct {
 	*Builder
 	Id       int32

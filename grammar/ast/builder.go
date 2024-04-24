@@ -15,6 +15,8 @@ type Builder struct {
 	sourceMain     *SourceMain
 	commentsParsed bool
 	Comments       []*Comment
+
+	Errors []error
 }
 
 func NewBuilder(parser *needle.NeedleParser, input []byte) *Builder {
@@ -31,4 +33,8 @@ func (b *Builder) GetReferId() int32 {
 
 func (b *Builder) GetSourceMain() *SourceMain {
 	return b.sourceMain
+}
+
+func (b *Builder) AppendErr(err error) {
+	b.Errors = append(b.Errors, err)
 }
