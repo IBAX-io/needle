@@ -40,7 +40,9 @@ type ParameterList struct {
 	Src      SrcPos
 	TreeType TreeType
 
-	Parameter *Parameter
+	Parameter  *Parameter
+	Variadic   bool
+	Identifier string
 }
 
 func NewParameterList(b *Builder) *ParameterList {
@@ -59,6 +61,10 @@ func (p *ParameterList) Parse(ctx needle.IParameterListContext) {
 	parameter := NewParameter(p.Builder)
 	parameter.Parse(ctx.Parameter())
 	p.Parameter = parameter
+	if ctx.Identifier() != nil {
+		p.Variadic = true
+		p.Identifier = ctx.Identifier().GetText()
+	}
 }
 
 type ReturnParameters struct {

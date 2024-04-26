@@ -8,6 +8,7 @@ type Arguments struct {
 	Src      SrcPos
 	TreeType TreeType
 	ExprList *ExprList
+	Ellipsis bool
 }
 
 func NewArguments(b *Builder) *Arguments {
@@ -24,5 +25,8 @@ func (a *Arguments) Parse(ctx needle.IArgumentsContext) {
 		exprList := NewExprList(a.Builder)
 		exprList.Parse(ctx.ExprList())
 		a.ExprList = exprList
+	}
+	if ctx.TAIL() != nil {
+		a.Ellipsis = true
 	}
 }

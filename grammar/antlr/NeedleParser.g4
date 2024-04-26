@@ -28,7 +28,7 @@ funcSignature: parameterList? funcTail* returnParameters?;
 
 funcTail: '.' Identifier parameterList?;
 
-parameterList: LPAREN (parameter COMMA?)? RPAREN;
+parameterList: LPAREN (parameter COMMA?)? (Identifier TAIL)? RPAREN;
 
 parameter:
 	identifierList typeName (COMMA? identifierList typeName)*;
@@ -84,7 +84,7 @@ pairList: pair (COMMA pair)* COMMA? eos;
 
 pair: (stringLiteral | identifierVar) COLON expr;
 
-arguments: LPAREN exprList? RPAREN;
+arguments: LPAREN (exprList TAIL?)? RPAREN;
 
 exprList: expr (COMMA expr)*;
 
