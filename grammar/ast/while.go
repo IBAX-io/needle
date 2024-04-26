@@ -14,7 +14,7 @@ type WhileStmt struct {
 func NewWhileStmt(b *Builder) *WhileStmt {
 	return &WhileStmt{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_WhileStmt,
 	}
 }

@@ -18,7 +18,7 @@ type IncDecStmt struct {
 func NewIncDecStmt(b *Builder) *IncDecStmt {
 	return &IncDecStmt{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_IncDecStmt,
 	}
 }

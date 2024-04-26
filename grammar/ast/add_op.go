@@ -15,7 +15,7 @@ type AddOp struct {
 func NewAddOp(b *Builder) *AddOp {
 	return &AddOp{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_AddOpExpr,
 	}
 }

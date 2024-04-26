@@ -18,7 +18,7 @@ type FuncDef struct {
 func NewFuncDef(b *Builder) *FuncDef {
 	return &FuncDef{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_FuncDef,
 	}
 }
@@ -61,7 +61,7 @@ type FuncSignature struct {
 func NewFuncSignature(b *Builder) *FuncSignature {
 	return &FuncSignature{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_FuncSignature,
 		FuncTail: make([]*FuncTail, 0),
 	}
@@ -101,7 +101,7 @@ type FuncTail struct {
 func NewFuncTail(b *Builder) *FuncTail {
 	return &FuncTail{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_FuncTail,
 	}
 }

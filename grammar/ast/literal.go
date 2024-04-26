@@ -19,7 +19,7 @@ type Literal struct {
 func NewLiteral(b *Builder) *Literal {
 	return &Literal{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 		Kind:    TreeType_Kind_Literal,
 	}
 }
@@ -69,7 +69,7 @@ type StringLiteral struct {
 func NewStringLiteral(b *Builder) *StringLiteral {
 	return &StringLiteral{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 	}
 }
 
@@ -101,7 +101,7 @@ type NumberLiteral struct {
 func NewNumberLiteral(b *Builder) *NumberLiteral {
 	return &NumberLiteral{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 	}
 }
 

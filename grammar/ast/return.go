@@ -13,7 +13,7 @@ type ReturnStmt struct {
 func NewReturnStmt(b *Builder) *ReturnStmt {
 	return &ReturnStmt{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ReturnStmt,
 	}
 }

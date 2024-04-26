@@ -15,7 +15,7 @@ type Assignment struct {
 func NewAssignment(b *Builder) *Assignment {
 	return &Assignment{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_Assignment,
 	}
 }

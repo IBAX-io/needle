@@ -14,7 +14,7 @@ type Arguments struct {
 func NewArguments(b *Builder) *Arguments {
 	return &Arguments{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_Arguments,
 	}
 }

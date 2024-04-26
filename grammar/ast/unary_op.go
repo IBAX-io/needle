@@ -14,7 +14,7 @@ type UnaryOp struct {
 func NewUnaryOp(b *Builder) *UnaryOp {
 	return &UnaryOp{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_UnaryOpExpr,
 	}
 }

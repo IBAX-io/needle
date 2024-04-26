@@ -15,7 +15,7 @@ type LogicalOp struct {
 func NewLogicalOp(b *Builder) *LogicalOp {
 	return &LogicalOp{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_LogicalOpExpr,
 	}
 }

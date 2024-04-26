@@ -15,7 +15,7 @@ type RelOp struct {
 func NewRelOp(b *Builder) *RelOp {
 	return &RelOp{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_RelOpExpr,
 	}
 }

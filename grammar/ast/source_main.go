@@ -31,7 +31,7 @@ func (b *Builder) ExitSourceMain(ctx *needle.SourceMainContext) {
 
 func (b *Builder) EnterSourceMain(ctx *needle.SourceMainContext) {
 	b.sourceMain = NewSourceMain()
-	b.sourceMain.Id = b.GetReferId()
+	b.sourceMain.Id = b.GetNextId()
 	b.sourceMain.Src = NewSrcPos(ctx)
 	for _, child := range ctx.GetChildren() {
 		if contractCtx, ok := child.(*needle.ContractDefContext); ok {

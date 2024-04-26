@@ -17,7 +17,7 @@ type ErrorStmt struct {
 func NewErrorStmt(b *Builder) *ErrorStmt {
 	return &ErrorStmt{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 		Kind:    TreeType_Kind_ErrorStmt,
 	}
 }

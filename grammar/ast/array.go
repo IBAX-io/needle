@@ -13,7 +13,7 @@ type ArrayExpr struct {
 func NewArrayExpr(b *Builder) *ArrayExpr {
 	return &ArrayExpr{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ArrayExpr,
 	}
 }
@@ -38,7 +38,7 @@ type ArrayList struct {
 func NewArrayList(b *Builder) *ArrayList {
 	return &ArrayList{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ArrayList,
 	}
 }

@@ -14,7 +14,7 @@ type IndexExpr struct {
 func NewIndexExpr(b *Builder) *IndexExpr {
 	return &IndexExpr{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_IndexExpr,
 	}
 }

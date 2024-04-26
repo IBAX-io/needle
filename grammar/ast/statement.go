@@ -15,7 +15,7 @@ type StatementList struct {
 func NewStatementList(b *Builder) *StatementList {
 	return &StatementList{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_StatementList,
 	}
 }
@@ -47,7 +47,7 @@ type Statement struct {
 func NewStatement(b *Builder) *Statement {
 	return &Statement{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 	}
 }
 
@@ -113,7 +113,7 @@ type SimpleStmt struct {
 func NewSimpleStmt(b *Builder) *SimpleStmt {
 	return &SimpleStmt{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 	}
 }
 

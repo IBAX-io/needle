@@ -14,7 +14,7 @@ type ContinueStmt struct {
 func NewContinueStmt(b *Builder) *ContinueStmt {
 	return &ContinueStmt{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ContinueStmt,
 	}
 }

@@ -17,7 +17,7 @@ type Parameter struct {
 func NewParameter(b *Builder) *Parameter {
 	return &Parameter{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_Parameter,
 		NameList: make([]*IdentifierList, 0),
 		TypeName: make([]string, 0),
@@ -48,7 +48,7 @@ type ParameterList struct {
 func NewParameterList(b *Builder) *ParameterList {
 	return &ParameterList{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ParameterList,
 	}
 }
@@ -78,7 +78,7 @@ type ReturnParameters struct {
 func NewReturnParameters(b *Builder) *ReturnParameters {
 	return &ReturnParameters{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ReturnParameters,
 		TypeName: make([]string, 0),
 	}

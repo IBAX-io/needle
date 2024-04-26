@@ -26,7 +26,7 @@ type Expr struct {
 func NewExpr(b *Builder) *Expr {
 	return &Expr{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 		Kind:    TreeType_Kind_Expr,
 	}
 }
@@ -104,7 +104,7 @@ type ExprList struct {
 func NewExprList(b *Builder) *ExprList {
 	return &ExprList{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 	}
 }
 
@@ -130,7 +130,7 @@ type PrimaryExpr struct {
 func NewPrimaryExpr(b *Builder) *PrimaryExpr {
 	return &PrimaryExpr{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_PrimaryExpr,
 	}
 }

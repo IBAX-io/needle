@@ -17,7 +17,7 @@ type SettingsDef struct {
 func NewSettingsDef(b *Builder) *SettingsDef {
 	return &SettingsDef{
 		Builder:      b,
-		Id:           b.GetReferId(),
+		Id:           b.GetNextId(),
 		TreeType:     TreeType_SettingsDef,
 		SettingValue: make([]*Literal, 0),
 		SettingsName: make([]string, 0),

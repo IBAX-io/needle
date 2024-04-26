@@ -27,7 +27,7 @@ func NewBuilder(parser *needle.NeedleParser, input []byte) *Builder {
 	}
 }
 
-func (b *Builder) GetReferId() int32 {
+func (b *Builder) GetNextId() int32 {
 	return atomic.AddInt32(&b.referId, 1) - 1
 }
 

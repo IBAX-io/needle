@@ -14,7 +14,7 @@ type IfStmt struct {
 func NewIfStmt(b *Builder) *IfStmt {
 	return &IfStmt{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 		Kind:    TreeType_Kind_ControlStmt,
 	}
 }
@@ -46,7 +46,7 @@ type IfBody struct {
 func NewIfBody(b *Builder) *IfBody {
 	return &IfBody{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_IfStmt,
 	}
 }
@@ -73,7 +73,7 @@ type ElseBody struct {
 func NewElseBody(b *Builder) *ElseBody {
 	return &ElseBody{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ElseStmt,
 	}
 }

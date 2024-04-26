@@ -15,7 +15,7 @@ type VarDef struct {
 func NewVarDef(b *Builder) *VarDef {
 	return &VarDef{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_VarDef,
 	}
 }

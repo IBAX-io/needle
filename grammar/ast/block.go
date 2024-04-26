@@ -13,7 +13,7 @@ type Block struct {
 func NewBlock(b *Builder) *Block {
 	return &Block{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_Block,
 	}
 }

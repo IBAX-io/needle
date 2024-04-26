@@ -22,7 +22,7 @@ func (b *Builder) EnterEveryRule(ctx antlr.ParserRuleContext) {
 	for _, token := range tokens {
 		if token.GetTokenType() == needle.NeedleLexerLINE_COMMENT {
 			comment := &Comment{
-				Id: b.GetReferId(),
+				Id: b.GetNextId(),
 				Src: SrcPos{
 					Line:   token.GetLine(),
 					Column: token.GetColumn(),
@@ -37,7 +37,7 @@ func (b *Builder) EnterEveryRule(ctx antlr.ParserRuleContext) {
 		}
 		if token.GetTokenType() == needle.NeedleLexerCOMMENT {
 			comment := &Comment{
-				Id: b.GetReferId(),
+				Id: b.GetNextId(),
 				Src: SrcPos{
 					Line:   token.GetLine(),
 					Column: token.GetColumn(),

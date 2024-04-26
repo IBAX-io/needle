@@ -13,7 +13,7 @@ type MapExpr struct {
 func NewMapExpr(b *Builder) *MapExpr {
 	return &MapExpr{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_MapExpr,
 	}
 }
@@ -38,7 +38,7 @@ type PairList struct {
 func NewPairList(b *Builder) *PairList {
 	return &PairList{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_PairList,
 	}
 }
@@ -64,7 +64,7 @@ type Pair struct {
 func NewPair(b *Builder) *Pair {
 	return &Pair{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_Pair,
 	}
 }

@@ -12,7 +12,7 @@ type BreakStmt struct {
 func NewBreakStmt(b *Builder) *BreakStmt {
 	return &BreakStmt{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_BreakStmt,
 	}
 }

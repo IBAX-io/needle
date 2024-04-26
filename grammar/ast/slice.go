@@ -15,7 +15,7 @@ type SliceExpr struct {
 func NewSliceExpr(b *Builder) *SliceExpr {
 	return &SliceExpr{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_SliceExpr,
 	}
 }

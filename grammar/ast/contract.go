@@ -15,7 +15,7 @@ type ContractDef struct {
 func NewContractDef(b *Builder) *ContractDef {
 	return &ContractDef{
 		Builder:       b,
-		Id:            b.GetReferId(),
+		Id:            b.GetNextId(),
 		TreeType:      TreeType_ContractDef,
 		ContractParts: make([]*ContractPart, 0),
 	}
@@ -48,7 +48,7 @@ type ContractPart struct {
 func NewContractPart(b *Builder) *ContractPart {
 	return &ContractPart{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ContractPart,
 	}
 }
@@ -87,7 +87,7 @@ type ContractCall struct {
 func NewContractCall(b *Builder) *ContractCall {
 	return &ContractCall{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_ContractCall,
 	}
 }

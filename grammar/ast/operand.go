@@ -15,7 +15,7 @@ type Operand struct {
 func NewOperand(b *Builder) *Operand {
 	return &Operand{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_Operand,
 	}
 }

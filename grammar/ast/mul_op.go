@@ -17,7 +17,7 @@ type MulOp struct {
 func NewMulOp(b *Builder) *MulOp {
 	return &MulOp{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_MulOpExpr,
 	}
 }

@@ -18,7 +18,7 @@ type DataDef struct {
 func NewDataDef(b *Builder) *DataDef {
 	return &DataDef{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_DataDef,
 	}
 }
@@ -45,7 +45,7 @@ type DataPart struct {
 func NewDataPart(b *Builder) *DataPart {
 	return &DataPart{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_DataPart,
 	}
 }

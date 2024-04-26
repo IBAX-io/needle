@@ -15,7 +15,7 @@ type IdentifierList struct {
 func NewIdentifierList(b *Builder) *IdentifierList {
 	return &IdentifierList{
 		Builder:  b,
-		Id:       b.GetReferId(),
+		Id:       b.GetNextId(),
 		TreeType: TreeType_Identifier,
 		Name:     make([]string, 0),
 	}
@@ -40,7 +40,7 @@ type IdentifierVar struct {
 func NewIdentifierVar(b *Builder) *IdentifierVar {
 	return &IdentifierVar{
 		Builder: b,
-		Id:      b.GetReferId(),
+		Id:      b.GetNextId(),
 	}
 }
 
