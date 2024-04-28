@@ -74,9 +74,7 @@ whileStmt: WHILE expr block;
 
 errorStmt: (ERRWARNING | ERRINFO | ERROR) expr;
 
-arrayExpr: LBRACK arrayList? COMMA? RBRACK;
-
-arrayList: exprList eos;
+arrayExpr: LBRACK (exprList COMMA? eos)? RBRACK;
 
 mapExpr: LBRACE pairList? RBRACE;
 
@@ -89,7 +87,7 @@ arguments: LPAREN (exprList TAIL?)? RPAREN;
 exprList: expr (COMMA expr)*;
 
 expr:
-	primaryExpr eos
+	primaryExpr
 	| expr indexExpr
 	| expr sliceExpr
 	| mapExpr

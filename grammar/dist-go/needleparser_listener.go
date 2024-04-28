@@ -97,9 +97,6 @@ type NeedleParserListener interface {
 	// EnterArrayExpr is called when entering the arrayExpr production.
 	EnterArrayExpr(c *ArrayExprContext)
 
-	// EnterArrayList is called when entering the arrayList production.
-	EnterArrayList(c *ArrayListContext)
-
 	// EnterMapExpr is called when entering the mapExpr production.
 	EnterMapExpr(c *MapExprContext)
 
@@ -267,9 +264,6 @@ type NeedleParserListener interface {
 
 	// ExitArrayExpr is called when exiting the arrayExpr production.
 	ExitArrayExpr(c *ArrayExprContext)
-
-	// ExitArrayList is called when exiting the arrayList production.
-	ExitArrayList(c *ArrayListContext)
 
 	// ExitMapExpr is called when exiting the mapExpr production.
 	ExitMapExpr(c *MapExprContext)

@@ -200,12 +200,6 @@ func (s *BaseNeedleParserListener) EnterArrayExpr(ctx *ArrayExprContext) {}
 // ExitArrayExpr is called when production arrayExpr is exited.
 func (s *BaseNeedleParserListener) ExitArrayExpr(ctx *ArrayExprContext) {}
 
-// EnterArrayList is called when production arrayList is entered.
-func (s *BaseNeedleParserListener) EnterArrayList(ctx *ArrayListContext) {}
-
-// ExitArrayList is called when production arrayList is exited.
-func (s *BaseNeedleParserListener) ExitArrayList(ctx *ArrayListContext) {}
-
 // EnterMapExpr is called when production mapExpr is entered.
 func (s *BaseNeedleParserListener) EnterMapExpr(ctx *MapExprContext) {}
 

@@ -146,14 +146,14 @@ fragment DoubleQuotedStringCharacter: ~["\r\n\\] | ('\\' .);
 
 fragment SingleQuotedStringCharacter: ~['\r\n\\] | ('\\' .);
 
-WS: [ \t\r\n]+ -> skip;
+WS: [ \t]+   -> channel(HIDDEN);
 COMMENT: '/*' .*? '*/' -> channel(HIDDEN) ;
 LINE_COMMENT: '//' ~[\r\n]* -> channel(HIDDEN);
 TERMINATOR   : [\r\n]+       -> channel(HIDDEN);
 
 mode NLSEMI;
 
-WS_NLSEMI: [ \t]+ -> skip;
+WS_NLSEMI: [ \t]+ -> channel(HIDDEN);
 COMMENT_NLSEMI: '/*' ~[\r\n]*? '*/' -> channel(HIDDEN);
 LINE_COMMENT_NLSEMI: '//' ~[\r\n]* -> channel(HIDDEN);
 EOS: ([\r\n]+ | SEMI | '/*' .*? '*/' | EOF) -> mode(DEFAULT_MODE);
