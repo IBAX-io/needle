@@ -32,7 +32,6 @@ func (d *ContractDef) Parse(ctx needle.IContractDefContext, main *SourceMain) {
 		contractPart.Parse(part)
 		d.ContractParts = append(d.ContractParts, contractPart)
 	}
-	main.ContractDefs = append(main.ContractDefs, d)
 }
 
 type ContractPart struct {
