@@ -78,7 +78,6 @@ func (rt *Runtime) CostUsed() int64 {
 func (rt *Runtime) Run(block *compiler.CodeBlock) (ret []any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			// rt.vm.logger.WithFields(log.Fields{"type": PanicRecoveredError, "error_info": r, "stack": string(debug.Stack())}).Error("runtime panic error")
 			err = fmt.Errorf("runtime panic: %v", r)
 		}
 	}()
@@ -90,12 +89,12 @@ func (rt *Runtime) Run(block *compiler.CodeBlock) (ret []any, err error) {
 		genBlock bool
 		timer    *time.Timer
 	)
-	genBlock = rt.loadExtendBy(ExtendGenBlock).genBlock
+	genBlock = GetSysVar[bool](rt, ExtendGenBlock)
 	timeOver := func() {
-		rt.timeLimit = true
+		rt.timeLimit = false
 	}
 	if genBlock {
-		timer = time.AfterFunc(time.Millisecond*time.Duration(rt.loadExtendBy(ExtendTimeLimit).timeLimit), timeOver)
+		timer = time.AfterFunc(time.Millisecond*time.Duration(GetSysVar[int64](rt, ExtendTimeLimit)), timeOver)
 	}
 	defer func() {
 		if genBlock {
@@ -122,7 +121,7 @@ func (rt *Runtime) Run(block *compiler.CodeBlock) (ret []any, err error) {
 
 // RunCode executes a block of code and returns the status and any error that occurred.
 func (rt *Runtime) RunCode(block *compiler.CodeBlock) (status int, err error) {
-	var cmd *compiler.ByteCode
+	var cmd *compiler.Bytecode
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.Errorf(`runcode panic: %v`, r)
@@ -270,17 +269,23 @@ func (rt *Runtime) callFunc(obj *compiler.Object) (err error) {
 	var count, in int
 	variadic := obj.GetVariadic()
 	in = obj.GetParamsLen()
-	if rt.unwrap && variadic && rt.stack.size() > 1 &&
-		reflect.TypeOf(rt.stack.get(rt.stack.size()-2)).String() == `[]interface {}` {
-		count = rt.stack.pop().(int)
-		arr := rt.stack.pop().([]any)
-		rt.stack.pushN(arr)
-		rt.stack.push(count - 1 + len(arr))
+	if rt.unwrap && variadic && rt.stack.size() >= 2 {
+		if arr, ok := rt.stack.get(rt.stack.size() - 2).([]any); ok {
+			count = rt.stack.pop().(int)
+			rt.stack.pop()
+			rt.stack.pushN(arr)
+			count = count - 1 + len(arr)
+		}
 	}
 	rt.unwrap = false
-	count = in
 	if variadic {
-		count, _ = rt.stack.pop().(int)
+		if c, ok := rt.stack.pop().(int); ok {
+			count = c
+		} else {
+			return fmt.Errorf("invalid argument count for variadic function")
+		}
+	} else {
+		count = in
 	}
 
 	var (
@@ -336,7 +341,17 @@ func (rt *Runtime) callFunc(obj *compiler.Object) (err error) {
 	}
 	if variadic {
 		if i == 0 {
-			pars = []reflect.Value{reflect.Zero(info.Params[in-1])}
+			pars = make([]reflect.Value, 1)
+			pars[0] = reflect.MakeSlice(info.Params[in-1], 0, 0)
+		} else {
+		}
+		varArgType := info.Params[in-1].Elem()
+		for j := size - i; j < size; j++ {
+			arg := rt.stack.get(j)
+			if !reflect.TypeOf(arg).AssignableTo(varArgType) {
+				return fmt.Errorf("invalid type for variadic argument: got %T, want %v",
+					arg, varArgType)
+			}
 		}
 		result = foo.CallSlice(pars)
 	} else {
@@ -486,10 +501,7 @@ func (rt *Runtime) callExtendFunc(name string) error {
 		}
 	}
 	if foo.Type().IsVariadic() {
-		arr := make([]any, 0)
-		for _, v := range stack[last:] {
-			arr = append(arr, v)
-		}
+		arr := append([]any{}, stack[last:]...)
 		if len(stack) <= last {
 			stack = append(stack, reflect.Value{})
 		}
@@ -683,4 +695,30 @@ func (rt *Runtime) setVarBy(block *compiler.CodeBlock, names map[string][]any) e
 		}
 	}
 	return nil
+}
+
+// blockStack is a stack of code blocks with their corresponding offsets.
+type blockStack struct {
+	Block  *compiler.CodeBlock
+	Offset int
+}
+
+// peekBlock returns the top block from the stack of blocks.
+func (rt *Runtime) peekBlock() *blockStack {
+	if len(rt.blocks) == 0 {
+		return nil
+	}
+	return rt.blocks[len(rt.blocks)-1]
+}
+
+// popBlock returns and removes the top block from the stack of blocks.
+func (rt *Runtime) popBlock() (ret *blockStack) {
+	ret = rt.blocks[len(rt.blocks)-1]
+	rt.blocks = rt.blocks[:len(rt.blocks)-1]
+	return
+}
+
+// pushBlock adds a block to the top of the stack of blocks.
+func (rt *Runtime) pushBlock(bs *blockStack) {
+	rt.blocks = append(rt.blocks, bs)
 }

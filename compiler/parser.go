@@ -8,13 +8,14 @@ import (
 type Parser struct {
 	parent, root *CodeBlock
 	inputs       Lexemes
-	conf         *CompConfig
+	conf         *Config
 	blocks       CodeBlocks
 	scanner
+	inIfCondition bool // Track if current context is in if condition
 }
 
 // NewParser returns a new parser for the given lexemes and configuration.
-func NewParser(lexemes Lexemes, conf *CompConfig) *Parser {
+func NewParser(lexemes Lexemes, conf *Config) *Parser {
 	p := &Parser{
 		inputs: lexemes,
 		conf:   conf,
@@ -24,13 +25,7 @@ func NewParser(lexemes Lexemes, conf *CompConfig) *Parser {
 }
 
 func (p *Parser) init() {
-	if p.conf == nil {
-		p.conf = &CompConfig{
-			Func:   make([]ExtendFunc, 0),
-			PreVar: make([]string, 0),
-			Owner:  &OwnerInfo{StateId: 1},
-		}
-	}
+	p.conf.EnsureDefault()
 	p.root = &CodeBlock{
 		Objects:        make(map[string]*Object),
 		Type:           CodeBlockOwner,
@@ -40,7 +35,7 @@ func (p *Parser) init() {
 	p.parent = &CodeBlock{
 		Objects: make(map[string]*Object),
 	}
-	for s, info := range p.conf.Objects {
+	for s, info := range p.conf.objects {
 		p.parent.Objects[s] = info
 	}
 	for s, info := range p.conf.MakeExtFunc() {
@@ -91,7 +86,11 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 		}
 		if nextState == stateEval {
 			if comps.hasState(stateFlagLabel) {
-				bls.peek().Code.push(newByteCode(CmdLabel, lex, ""))
+				bls.peek().Code.push(newBytecode(CmdLabel, lex, ""))
+			}
+			// Set if condition context when entering evaluation
+			if lex.Type == IF {
+				p.inIfCondition = true
 			}
 
 			curlen := len(bls.peek().Code)
@@ -122,7 +121,7 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 				if len(prev.Code) > 0 && (*prev).Code[len((*prev).Code)-1].Cmd == CmdContinue {
 					(*prev).Code = (*prev).Code[:len((*prev).Code)-1]
 					prev = bls.peek()
-					(*prev).Code.push(newByteCode(CmdContinue, lex, ""))
+					(*prev).Code.push(newBytecode(CmdContinue, lex, ""))
 				}
 			}
 			bls = bls[:len(bls)-1]
@@ -157,8 +156,8 @@ func (p *Parser) Parse() (*CodeBlock, error) {
 func (p *Parser) parseEval(block *CodeBlocks) error {
 	var indexInfo *IndexInfo
 	curBlock := block.peek()
-	buf := make(ByteCodes, 0, 20)
-	bc := make(ByteCodes, 0, 100)
+	buf := make(Bytecodes, 0, 20)
+	bc := make(Bytecodes, 0, 100)
 	parcount := make([]int, 0, 20)
 	setIndex := false
 	noMap := false
@@ -170,7 +169,7 @@ main:
 		if p.ns && p.lex.Type != NEWLINE {
 			return p.syntaxErrorExpected("expected semicolon or newline")
 		}
-		var cmd *ByteCode
+		var cmd *Bytecode
 		var call bool
 		if !noMap {
 			if p.lex.Type == LBRACE {
@@ -181,7 +180,7 @@ main:
 				if err != nil {
 					return err
 				}
-				bc.push(newByteCode(CmdMapInit, p.lex, pMap))
+				bc.push(newBytecode(CmdMapInit, p.lex, pMap))
 				continue
 			}
 			if p.lex.Type == LBRACK {
@@ -189,7 +188,7 @@ main:
 				if err != nil {
 					return err
 				}
-				bc.push(newByteCode(CmdArrayInit, p.lex, pArray))
+				bc.push(newBytecode(CmdArrayInit, p.lex, pArray))
 				continue
 			}
 		}
@@ -201,6 +200,9 @@ main:
 				return p.nextN(1).errorExpected("must be the name of the dot")
 			}
 		case EQ:
+			if p.inIfCondition {
+				return p.syntaxError("illegal assignment in if condition")
+			}
 			if prevLex.Type == LPAREN || prevLex.Type == COMMA {
 				return p.syntaxErrorExpected("expected expression")
 			}
@@ -227,7 +229,7 @@ main:
 			}
 			break main
 		case LPAREN, LBRACK:
-			buf.push(newByteCode(CmdSys, p.lex, uint16(0xff)))
+			buf.push(newBytecode(CmdSys, p.lex, uint16(0xff)))
 		case COMMA:
 			if p.nextN(1).Type == RBRACK || p.nextN(1).Type == RPAREN {
 				return p.syntaxError("unexpected trailing comma")
@@ -295,12 +297,12 @@ main:
 			}
 			if objInfo.IsCodeBlockFunction() && objInfo.GetFunctionInfo().HasTails() {
 				if bc.empty() || bc[len(bc)-1].Cmd != CmdFuncTail {
-					bc.push(newByteCode(CmdPush, p.lex, make(map[string][]any)))
+					bc.push(newBytecode(CmdPush, p.lex, make(map[string][]any)))
 				}
 				if p.nextN(1).Type == DOT && p.nextN(2).Type == IDENTIFIER {
 					names := prev.Object().GetFunctionInfo().Tails
 					if v, ok := names[p.nextN(2).GetString()]; ok {
-						buf.push(newByteCode(CmdFuncTail, p.nextN(2), &FuncTailCmd{FuncTail: v}))
+						buf.push(newBytecode(CmdFuncTail, p.nextN(2), &FuncTailCmd{FuncTail: v}))
 						count := 0
 						if p.nextN(4).Type != RPAREN {
 							count++
@@ -353,7 +355,7 @@ main:
 				}
 			}
 			if prev.Cmd == CmdCallVariadic {
-				bc.push(newByteCode(CmdPush, p.lex, count))
+				bc.push(newBytecode(CmdPush, p.lex, count))
 			}
 			buf = buf[:len(buf)-1]
 			bc.push(prev)
@@ -415,7 +417,7 @@ main:
 			} else if prevLex.Type == RPAREN && (op.Cmd == CmdDec || op.Cmd == CmdInc) {
 				return p.syntaxError(fmt.Sprintf("unexpected %s at end of statement", p.lex.Value))
 			}
-			byteOper := newByteCode(op.Cmd, p.lex, op.Priority)
+			byteOper := newBytecode(op.Cmd, p.lex, op.Priority)
 			for {
 				if buf.empty() {
 					buf.push(byteOper)
@@ -441,7 +443,7 @@ main:
 			}
 		case NUMBER, LITERAL:
 			noMap = true
-			cmd = newByteCode(CmdPush, p.lex, p.lex.Interface())
+			cmd = newBytecode(CmdPush, p.lex, p.lex.Interface())
 		case EXTEND:
 			noMap = true
 			if p.i < len(p.inputs)-2 {
@@ -451,14 +453,14 @@ main:
 						count++
 					}
 					parcount = append(parcount, count)
-					buf.push(newByteCode(CmdCallExtend, p.lex, p.lex.GetString()))
+					buf.push(newBytecode(CmdCallExtend, p.lex, p.lex.GetString()))
 					call = true
 				}
 			}
 			if !call {
-				cmd = newByteCode(CmdExtend, p.lex, p.lex.GetString())
+				cmd = newBytecode(CmdExtend, p.lex, p.lex.GetString())
 				if p.i < len(p.inputs)-1 && p.nextN(1).Type == LBRACK {
-					buf.push(newByteCode(CmdGetIndex, p.lex, &IndexInfo{Extend: p.lex.GetString()}))
+					buf.push(newBytecode(CmdGetIndex, p.lex, &IndexInfo{Extend: p.lex.GetString()}))
 				}
 			}
 		case IDENTIFIER:
@@ -500,7 +502,7 @@ main:
 					if p.nextN(2).Type != RPAREN {
 						count++
 					}
-					buf.push(newByteCode(cmd, p.lex, obj))
+					buf.push(newBytecode(cmd, p.lex, obj))
 					if isContract {
 						name := StateName(block.ParentOwner().StateId, p.lex.GetString())
 						for j := len(*block) - 1; j >= 0; j-- {
@@ -515,18 +517,18 @@ main:
 						if objContract != nil && objContract.CanWrite {
 							setWritable(block)
 						}
-						bc.push(newByteCode(CmdPush, p.lex, name))
+						bc.push(newBytecode(CmdPush, p.lex, name))
 						if count == 0 {
 							count = 2
-							bc.push(newByteCode(CmdPush, p.lex, ""))
-							bc.push(newByteCode(CmdPush, p.lex, ""))
+							bc.push(newBytecode(CmdPush, p.lex, ""))
+							bc.push(newBytecode(CmdPush, p.lex, ""))
 						}
 
 						count++
 					}
 					if p.lex.GetString() == "CallContract" {
 						count++
-						bc.push(newByteCode(CmdPush, p.lex, block.ParentOwner().StateId))
+						bc.push(newBytecode(CmdPush, p.lex, block.ParentOwner().StateId))
 					}
 					parcount = append(parcount, count)
 					call = true
@@ -535,7 +537,7 @@ main:
 					if obj == nil || obj.Type != ObjVariable {
 						return p.syntaxErrorWrap(fmt.Errorf("unknown variable %v", p.lex.Value))
 					}
-					buf.push(newByteCode(CmdGetIndex, p.lex, &IndexInfo{
+					buf.push(newBytecode(CmdGetIndex, p.lex, &IndexInfo{
 						VarOffset: obj.GetVariable().Index,
 						Owner:     owner,
 					}))
@@ -545,10 +547,10 @@ main:
 				if obj.Type != ObjVariable {
 					return p.syntaxErrorWrap(fmt.Errorf("unknown variable %v", p.lex.Value))
 				}
-				cmd = newByteCode(CmdVar, p.lex, &VarInfo{Obj: obj, Owner: owner})
+				cmd = newBytecode(CmdVar, p.lex, &VarInfo{Obj: obj, Owner: owner})
 			}
 		case TAIL:
-			cmd = newByteCode(CmdUnwrapArr, p.lex, "")
+			cmd = newBytecode(CmdUnwrapArr, p.lex, "")
 		}
 		if p.lex.Type != NEWLINE {
 			prevLex = p.lex
@@ -568,13 +570,15 @@ main:
 		bc.push(buf[i])
 	}
 	if setIndex {
-		bc.push(newByteCode(CmdSetIndex, bc[len(bc)-2].Lexeme, indexInfo))
+		bc.push(newBytecode(CmdSetIndex, bc[len(bc)-2].Lexeme, indexInfo))
 	}
 	curBlock.Code = append(curBlock.Code, bc...)
+	// Reset condition context after evaluation
+	p.inIfCondition = false
 	return nil
 }
 
-func (p *Parser) parserSliceStmt(buffer, bytecode *ByteCodes) error {
+func (p *Parser) parserSliceStmt(buffer, bytecode *Bytecodes) error {
 	low, high := -1, -1
 	switch p.prevN(1).Type {
 	case LBRACK:
@@ -616,7 +620,7 @@ func (p *Parser) parserSliceStmt(buffer, bytecode *ByteCodes) error {
 	}
 
 	if low != -1 && high != -1 {
-		bytecode.push(newByteCode(CmdSliceColon, p.lex, &SliceItem{Index: [2]int{low, high}}))
+		bytecode.push(newBytecode(CmdSliceColon, p.lex, &SliceItem{Index: [2]int{low, high}}))
 		return nil
 	}
 	return p.syntaxError("invalid colon syntax")

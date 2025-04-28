@@ -1,6 +1,8 @@
 package compiler
 
-import "strconv"
+import (
+	"strconv"
+)
 
 // ObjectType Types of the compiled objects
 type ObjectType int32
@@ -40,10 +42,10 @@ type Object struct {
 	Type ObjectType
 	// Types that are assignable to Value:
 	//
-	//	*CodeBlock
-	//  *ExtFuncInfo
-	//  *ObjInfoVariable
-	//  *ObjInfoExtendVariable
+	// *CodeBlock
+	// *ExtFuncInfo
+	// *ObjInfoVariable
+	// *ObjInfoExtendVariable
 	Value isObjValue
 }
 

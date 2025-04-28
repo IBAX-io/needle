@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -28,6 +29,54 @@ func (c *ContractInfo) TxMap() map[string]*FieldInfo {
 		m[n.Name] = n
 	}
 	return m
+}
+
+const (
+	// TagOptional is the tag of the optional parameter in the contract.
+	TagOptional = "optional"
+
+	eUndefinedParam = `%s is not defined`
+)
+
+// MakeParams generates the external variables of the contract.
+func (c *ContractInfo) MakeParams(fields string, params []any) (map[string]any, error) {
+	pars := strings.Split(fields, `,`)
+	param := make(map[string]struct{})
+	for _, par := range pars {
+		if _, ok := param[par]; ok {
+			return nil, fmt.Errorf("duplicate parameter '%s'", par)
+		}
+		param[par] = struct{}{}
+	}
+	if len(pars) != len(params) {
+		return nil, fmt.Errorf("wrong number of parameters, expected %d, got %d", len(pars), len(params))
+	}
+
+	extVars := make(map[string]any)
+	fieldMap := c.TxMap()
+
+	for i, par := range pars {
+		if len(par) == 0 {
+			continue
+		}
+		_, ok := fieldMap[par]
+		if !ok {
+			continue
+		}
+		if len(par) > 0 {
+			extVars[par] = params[i]
+		}
+	}
+	for _, fie := range fieldMap {
+		if _, ok := param[fie.Name]; !ok {
+			if !strings.Contains(fie.Tags, TagOptional) {
+				return nil, fmt.Errorf(eUndefinedParam, fie.Name)
+			}
+			extVars[fie.Name] = GetFieldDefaultValue(fie.Type)
+		}
+	}
+
+	return extVars, nil
 }
 
 // FieldInfo describes the field of the data structure.

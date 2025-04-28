@@ -7,7 +7,7 @@ import (
 )
 
 /*
-	ByteCode could be described as a tree where functions and contracts are on the top level and nesting goes further
+	Bytecode could be described as a tree where functions and contracts are on the top level and nesting goes further
 	according to nesting of bracketed. Tree nodes are structures of 'CodeBlock' type. For instance,
 	 func a {
 		 if b {
@@ -58,25 +58,25 @@ type CodeBlock struct {
 	Objects map[string]*Object
 	Type    CodeBlockType
 	// Types that are assignable to Info:
-	//
-	//  *FunctionInfo
-	//  *ContractInfo
-	//  *OwnerInfo
-	//  *CodeBlockIfInfo
-	//  *CodeBlockElseInfo
-	//  *CodeBlockWhileInfo
+	// *FunctionInfo
+	// *ContractInfo
+	// *OwnerInfo
+	// *CodeBlockIfInfo
+	// *CodeBlockElseInfo
+	// *CodeBlockWhileInfo
 	Info   isCodeBlockInfo
 	Parent *CodeBlock
-	Vars   []Token
-	Code   ByteCodes
+	// Vars is a list of variables type that are declared in the block.
+	Vars []Token
+	Code Bytecodes
 	// PredeclaredVar is a list of variables that are declared in the block
 	PredeclaredVar []string
 	Children       CodeBlocks
 }
 
-func NewCodeBlock(conf *CompConfig) *CodeBlock {
+func NewCodeBlock(conf *Config) *CodeBlock {
 	if conf == nil {
-		conf = new(CompConfig)
+		conf = new(Config)
 	}
 	return &CodeBlock{
 		Objects: conf.MakeExtFunc(),
@@ -145,6 +145,9 @@ func (bc *CodeBlock) AssertVar(name string) bool {
 			return true
 		}
 	}
+	if bc.Parent != nil {
+		return bc.Parent.AssertVar(name)
+	}
 	return false
 }
 
@@ -182,7 +185,8 @@ func (bc *CodeBlock) CheckLoop() bool {
 	return false
 }
 
-// GetName returns the name of the block.
+// GetName returns the name of contract or function of the block.
+// If the block is not a contract or function, it returns an empty string.
 func (bc *CodeBlock) GetName() string {
 	var name string
 	switch bc.Type {
@@ -190,8 +194,23 @@ func (bc *CodeBlock) GetName() string {
 		name = bc.GetContractInfo().Name
 	case CodeBlockFunction:
 		name = bc.GetFunctionInfo().Name
+	default:
 	}
 	return name
+}
+
+// GetId returns the id of contract or function of the block.
+// If the block is not a contract or function, it returns 0.
+func (bc *CodeBlock) GetId() uint32 {
+	var id uint32
+	switch bc.Type {
+	case CodeBlockContract:
+		id = bc.GetContractInfo().Id
+	case CodeBlockFunction:
+		id = bc.GetFunctionInfo().Id
+	default:
+	}
+	return id
 }
 
 // GetType returns the type of the block.
@@ -261,28 +280,28 @@ func (bc *CodeBlock) IsParentContract() bool {
 func (bc *CodeBlock) SetExtendFunc(ext []ExtendFunc) {
 	for _, item := range ext {
 		fobj := reflect.ValueOf(item.Func).Type()
-		switch fobj.Kind() {
-		case reflect.Func:
-			data := &ExtFuncInfo{
-				Name:     item.Name,
-				Params:   make([]reflect.Type, fobj.NumIn()),
-				Results:  make([]reflect.Type, fobj.NumOut()),
-				Auto:     make([]string, fobj.NumIn()),
-				Variadic: fobj.IsVariadic(),
-				Func:     item.Func,
-				CanWrite: item.CanWrite,
-			}
-			for i := 0; i < fobj.NumIn(); i++ {
-				if isauto, ok := item.AutoPars[fobj.In(i).String()]; ok {
-					data.Auto[i] = isauto
-				}
-				data.Params[i] = fobj.In(i)
-			}
-			for i := 0; i < fobj.NumOut(); i++ {
-				data.Results[i] = fobj.Out(i)
-			}
-			bc.Objects[item.Name] = NewObject(data)
+		if fobj.Kind() != reflect.Func {
+			continue
 		}
+		data := &ExtFuncInfo{
+			Name:     item.Name,
+			Params:   make([]reflect.Type, fobj.NumIn()),
+			Results:  make([]reflect.Type, fobj.NumOut()),
+			Auto:     make([]string, fobj.NumIn()),
+			Variadic: fobj.IsVariadic(),
+			Func:     item.Func,
+			CanWrite: item.CanWrite,
+		}
+		for i := 0; i < fobj.NumIn(); i++ {
+			if isauto, ok := item.AutoPars[fobj.In(i).String()]; ok {
+				data.Auto[i] = isauto
+			}
+			data.Params[i] = fobj.In(i)
+		}
+		for i := 0; i < fobj.NumOut(); i++ {
+			data.Results[i] = fobj.Out(i)
+		}
+		bc.Objects[item.Name] = NewObject(data)
 	}
 }
 

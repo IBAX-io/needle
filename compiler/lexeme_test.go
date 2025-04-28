@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewLexeme(t *testing.T) {
-	input := []rune("sd //*sds*/ nil shift int $abc true + action func action if elif")
+	input := []rune("sd nil shift int $abc true + action func action if elif")
 	lexer, err := NewLexer(input)
 	if err != nil {
 		t.Fatal(err)

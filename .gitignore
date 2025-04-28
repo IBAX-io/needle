@@ -25,3 +25,6 @@ gen/
 proto/
 .antlr
 vm/testdb
+grammar/dist-java
+grammar/dist-py
+grammar/dist-js

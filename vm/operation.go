@@ -159,7 +159,7 @@ func equal(x, y any) (any, error) {
 	return comparisonOperator(x, y, "==")
 }
 
-func assign(x, y any) (any, error) {
+func assign(_, y any) (any, error) {
 	return y, nil
 }
 
@@ -167,7 +167,7 @@ func notEqual(x, y any) (any, error) {
 	return comparisonOperator(x, y, "!=")
 }
 
-func not(x, y any) (any, error) {
+func not(x, _ any) (any, error) {
 	switch x := x.(type) {
 	case bool:
 		return !x, nil

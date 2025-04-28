@@ -21,7 +21,7 @@ const (
 	statusBreak
 )
 
-type instruction func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error)
+type instruction func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error)
 
 type instructionCtx struct {
 	ci        int
@@ -50,7 +50,7 @@ func (c *instructionCtx) popLabel() int {
 var instructionTable = make(map[compiler.Cmd]instruction)
 
 func init() {
-	instructionTable[compiler.CmdCallExtend] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdCallExtend] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if err = rt.SubCost(CostExtend); err != nil {
 			return
 		}
@@ -60,7 +60,7 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compiler.CmdExtend] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdExtend] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if err = rt.SubCost(CostExtend); err != nil {
 			return
 		}
@@ -72,12 +72,12 @@ func init() {
 		rt.stack.push(val)
 		return
 	}
-	instructionTable[compiler.CmdPushStr] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdPushStr] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		rt.stack.push(code.Value.(string))
 		return
 	}
 	for i := compiler.CmdCall; i <= compiler.CmdCallVariadic; i++ {
-		instructionTable[i] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+		instructionTable[i] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 			cost := int64(CostCall)
 			if code.Object().Type == compiler.ObjExtFunc {
 				finfo := code.Object().GetExtFuncInfo()
@@ -109,11 +109,11 @@ func init() {
 			return
 		}
 	}
-	instructionTable[compiler.CmdReturn] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdReturn] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		status = statusReturn
 		return
 	}
-	instructionTable[compiler.CmdIf] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdIf] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if err = rt.stack.CheckDepth(1); err != nil {
 			return
 		}
@@ -132,7 +132,7 @@ func init() {
 		return rt.RunCode(code.CodeBlock())
 	}
 
-	instructionTable[compiler.CmdElse] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdElse] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if ctx.ifCond {
 			ctx.ifCond = false
 			return
@@ -147,12 +147,12 @@ func init() {
 		return
 	}
 
-	instructionTable[compiler.CmdAssignVar] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdAssignVar] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		ctx.assignVar = code.VarInfos()
 		for _, item := range ctx.assignVar {
 			if item.Owner == nil && item.Obj.Type == compiler.ObjExtVar {
 				n := item.Obj.GetName()
-				if rt.vm.AssertVar(n) {
+				if rt.vm.CodeBlock.AssertVar(n) {
 					err = fmt.Errorf(eSysVar, n)
 					return
 				}
@@ -161,7 +161,7 @@ func init() {
 		return
 	}
 
-	instructionTable[compiler.CmdAssign] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdAssign] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		count := len(ctx.assignVar)
 		if count > rt.stack.size() {
 			err = fmt.Errorf("not enough stack to assign")
@@ -233,16 +233,16 @@ func init() {
 		ctx.assignVar = ctx.assignVar[:0]
 		return
 	}
-	instructionTable[compiler.CmdLabel] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdLabel] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		ctx.labels = append(ctx.labels, ctx.ci)
 		return
 	}
 
-	instructionTable[compiler.CmdContinue] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdContinue] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		status = statusContinue
 		return
 	}
-	instructionTable[compiler.CmdWhile] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdWhile] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if !valueToBool(rt.stack.pop()) {
 			return
 		}
@@ -257,15 +257,15 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compiler.CmdBreak] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdBreak] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		status = statusBreak
 		return
 	}
-	instructionTable[compiler.CmdSliceColon] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdSliceColon] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		ctx.slice = code.SliceItem()
 		return
 	}
-	instructionTable[compiler.CmdGetIndex] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdGetIndex] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if err = rt.stack.CheckDepth(1); err != nil {
 			return
 		}
@@ -300,7 +300,12 @@ func init() {
 		}
 		value = rt.stack.pop()
 		rv = reflect.ValueOf(value)
-		rvt := reflect.TypeOf(value).String()
+		var rvt string
+		if value == nil {
+			rvt = "nil"
+		} else {
+			rvt = reflect.TypeOf(value).String()
+		}
 		switch {
 		case rvt == `*compiler.Map`:
 			if rkt != `string` {
@@ -393,7 +398,7 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compiler.CmdVar] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdVar] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		ivar := code.VarInfo()
 		var i int
 		for i = len(rt.blocks) - 1; i >= 0; i-- {
@@ -407,7 +412,7 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compiler.CmdSetIndex] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdSetIndex] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if err = rt.stack.CheckDepth(3); err != nil {
 			return
 		}
@@ -481,11 +486,11 @@ func init() {
 		}
 		return
 	}
-	instructionTable[compiler.CmdPush] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdPush] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		rt.stack.push(code.Value)
 		return
 	}
-	instructionTable[compiler.CmdFuncTail] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdFuncTail] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		f := code.FuncTailCmd()
 		off := rt.stack.size() - f.Count
 		if off < 0 {
@@ -498,20 +503,33 @@ func init() {
 
 		params := rt.stack.popN(f.Count)
 		names := rt.stack.pop()
+
+		var namesMap map[string][]any
 		if names == nil {
-			names = make(map[string][]any)
+			namesMap = make(map[string][]any)
+		} else {
+			oldMap, ok := names.(map[string][]any)
+			if !ok {
+				err = fmt.Errorf("invalid names type: expected map[string][]any")
+				return
+			}
+			namesMap = make(map[string][]any, len(oldMap)+1)
+			for k, v := range oldMap {
+				namesMap[k] = v
+			}
 		}
 
 		if rt.unwrap && len(params) > 0 && reflect.TypeOf(params[len(params)-1]).String() == `[]interface {}` {
 			params = append(params[:len(params)-1], params[len(params)-1].([]any)...)
 			rt.unwrap = false
 		}
-		names.(map[string][]any)[f.FuncTail.Name] = params
-		rt.stack.push(names)
+
+		namesMap[f.FuncTail.Name] = params
+		rt.stack.push(namesMap)
 		return
 	}
 
-	instructionTable[compiler.CmdUnwrapArr] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdUnwrapArr] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if reflect.TypeOf(rt.stack.peek()).String() != `[]interface {}` {
 			err = fmt.Errorf(`invalid use of '...'`)
 			return
@@ -519,7 +537,7 @@ func init() {
 		rt.unwrap = true
 		return
 	}
-	instructionTable[compiler.CmdMapInit] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdMapInit] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		var initMap *compiler.Map
 		initMap, err = rt.getResultMap(code.Map())
 		if err != nil {
@@ -528,7 +546,7 @@ func init() {
 		rt.stack.push(initMap)
 		return
 	}
-	instructionTable[compiler.CmdArrayInit] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdArrayInit] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		var initArray []any
 		initArray, err = rt.getResultArray(code.MapItemList())
 		if err != nil {
@@ -537,24 +555,30 @@ func init() {
 		rt.stack.push(initArray)
 		return
 	}
-	instructionTable[compiler.CmdError] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
-		err = VMError{Type: code.Value.(string), Err: rt.stack.pop(), Line: code.Lexeme.Line, Column: code.Lexeme.Column}
+	instructionTable[compiler.CmdError] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
+		err = VMError{
+			Type:   code.Value.(string),
+			Stack:  rt.extend[ExtendStack],
+			Err:    rt.stack.pop(),
+			Line:   code.Lexeme.Line,
+			Column: code.Lexeme.Column,
+		}
 		return
 	}
-	instructionTable[compiler.CmdNot] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdNot] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		rt.stack.push(!valueToBool(rt.stack.pop()))
 		return
 	}
-	instructionTable[compiler.CmdSign] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+	instructionTable[compiler.CmdSign] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 		if code.Lexeme.GetToken() == compiler.Add {
 			return
 		}
 		z := rt.stack.pop()
-		switch z.(type) {
+		switch z := z.(type) {
 		case float64:
-			rt.stack.push(-z.(float64))
+			rt.stack.push(-z)
 		case int64:
-			rt.stack.push(-z.(int64))
+			rt.stack.push(-z)
 		default:
 			err = errUnsupportedType
 			return
@@ -568,7 +592,7 @@ func init() {
 		compiler.CmdAssignAnd, compiler.CmdAssignOr, compiler.CmdAssignXor,
 		compiler.CmdAssignLShift, compiler.CmdAssignRShift,
 	} {
-		instructionTable[c] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+		instructionTable[c] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 			if len(ctx.assignVar) != 1 {
 				err = fmt.Errorf("assign op %s variable count must be 1", code.Cmd)
 				return
@@ -619,7 +643,7 @@ func init() {
 		compiler.CmdShiftL, compiler.CmdShiftR,
 		compiler.CmdBitAnd, compiler.CmdBitOr, compiler.CmdBitXor,
 	} {
-		instructionTable[c] = func(rt *Runtime, code *compiler.ByteCode, ctx *instructionCtx) (status int, err error) {
+		instructionTable[c] = func(rt *Runtime, code *compiler.Bytecode, ctx *instructionCtx) (status int, err error) {
 			var z any
 			y := rt.stack.pop()
 			x := rt.stack.pop()

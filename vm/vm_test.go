@@ -347,14 +347,11 @@ func tailMain(i int).t(s string)int string{return 999 s}
 	}
 }`), assert.NoError},
 	}
-	limit := int64(27000)
+	gasLimit := int64(27000)
 	extend := map[string]any{
-		ExtendTxCost:           limit,
-		ExtendGenBlock:         true,
-		ExtendTimeLimit:        int64(1000),
-		ExtendParentContract:   ``,
-		ExtendOriginalContract: ``,
-		ExtendThisContract:     ``,
+		ExtendTxCost:    gasLimit,
+		ExtendGenBlock:  false,
+		ExtendTimeLimit: int64(1000),
 		"Println": func(a1, a2 int64, a ...int64) int64 {
 			fmt.Println("extFn", a1, a2, a)
 			return 2323
@@ -369,7 +366,7 @@ func tailMain(i int).t(s string)int string{return 999 s}
 	start := time.Now()
 	vm := NewVM()
 	vm.SetExtendCost(getcost)
-	build := &compiler.CompConfig{
+	build := &compiler.Config{
 		Owner:     &compiler.OwnerInfo{StateId: 1},
 		PreVar:    []string{"key_id"},
 		Func:      obj,
@@ -381,7 +378,7 @@ func tailMain(i int).t(s string)int string{return 999 s}
 			if !tt.wantErr(t, vm.Compile(tt.args, build)) {
 				return
 			}
-			ret, err := vm.Call(tt.method, extend)
+			ret, err := vm.Call(tt.method, extend, gasLimit)
 			if err != nil && !errors.As(err, &VMError{}) {
 				t.Error(err)
 				return
@@ -389,7 +386,7 @@ func tailMain(i int).t(s string)int string{return 999 s}
 			t.Log(ret, err)
 		})
 	}
-	fmt.Println("time used:", time.Since(start), "gas:", limit-extend[ExtendTxCost].(int64))
+	fmt.Println("time used:", time.Since(start), "gas:", gasLimit-extend[ExtendTxCost].(int64))
 }
 
 func getcost(name string) int64 {
@@ -402,7 +399,7 @@ func getcost(name string) int64 {
 }
 
 var obj = []compiler.ExtendFunc{
-	{Name: "lenArray", Func: lenArray},
+	{Name: "Len", Func: lenArray},
 	{Name: "str", Func: str},
 	{Name: "Int", Func: ValueToInt},
 	{Name: "Money", Func: ValueToDecimal},

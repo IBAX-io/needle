@@ -3,8 +3,10 @@ package vm
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/IBAX-io/needle/compiler"
 
@@ -26,9 +28,10 @@ func init() {
 
 // VM is the main type of the virtual machine.
 type VM struct {
-	*compiler.CodeBlock
+	codeBlockMu sync.RWMutex
+	CodeBlock   *compiler.CodeBlock
 	// a function returns the cost of executing an external golang function.
-	ExtCost func(string) int64
+	ExtCost func(fnName string) int64
 	// if the function is in the list, the first of result must be a int64 that the cost of executing.
 	FuncCallsDB map[string]struct{}
 	// extern mode of compilation. an inter flag indicating whether a contract is an external contract.
@@ -55,21 +58,17 @@ func NewVM() *VM {
 		}},
 		{Name: "Sprintf", Func: fmt.Sprintf},
 		{Name: "Bytes", Func: func(data any) []byte {
-			return []byte(fmt.Sprintf("%v", data.(interface{})))
+			return []byte(fmt.Sprintf("%v", data))
 		}},
 	}
-	var v []string
-	for p := range sysVars {
-		v = append(v, p)
-	}
 	vm := &VM{
-		CodeBlock: compiler.NewCodeBlock(&compiler.CompConfig{
+		CodeBlock: compiler.NewCodeBlock(&compiler.Config{
 			Func:   fn,
-			PreVar: v,
+			PreVar: GetSysVarsKeys(),
 		}),
 		Extern:      compiler.IgnoreIdent,
 		FuncCallsDB: make(map[string]struct{}),
-		logger:      log.WithFields(log.Fields{"type": VMErr, "extern": true}),
+		logger:      log.WithFields(log.Fields{"type": VMErr, "extern": compiler.IgnoreIdent}),
 	}
 	return vm
 }
@@ -81,23 +80,43 @@ func GetVM() *VM {
 	return _vm.vm
 }
 
-var (
-	smartObjects map[string]*compiler.Object
-	children     uint32
-)
+type SavePoint struct {
+	objects       sync.Map
+	childrenCount atomic.Uint32
+}
 
-func SavepointSmartVMObjects() {
-	smartObjects = make(map[string]*compiler.Object)
-	for k, v := range GetVM().Objects {
-		smartObjects[k] = v
+// CreateSavePoint creates a snapshot of the VM's current state,
+// storing all CodeBlock Objects and Children count.
+// This allows restoring to this state later via RestoreSavePoint.
+func (vm *VM) CreateSavePoint() *SavePoint {
+	sp := &SavePoint{}
+	vm.codeBlockMu.RLock()
+	for k, v := range vm.CodeBlock.Objects {
+		sp.objects.Store(k, v)
 	}
-	children = uint32(len(GetVM().Children))
+	sp.childrenCount.Store(uint32(len(vm.CodeBlock.Children)))
+	vm.codeBlockMu.RUnlock()
+	return sp
+}
+
+// RestoreSavePoint restore the virtual machine to the state of the save point
+func (vm *VM) RestoreSavePoint(sp *SavePoint) {
+	vm.codeBlockMu.Lock()
+	defer vm.codeBlockMu.Unlock()
+
+	vm.CodeBlock.Objects = make(map[string]*compiler.Object)
+	sp.objects.Range(func(k, v interface{}) bool {
+		vm.CodeBlock.Objects[k.(string)] = v.(*compiler.Object)
+		return true
+	})
+
+	vm.CodeBlock.Children = vm.CodeBlock.Children[:sp.childrenCount.Load()]
 }
 
 // Call executes the name object with the specified params and extended variables and functions.
-func (vm *VM) Call(name string, extend map[string]any) (ret []any, err error) {
+func (vm *VM) Call(name string, extend map[string]any, costLimit int64) (ret []any, err error) {
 	split := strings.Split(name, ".")
-	obj := vm.GetObjByName(split[0])
+	obj := vm.CodeBlock.GetObjByName(split[0])
 	if obj == nil {
 		return nil, fmt.Errorf("object %s is empty", name)
 	}
@@ -105,7 +124,7 @@ func (vm *VM) Call(name string, extend map[string]any) (ret []any, err error) {
 		extend = make(map[string]any)
 	}
 	var block *compiler.CodeBlock
-	rt := NewRuntime(vm, extend, extend[ExtendTxCost].(int64))
+	rt := NewRuntime(vm, extend, costLimit)
 	if obj.IsCodeBlockContract() {
 		block = obj.GetCodeBlock().GetObjByName(split[1]).GetCodeBlock()
 	} else if obj.IsCodeBlockFunction() {
@@ -118,21 +137,6 @@ func (vm *VM) Call(name string, extend map[string]any) (ret []any, err error) {
 	extend[ExtendTxCost] = rt.CostRemain()
 	fmt.Println("gas:", rt.CostUsed())
 	return ret, err
-}
-
-func RollbackSmartVMObjects() {
-	GetVM().Objects = make(map[string]*compiler.Object)
-	for k, v := range smartObjects {
-		GetVM().Objects[k] = v
-	}
-
-	GetVM().Children = GetVM().Children[:children]
-	smartObjects = nil
-}
-
-func ReleaseSmartVMObjects() {
-	smartObjects = nil
-	children = 0
 }
 
 // CompileEval compiles the source code and loads the byte-code into the virtual machine.
@@ -155,7 +159,6 @@ func CompileEval(vm *VM, src string, prefix uint32) error {
 	if !ok {
 		return fmt.Errorf(eConditionNotAllowed, src)
 	}
-	// compileEval
 	err := vm.CompileEval(src, prefix)
 	if err != nil {
 		return err
@@ -191,16 +194,16 @@ func GetContractById(vm *VM, id int32) *compiler.ContractInfo {
 		id = int32(tableId + vm.ShiftContract)
 	}
 	idcont := id
-	if len(vm.Children) <= int(idcont) {
+	if len(vm.CodeBlock.Children) <= int(idcont) {
 		return nil
 	}
-	if vm.Children[idcont] == nil || vm.Children[idcont].Type != compiler.CodeBlockContract {
+	if vm.CodeBlock.Children[idcont] == nil || vm.CodeBlock.Children[idcont].Type != compiler.CodeBlockContract {
 		return nil
 	}
-	if tableId > 0 && vm.Children[idcont].GetContractInfo().Owner.TableId != tableId {
+	if tableId > 0 && vm.CodeBlock.Children[idcont].GetContractInfo().Owner.TableId != tableId {
 		return nil
 	}
-	return vm.Children[idcont].GetContractInfo()
+	return vm.CodeBlock.Children[idcont].GetContractInfo()
 }
 
 // RunContractById executes the contract with the specified id and methods.
@@ -214,7 +217,7 @@ func RunContractById(vm *VM, id int32, methods []string, extend map[string]any) 
 
 // RunContractByName executes the contract with the specified name and methods.
 func RunContractByName(vm *VM, name string, methods []string, extend map[string]any) error {
-	obj, ok := vm.Objects[name]
+	obj, ok := vm.CodeBlock.Objects[name]
 	if !ok {
 		return fmt.Errorf(`unknown object '%s'`, name)
 	}
@@ -253,10 +256,12 @@ func Run(vm *VM, block *compiler.CodeBlock, extend map[string]any) (ret []any, e
 	ret, err = rt.Run(block)
 	extend[ExtendTxCost] = rt.CostRemain()
 	if err != nil {
-		vm.logger.WithFields(log.Fields{
-			"type": VMErr, "error": err, "original_contract": extend[ExtendOriginalContract],
-			"this_contract": extend[ExtendThisContract],
-		}).Error("running block in smart vm")
+		// vm.logger.WithFields(log.Fields{
+		// 	"type":              VMErr,
+		// 	"error":             err,
+		// 	"original_contract": extend[ExtendOriginalContract],
+		// 	"this_contract":     extend[ExtendThisContract],
+		// }).Error("running block in smart vm")
 		return nil, err
 	}
 	return
@@ -265,7 +270,7 @@ func Run(vm *VM, block *compiler.CodeBlock, extend map[string]any) (ret []any, e
 // ObjectExists checks if the object with the specified name exists in the virtual machine.
 func ObjectExists(vm *VM, name string, state uint32) bool {
 	name = compiler.StateName(state, name)
-	_, ok := vm.Objects[name]
+	_, ok := vm.CodeBlock.Objects[name]
 	return ok
 }
 
@@ -283,42 +288,29 @@ func (vm *VM) SetFuncCallsDB(funcCallsDB map[string]struct{}) *VM {
 
 // AppendPreVar appends the predeclared variables to the virtual machine.
 func (vm *VM) AppendPreVar(preVar []string) *VM {
-	vm.PredeclaredVar = append(vm.PredeclaredVar, preVar...)
+	vm.CodeBlock.PredeclaredVar = append(vm.CodeBlock.PredeclaredVar, preVar...)
 	return vm
 }
 
 // FlushExtern switches off the extern mode of the compilation.
 func (vm *VM) FlushExtern() {
 	vm.Extern = compiler.IgnoreNone
-	return
+	vm.logger = log.WithFields(log.Fields{"extern": compiler.IgnoreNone})
 }
 
-// MergeCompConfig merges the virtual machine configuration with the compiler configuration.
-func (vm *VM) MergeCompConfig(conf *compiler.CompConfig) *compiler.CompConfig {
-	conf.MakeConfig()
-	for s, info := range vm.Objects {
-		conf.Objects[s] = info
-	}
-	m := make(map[string]struct{})
-
-	for _, s := range vm.PredeclaredVar {
-		m[s] = struct{}{}
-	}
-	for _, s := range conf.PreVar {
-		m[s] = struct{}{}
-	}
-	var preVar []string
-	for s := range m {
-		preVar = append(preVar, s)
-	}
-	conf.PreVar = preVar
-	vm.PredeclaredVar = preVar
+// MergeCompilerConfig merges the virtual machine configuration with the compiler configuration.
+func (vm *VM) MergeCompilerConfig(conf *compiler.Config) *compiler.Config {
+	conf.EnsureDefault()
+	conf.SetObjects(vm.CodeBlock.Objects)
+	v := append(vm.CodeBlock.PredeclaredVar, conf.PreVar...)
+	slices.Sort(v)
+	conf.PreVar = slices.Compact(v)
 	return conf
 }
 
 // Compile compiles a source code and loads the byte-code into the virtual machine.
-func (vm *VM) Compile(input []rune, conf *compiler.CompConfig) error {
-	root, err := compiler.CompileBlock(input, vm.MergeCompConfig(conf))
+func (vm *VM) Compile(input []rune, conf *compiler.Config) error {
+	root, err := compiler.CompileBlock(input, vm.MergeCompilerConfig(conf))
 	if err != nil {
 		return err
 	}
@@ -330,18 +322,21 @@ const flushMark = 1 << 20
 
 // FlushBlock loads the compiled CodeBlock into the virtual machine.
 func (vm *VM) FlushBlock(root *compiler.CodeBlock) {
-	shift := len(vm.Children)
+	vm.codeBlockMu.Lock()
+	defer vm.codeBlockMu.Unlock()
+
+	shift := len(vm.CodeBlock.Children)
 	for key, item := range root.Objects {
-		if cur, ok := vm.Objects[key]; ok {
+		cur, ok := vm.CodeBlock.Objects[key]
+		if ok {
 			if cur.IsCodeBlockContract() {
 				item.GetContractInfo().Id = cur.GetContractInfo().Id + flushMark
 			}
 			if cur.IsCodeBlockFunction() {
 				item.GetFunctionInfo().Id = cur.GetFunctionInfo().Id + flushMark
-				vm.Objects[key].Value = item.Value
 			}
 		}
-		vm.Objects[key] = item
+		vm.CodeBlock.Objects[key] = item
 	}
 	for _, item := range root.Children {
 		if item == nil {
@@ -351,7 +346,7 @@ func (vm *VM) FlushBlock(root *compiler.CodeBlock) {
 		case compiler.CodeBlockContract:
 			if item.GetContractInfo().Id > flushMark {
 				item.GetContractInfo().Id -= flushMark
-				vm.Children[item.GetContractInfo().Id] = item
+				vm.CodeBlock.Children[item.GetContractInfo().Id] = item
 				shift--
 				continue
 			}
@@ -361,13 +356,14 @@ func (vm *VM) FlushBlock(root *compiler.CodeBlock) {
 		case compiler.CodeBlockFunction:
 			if item.GetFunctionInfo().Id > flushMark {
 				item.GetFunctionInfo().Id -= flushMark
-				vm.Children[item.GetFunctionInfo().Id] = item
+				vm.CodeBlock.Children[item.GetFunctionInfo().Id] = item
 				shift--
 				continue
 			}
 			item.Parent = vm.CodeBlock
 			item.GetFunctionInfo().Id += uint32(shift)
 		}
-		vm.Children = append(vm.Children, item)
+
+		vm.CodeBlock.Children = append(vm.CodeBlock.Children, item)
 	}
 }

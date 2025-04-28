@@ -61,6 +61,9 @@ func handleBlockDecl(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	prev := (*buf)[len(*buf)-2]
 	block := buf.peek()
 	name := lex.GetString()
+	if err := canIdent(name); err != nil {
+		return err
+	}
 	switch state {
 	case stateBlock:
 		if prev.Type != CodeBlockOwner {
@@ -92,12 +95,12 @@ func handleFuncResult(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleReturn(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdReturn, lex, ""))
+	buf.peek().Code.push(newBytecode(CmdReturn, lex, ""))
 	return nil
 }
 
 func handleCmdError(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdError, lex, lex.Interface()))
+	buf.peek().Code.push(newBytecode(CmdError, lex, lex.Interface()))
 	return nil
 }
 
@@ -177,7 +180,8 @@ func handleParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 // handleDeclTail the name of the tail function.
 func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	if err := canIdent(lex.GetString()); err != nil {
+	val := lex.GetString()
+	if err := canIdent(val); err != nil {
 		return err
 	}
 
@@ -185,7 +189,7 @@ func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if !info.HasTails() {
 		info.Tails = make(map[string]FuncTail)
 	}
-	if _, ok := info.Tails[lex.GetString()]; ok {
+	if _, ok := info.Tails[val]; ok {
 		return fmt.Errorf("tail func redeclared '%s'", lex.Value)
 	}
 	for k := range info.Tails {
@@ -193,8 +197,8 @@ func handleDeclTail(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 			delete(info.Tails, k)
 		}
 	}
-	info.Tails[`_`+lex.GetString()] = FuncTail{
-		Name:   lex.GetString(),
+	info.Tails[`_`+val] = FuncTail{
+		Name:   val,
 		Params: make([]Token, 0),
 		Offset: make([]int, 0),
 	}
@@ -252,24 +256,24 @@ func handleTailParamType(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 
 func handleIf(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.peek().SetInfo(&CodeBlockIfInfo{})
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdIf, lex, buf.peek()))
+	buf.get(len(*buf) - 2).Code.push(newBytecode(CmdIf, lex, buf.peek()))
 	return nil
 }
 
 func handleWhile(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	buf.peek().SetInfo(&CodeBlockWhileInfo{})
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdWhile, lex, buf.peek()))
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdContinue, lex, ""))
+	buf.get(len(*buf) - 2).Code.push(newBytecode(CmdWhile, lex, buf.peek()))
+	buf.get(len(*buf) - 2).Code.push(newBytecode(CmdContinue, lex, ""))
 	return nil
 }
 
 func handleContinue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdContinue, lex, ""))
+	buf.peek().Code.push(newBytecode(CmdContinue, lex, ""))
 	return nil
 }
 
 func handleBreak(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	buf.peek().Code.push(newByteCode(CmdBreak, lex, ""))
+	buf.peek().Code.push(newBytecode(CmdBreak, lex, ""))
 	return nil
 }
 
@@ -279,16 +283,17 @@ func handleAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		prev []*VarInfo
 		ivar VarInfo
 	)
+	val := lex.GetString()
 	if lex.Type == EXTEND {
-		if buf.get(0).AssertVar(lex.GetString()) {
-			return fmt.Errorf(eSysVar, lex.GetString())
+		if buf.get(0).AssertVar(val) {
+			return fmt.Errorf(eSysVar, val)
 		}
-		obj := NewObject(&ObjInfoExtendVariable{Name: lex.GetString()})
+		obj := NewObject(&ObjInfoExtendVariable{Name: val})
 		ivar = VarInfo{Obj: obj, Owner: nil}
 	} else {
-		obj, owner := findVar(lex.GetString(), buf)
+		obj, owner := findVar(val, buf)
 		if obj == nil || obj.Type != ObjVariable {
-			return fmt.Errorf(`unknown variable %s`, lex.GetString())
+			return fmt.Errorf(`unknown variable %s`, val)
 		}
 		ivar = VarInfo{Obj: obj, Owner: owner}
 	}
@@ -299,16 +304,16 @@ func handleAssignVar(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	}
 	prev = append(prev, &ivar)
 	if len(prev) == 1 {
-		block.Code.push(newByteCode(CmdAssignVar, lex, prev))
+		block.Code.push(newBytecode(CmdAssignVar, lex, prev))
 	} else {
-		block.Code[len(block.Code)-1] = newByteCode(CmdAssignVar, lex, prev)
+		block.Code[len(block.Code)-1] = newBytecode(CmdAssignVar, lex, prev)
 	}
 	return nil
 }
 
 func handleAssign(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 	if lex.Type != OPERATOR {
-		buf.peek().Code.push(newByteCode(CmdAssign, lex, ""))
+		buf.peek().Code.push(newBytecode(CmdAssign, lex, ""))
 	} else {
 		if !lex.GetToken().Contains([]Token{
 			AddEq, SubEq, MulEq, DivEq,
@@ -356,7 +361,8 @@ func handleConstValue(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 }
 
 func handleField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
-	if err := canIdent(lex.GetString()); err != nil {
+	val := lex.GetString()
+	if err := canIdent(val); err != nil {
 		return err
 	}
 	info := buf.peek().GetContractInfo()
@@ -366,10 +372,10 @@ func handleField(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		return fmt.Errorf(eDataType)
 	}
 
-	if buf.get(0).AssertVar(lex.GetString()) {
-		return fmt.Errorf(eDataParamVarCollides, lex.GetString(), info.Name)
+	if buf.get(0).AssertVar(val) {
+		return fmt.Errorf(eDataParamVarCollides, val, info.Name)
 	}
-	*field = append(*field, &FieldInfo{Name: lex.GetString(), Type: UNKNOWN})
+	*field = append(*field, &FieldInfo{Name: val, Type: UNKNOWN})
 	return nil
 }
 
@@ -437,6 +443,6 @@ func handleElse(buf *CodeBlocks, state stateType, lex *Lexeme) error {
 		return fmt.Errorf("there is not if before %v", lex.Type)
 	}
 	buf.peek().SetInfo(&CodeBlockElseInfo{})
-	buf.get(len(*buf) - 2).Code.push(newByteCode(CmdElse, lex, buf.peek()))
+	buf.get(len(*buf) - 2).Code.push(newBytecode(CmdElse, lex, buf.peek()))
 	return nil
 }

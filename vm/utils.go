@@ -119,11 +119,11 @@ func valueToBool(v any) bool {
 	case []uint8:
 		return len(val) > 0
 	case []any:
-		return val != nil && len(val) > 0
+		return len(val) > 0
 	case map[string]any:
-		return val != nil && len(val) > 0
+		return len(val) > 0
 	case map[string]string:
-		return val != nil && len(val) > 0
+		return len(val) > 0
 	case *compiler.Map:
 		return val != nil && val.Size() > 0
 	default:

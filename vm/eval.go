@@ -1,6 +1,10 @@
 package vm
 
-import "github.com/IBAX-io/needle/compiler"
+import (
+	"sync"
+
+	"github.com/IBAX-io/needle/compiler"
+)
 
 // evalCode is a struct that represents a piece of code that can be evaluated.
 // It contains the source code as a string and a CodeBlock that represents the compiled code.
@@ -10,13 +14,11 @@ type evalCode struct {
 }
 
 // evals is a map that associates a checksum of the source code with the corresponding evalCode.
-var evals = make(map[uint64]*evalCode)
+var evals sync.Map
 
-// CompileEval compiles the source code and stores it in the evals map.
-func (vm *VM) CompileEval(input string, state uint32) error {
-	source := `func eval bool { return ` + input + `}`
+func Evalsource(input string) string {
 	if input == `1` || input == `0` {
-		source = `
+		return `
 		func eval bool { 
 			if ` + input + ` == 1 {
 				return true
@@ -25,13 +27,19 @@ func (vm *VM) CompileEval(input string, state uint32) error {
 			}
 		}`
 	}
+	return `func eval bool { return ` + input + `}`
+}
 
-	block, err := compiler.CompileBlock([]rune(source), vm.MergeCompConfig(&compiler.CompConfig{Owner: &compiler.OwnerInfo{StateId: state}}))
+// CompileEval compiles the source code and stores it in the evals map.
+func (vm *VM) CompileEval(input string, state uint32) error {
+	source := Evalsource(input)
+	conf := &compiler.Config{Owner: &compiler.OwnerInfo{StateId: state}}
+	block, err := compiler.CompileBlock([]rune(source), vm.MergeCompilerConfig(conf))
 	if err != nil {
 		return err
 	}
 	crc := CalcChecksum([]byte(input))
-	evals[crc] = &evalCode{Source: input, Code: block}
+	evals.Store(crc, &evalCode{Source: input, Code: block})
 	return nil
 }
 
@@ -41,12 +49,15 @@ func (vm *VM) EvalIf(input string, state uint32, extend map[string]any) (bool, e
 		return true, nil
 	}
 	crc := CalcChecksum([]byte(input))
-	if eval, ok := evals[crc]; !ok || eval.Source != input {
+	eval, ok := evals.Load(crc)
+	if !ok || eval.(*evalCode).Source != input {
 		if err := vm.CompileEval(input, state); err != nil {
 			return false, err
 		}
+		eval, _ = evals.Load(crc)
 	}
-	ret, err := NewRuntime(vm, extend, extend[ExtendTxCost].(int64)).Run(evals[crc].Code.Children[0])
+	code, _ := eval.(*evalCode)
+	ret, err := NewRuntime(vm, extend, extend[ExtendTxCost].(int64)).Run(code.Code.Children[0])
 	if err == nil {
 		if len(ret) == 0 {
 			return false, nil

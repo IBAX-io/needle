@@ -2,11 +2,8 @@ package vm
 
 import (
 	"fmt"
-	"strings"
-
-	"github.com/IBAX-io/needle/compiler"
-
-	log "github.com/sirupsen/logrus"
+	"reflect"
+	"sync"
 )
 
 const (
@@ -24,11 +21,6 @@ const (
 	ExtendResult = `result` // result of the contract
 )
 
-const (
-	// TagOptional is the tag of the optional parameter in the contract.
-	TagOptional = "optional"
-)
-
 // system variable cannot be changed through the contract
 var sysVars = map[string]struct{}{
 	ExtendParentContract:   {},
@@ -42,212 +34,215 @@ var sysVars = map[string]struct{}{
 	ExtendSc:               {},
 }
 
-type extendInfo struct {
-	genBlock  bool
-	txCost    int64
-	timeLimit int64
-	rt        *Runtime
+var sysExtendTypes = map[string]reflect.Type{
+	ExtendParentContract:   reflect.TypeOf(""),
+	ExtendOriginalContract: reflect.TypeOf(""),
+	ExtendThisContract:     reflect.TypeOf(""),
+	ExtendTimeLimit:        reflect.TypeOf(int64(0)),
+	ExtendGenBlock:         reflect.TypeOf(true),
+	ExtendTxCost:           reflect.TypeOf(int64(0)),
+	ExtendStack:            reflect.TypeOf([]any{}),
+	ExtendSc:               reflect.TypeOf((*Stacker)(nil)).Elem(),
+	ExtendRt:               reflect.TypeOf(&Runtime{}),
+	ExtendResult:           reflect.TypeOf((*any)(nil)).Elem(),
 }
 
-func (rt *Runtime) setExtendBy(key string, value any) {
-	if _, ok := rt.extend[key]; !ok {
-		rt.extend[key] = value
+func GetSysVarsKeys() []string {
+	keys := make([]string, 0, len(sysVars))
+	for key := range sysVars {
+		keys = append(keys, key)
 	}
+	return keys
 }
 
-func (rt *Runtime) loadExtendBy(key string) *extendInfo {
-	e := &extendInfo{}
-	extend, ok := rt.extend[key]
+type varInfo struct {
+	value     any
+	typ       reflect.Type
+	isMutable bool
+	isSystem  bool
+}
+
+type BaseExtendManager struct {
+	mu      sync.RWMutex
+	values  sync.Map
+	memory  int64
+	memVars map[string]int64
+}
+
+// NewExtendManager creates a new extend manager
+func NewExtendManager() *BaseExtendManager {
+	manager := &BaseExtendManager{
+		memVars: make(map[string]int64),
+	}
+	for name, typ := range sysExtendTypes {
+		defaultValue := reflect.Zero(typ).Interface()
+		manager.registerVar(name, defaultValue, name == ExtendResult, true)
+	}
+	return manager
+}
+
+func (m *BaseExtendManager) registerVar(name string, value any, isMutable, isSystem bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, loaded := m.values.Load(name); loaded {
+		return fmt.Errorf("variable %s already registered", name)
+	}
+
+	typ := reflect.TypeOf(value)
+
+	m.values.Store(name, &varInfo{
+		value:     value,
+		typ:       typ,
+		isMutable: isMutable,
+		isSystem:  isSystem,
+	})
+
+	if value != nil {
+		m.updateMemoryUsage(name, value)
+	}
+
+	return nil
+}
+
+// Set sets the value of the variable with the given key
+func (m *BaseExtendManager) Set(key string, value any) error {
+	m.mu.RLock()
+	rawInfo, ok := m.values.Load(key)
+	m.mu.RUnlock()
 	if !ok {
-		return e
+		rawInfo = &varInfo{
+			isMutable: true,
+			typ:       reflect.TypeOf(value),
+		}
 	}
-	switch key {
-	case ExtendGenBlock:
-		e.genBlock, _ = extend.(bool)
-	case ExtendTxCost:
-		e.txCost, _ = extend.(int64)
-	case ExtendTimeLimit:
-		e.timeLimit, _ = extend.(int64)
-	case ExtendRt:
-		e.rt, _ = extend.(*Runtime)
+	info := rawInfo.(*varInfo)
+
+	if !info.isMutable && key != ExtendResult {
+		return fmt.Errorf("variable %s is immutable-", key)
 	}
-	return e
+
+	valueType := reflect.TypeOf(value)
+
+	if !valueType.AssignableTo(info.typ) {
+		return fmt.Errorf("variable %s requires type %v, got %v", key, info.typ, valueType)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	info.value = value
+	m.updateMemoryUsage(key, value)
+	return nil
 }
 
-// ExecContract runs the name contract where fields contains the list of parameters and
-// params are the values of parameters.
-func ExecContract(rt *Runtime, name, fields string, params ...any) (any, error) {
-	if err := rt.SubCost(CostContract); err != nil {
-		return nil, err
-	}
-
-	obj, ok := rt.vm.Objects[name]
-	if !ok || !obj.IsCodeBlockContract() {
-		return nil, fmt.Errorf(eUnknownContract, name)
-	}
-
-	// check if there is loop in contract
-	if _, ok := rt.used[name]; ok {
-		return nil, fmt.Errorf(eContractLoop, name)
-	}
-	rt.used[name] = struct{}{}
-	defer delete(rt.used, name)
-	// save previous extend variables of current contract
-	prevExtend := make(map[string]any)
-	for key, item := range rt.extend {
-		if rt.vm.AssertVar(key) {
-			continue
-		}
-		prevExtend[key] = item
-		delete(rt.extend, key)
-	}
-	extVars, err := genExtVars(obj.GetContractInfo(), fields, params)
-	if err != nil {
-		return nil, err
-	}
-
-	// define extend variables to next contract from parameters
-	for key, item := range extVars {
-		rt.extend[key] = item
-	}
-
-	prevthis := rt.extend[ExtendThisContract]
-	_, nameContract := ParseName(name)
-	rt.extend[ExtendThisContract] = nameContract
-
-	prevparent := rt.extend[ExtendParentContract]
-	parent := ``
-	for i := len(rt.blocks) - 1; i >= 0; i-- {
-		b := rt.blocks[i].Block
-		if b.Type == compiler.CodeBlockFunction &&
-			b.Parent != nil &&
-			b.Parent.Type == compiler.CodeBlockContract {
-			parent = b.Parent.GetContractInfo().Name
-			fid, fname := ParseName(parent)
-			cid, _ := ParseName(name)
-			if len(fname) > 0 {
-				if fid == 0 {
-					parent = `@` + fname
-				} else if fid == cid {
-					parent = fname
-				}
-			}
-			break
-		}
-	}
-
-	var stack Stacker
-	if stack, ok = rt.extend[ExtendSc].(Stacker); ok {
-		if err := stack.AppendStack(name); err != nil {
-			return nil, err
-		}
-	}
-	for _, method := range []string{compiler.CONDITIONS.ToString(), compiler.ACTION.ToString()} {
-		if block, ok := obj.GetCodeBlock().Objects[method]; ok && block.IsCodeBlockFunction() {
-			rtemp := NewRuntime(rt.vm, rt.extend, rt.costRemain)
-			rt.extend[ExtendParentContract] = parent
-			rtemp.used = rt.used
-			_, err = rtemp.Run(block.GetCodeBlock())
-			rt.costRemain = rtemp.CostRemain()
-			if err != nil {
-				break
-			}
-		}
-	}
-	if stack != nil {
-		stack.PopStack(name)
-	}
-	if err != nil {
-		return nil, err
-	}
-	rt.extend[ExtendParentContract] = prevparent
-	rt.extend[ExtendThisContract] = prevthis
-	result := rt.extend[ExtendResult]
-	for key := range rt.extend {
-		if rt.vm.AssertVar(key) {
-			continue
-		}
-		delete(rt.extend, key)
-	}
-
-	for key, item := range prevExtend {
-		rt.extend[key] = item
-	}
-	return result, nil
-}
-
-// CallContract executes the name contract in the state with specified parameters.
-func CallContract(rt *Runtime, state uint32, name string, params *compiler.Map) (any, error) {
-	name = compiler.StateName(state, name)
-	_, ok := rt.vm.Objects[name]
+func (m *BaseExtendManager) Get(key string) (any, bool) {
+	m.mu.RLock()
+	rawInfo, ok := m.values.Load(key)
+	m.mu.RUnlock()
 	if !ok {
-		log.WithFields(log.Fields{"contract_name": name, "type": ContractError}).Error("unknown contract")
-		return nil, fmt.Errorf(eUnknownContract, name)
+		return nil, false
 	}
-	if params == nil {
-		params = compiler.NewMap()
-	}
-	return ExecContract(rt, name, strings.Join(params.Keys(), `,`), params.Values()...)
+	return rawInfo.(*varInfo).value, true
 }
 
-// GetSettings returns the value of the setting of the contract.
-func GetSettings(rt *Runtime, cntname, name string) (any, error) {
-	contract, found := rt.vm.Objects[cntname]
-	if !found || contract.GetCodeBlock() == nil {
-		log.WithFields(log.Fields{"contract_name": cntname, "type": ContractError}).Error("unknown contract")
-		return nil, fmt.Errorf("unknown contract %s", cntname)
+func (m *BaseExtendManager) IsSysVar(key string) bool {
+	rawInfo, ok := m.values.Load(key)
+	if !ok {
+		return false
 	}
-	info := contract.GetContractInfo()
-	if info != nil {
-		if val, ok := info.Settings[name]; ok {
-			return val, nil
-		}
-	}
-	return ``, nil
+	return rawInfo.(*varInfo).isSystem
 }
 
-// MemoryUsage returns the memory usage of the runtime.
-func MemoryUsage(rt *Runtime) int64 {
-	return rt.mem
+func (m *BaseExtendManager) GetImmutableVarKeys() []string {
+	var immutableKeys []string
+	m.values.Range(func(key, value any) bool {
+		info := value.(*varInfo)
+		if !info.isMutable {
+			immutableKeys = append(immutableKeys, key.(string))
+		}
+		return true
+	})
+
+	return immutableKeys
 }
 
-// genExtVars generates the external variables of the contract.
-func genExtVars(contract *compiler.ContractInfo, fields string, params []any) (map[string]any, error) {
-	pars := strings.Split(fields, `,`)
-	param := make(map[string]struct{})
-	for _, par := range pars {
-		if _, ok := param[par]; ok {
-			return nil, fmt.Errorf("duplicate parameter '%s'", par)
-		}
-		param[par] = struct{}{}
+func (m *BaseExtendManager) updateMemoryUsage(key string, newValue any) {
+	oldMem := m.memVars[key]
+	newMem := calcMem(newValue)
+
+	m.memory += newMem - oldMem
+
+	if newMem > 0 {
+		m.memVars[key] = newMem
+	} else {
+		delete(m.memVars, key)
 	}
-	if len(pars) != len(params) {
-		return nil, fmt.Errorf("wrong number of parameters, expected %d, got %d", len(pars), len(params))
+}
+
+type ExtendState struct {
+	Values map[string]any
+	Memory int64
+}
+
+func (m *BaseExtendManager) Snapshot() *ExtendState {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	state := &ExtendState{
+		Values: make(map[string]any),
+		Memory: m.memory,
 	}
 
-	extVars := make(map[string]any)
-	fieldMap := contract.TxMap()
+	m.values.Range(func(key, value any) bool {
+		info := value.(*varInfo)
+		state.Values[key.(string)] = info.value
+		return true
+	})
 
-	for i, par := range pars {
-		if len(par) == 0 {
-			continue
-		}
-		_, ok := fieldMap[par]
-		if !ok {
-			continue
-		}
-		if len(par) > 0 {
-			extVars[par] = params[i]
+	return state
+}
+
+// Restore restores the state of the extend manager
+func (m *BaseExtendManager) Restore(state *ExtendState) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.values = sync.Map{}
+	m.memory = 0
+	m.memVars = make(map[string]int64)
+
+	m.memory = state.Memory
+	for key, value := range state.Values {
+		info, _ := m.values.Load(key)
+		if info != nil {
+			varInfo := info.(*varInfo)
+			varInfo.value = value
+			m.updateMemoryUsage(key, value)
 		}
 	}
-	for _, fie := range fieldMap {
-		if _, ok := param[fie.Name]; !ok {
-			if !strings.Contains(fie.Tags, TagOptional) {
-				return nil, fmt.Errorf(eUndefinedParam, fie.Name)
-			}
-			extVars[fie.Name] = compiler.GetFieldDefaultValue(fie.Type)
-		}
+}
+
+func GetSysVarByKey[T any](m *BaseExtendManager, key string) T {
+	if _, ok := sysVars[key]; !ok {
+		var zero T
+		return zero
+	}
+	value, _ := m.Get(key)
+
+	if typedValue, ok := value.(T); ok {
+		return typedValue
 	}
 
-	return extVars, nil
+	var zero T
+	return zero
+}
+
+func GetSysVar[T any](rt *Runtime, key string) T {
+	if typedValue, ok := rt.extend[key].(T); ok {
+		return typedValue
+	}
+
+	var zero T
+	return zero
 }

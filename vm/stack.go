@@ -1,8 +1,6 @@
 package vm
 
 import (
-	"github.com/IBAX-io/needle/compiler"
-
 	"github.com/pkg/errors"
 )
 
@@ -55,7 +53,6 @@ func (s *Stack) push(d any) {
 // pushN adds multiple elements to the top of the stack.
 func (s *Stack) pushN(d []any) {
 	s.element = append(s.element, d...)
-	return
 }
 
 // get returns the element at the given index from the stack.
@@ -107,11 +104,11 @@ func (s *Stack) peekFromTo(from, to int) []any {
 
 // pop returns and removes the top element from the stack.
 func (s *Stack) pop() (ret any) {
-	ret = s.peek()
 	if s.size() == 0 {
 		s.element = s.element[:0]
-		return
+		return nil
 	}
+	ret = s.element[s.size()-1]
 	s.element = s.element[:s.size()-1]
 	return
 }
@@ -145,30 +142,4 @@ func (s *Stack) resetByIdx(idx int) {
 		idx = 0
 	}
 	s.element = s.element[:idx]
-}
-
-// blockStack is a stack of code blocks with their corresponding offsets.
-type blockStack struct {
-	Block  *compiler.CodeBlock
-	Offset int
-}
-
-// peekBlock returns the top block from the stack of blocks.
-func (rt *Runtime) peekBlock() *blockStack {
-	if len(rt.blocks) == 0 {
-		return nil
-	}
-	return rt.blocks[len(rt.blocks)-1]
-}
-
-// popBlock returns and removes the top block from the stack of blocks.
-func (rt *Runtime) popBlock() (ret *blockStack) {
-	ret = rt.blocks[len(rt.blocks)-1]
-	rt.blocks = rt.blocks[:len(rt.blocks)-1]
-	return
-}
-
-// pushBlock adds a block to the top of the stack of blocks.
-func (rt *Runtime) pushBlock(bs *blockStack) {
-	rt.blocks = append(rt.blocks, bs)
 }

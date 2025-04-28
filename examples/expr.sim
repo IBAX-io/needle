@@ -13,22 +13,22 @@ func operand_add {
    var a b int
     a = 10
     b = 20
-    Println("a + b gives", a + b)
+    Println("a1 + b1 gives", a + b)
 
     var a2 b2 string
     a2 = "10"
     b2 = "20"
-    Println("a + b gives", a2 + b2)
+    Println("a2 + b2 gives", a2 + b2)
 
     var a3 b3 money
     a3 = 10
     b3 = 20
-    Println("a + b gives", a3 + b3)
+    Println("a3 + b3 gives", a3 + b3)
 
     var a4 float b4 float
     a4 = 10.1
     b4 = 20.2
-    Println("a + b gives", a4 + b4)
+    Println("a4 + b4 gives", a4 + b4)
 }
 
 func operand_inc_dec {

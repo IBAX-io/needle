@@ -13,13 +13,48 @@ const (
 	IgnoreIdent
 )
 
-// CompConfig is used for the definition of the extended functions and variables
-type CompConfig struct {
+// Config is used for the definition of the extended functions and variables
+type Config struct {
 	Owner     *OwnerInfo
 	Func      []ExtendFunc
 	PreVar    []string
-	Objects   map[string]*Object
 	IgnoreObj IgnoreLevel
+
+	objects map[string]*Object
+}
+
+// EnsureDefault sets default values and returns the Config.
+func (cfg *Config) EnsureDefault() *Config {
+	if cfg.objects == nil {
+		cfg.objects = make(map[string]*Object)
+	}
+
+	if cfg.Owner == nil {
+		cfg.Owner = &OwnerInfo{StateId: 1}
+	}
+	if cfg.PreVar == nil {
+		cfg.PreVar = make([]string, 0)
+	}
+	if cfg.Func == nil {
+		cfg.Func = make([]ExtendFunc, 0)
+	}
+	return cfg
+}
+
+func (cfg *Config) SetObjects(src map[string]*Object) {
+	cfg.objects = src
+}
+
+// MakeExtFunc returns a map of the object of the extended functions
+func (cfg *Config) MakeExtFunc() map[string]*Object {
+	objects := make(map[string]*Object)
+	for _, item := range cfg.Func {
+		obj := item.MakeObject()
+		if obj != nil {
+			objects[item.Name] = obj
+		}
+	}
+	return objects
 }
 
 // ExtendFunc is used for the definition of the extended functions
@@ -29,48 +64,6 @@ type ExtendFunc struct {
 	Func     any
 	CanWrite bool
 	AutoPars map[string]string
-}
-
-// setDefault is a function that sets default values for the CompConfig struct.
-func setDefault(conf *CompConfig) {
-	if conf == nil {
-		conf = &CompConfig{
-			Objects: make(map[string]*Object),
-			Owner:   &OwnerInfo{StateId: 1},
-			PreVar:  make([]string, 0),
-			Func:    make([]ExtendFunc, 0),
-		}
-	}
-	if conf.Objects == nil {
-		conf.Objects = make(map[string]*Object)
-	}
-	if conf.Owner == nil {
-		conf.Owner = &OwnerInfo{StateId: 1}
-	}
-	if conf.PreVar == nil {
-		conf.PreVar = make([]string, 0)
-	}
-	if conf.Func == nil {
-		conf.Func = make([]ExtendFunc, 0)
-	}
-}
-
-// MakeConfig sets default values and returns the CompConfig.
-func (cfg *CompConfig) MakeConfig() *CompConfig {
-	setDefault(cfg)
-	return cfg
-}
-
-// MakeExtFunc returns a map of the object of the extended functions
-func (cfg *CompConfig) MakeExtFunc() map[string]*Object {
-	objects := make(map[string]*Object)
-	for _, item := range cfg.Func {
-		obj := item.MakeObject()
-		if obj != nil {
-			objects[item.Name] = obj
-		}
-	}
-	return objects
 }
 
 // MakeObject returns an Object if the ExtendFuncInfo is not nil.
@@ -85,6 +78,7 @@ func (item *ExtendFunc) MakeObject() *Object {
 func (item *ExtendFunc) ExtFuncInfo() *ExtFuncInfo {
 	f := reflect.ValueOf(item.Func).Type()
 	switch f.Kind() {
+	default:
 	case reflect.Func:
 		data := &ExtFuncInfo{
 			Name:     item.Name,

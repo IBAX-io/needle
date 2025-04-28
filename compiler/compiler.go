@@ -4,8 +4,8 @@ import (
 	"fmt"
 )
 
-// CompileBlock compiles a block of input runes into a CodeBlock using the provided CompConfig.
-func CompileBlock(input []rune, conf *CompConfig) (*CodeBlock, error) {
+// CompileBlock compiles a block of input runes into a CodeBlock using the provided Config.
+func CompileBlock(input []rune, conf *Config) (*CodeBlock, error) {
 	lexer, err := NewLexer(input)
 	if err != nil {
 		return nil, fmt.Errorf("lexer error: %w", err)
